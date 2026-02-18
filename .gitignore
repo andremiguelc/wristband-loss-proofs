@@ -1,0 +1,9 @@
+# Lake build artifacts
+.lake/build/
+.lake/packages/
+
+# ml-tidbits reference repo (local only, not tracked)
+ml-tidbits/
+
+# macOS
+.DS_Store
