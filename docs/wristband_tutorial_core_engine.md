@@ -13,12 +13,12 @@ It covers (in this file):
 - Spherical reconstruction (direction uniform + radius law determines the whole distribution)
 - The wristband equivalence theorem (uniform wristband \(\Leftrightarrow\) standard Gaussian)
 
-> Suggested naming: use **“Core probabilistic engine”** rather than “Goal A.”  
+> Suggested naming: use **“Core probabilistic engine.”**  
 > This is the mathematical mechanism that makes the wristband idea work.
 
 ---
 
-## 1) Pushforward: turning one distribution into another
+## Pushforward: turning one distribution into another
 
 ### Definition (Pushforward \(f_\#Q\))
 Suppose you have:
@@ -52,7 +52,7 @@ So we want a precise name for the resulting distribution:
 
 ---
 
-## 2) Wristband space and its “uniform target”
+## Wristband space and its “uniform target”
 
 ### Definition (Wristband space)
 Let
@@ -90,7 +90,7 @@ The wristband method is designed so that a standard Gaussian in \(\mathbb R^d\) 
 
 ---
 
-## 3) The target in \(\mathbb R^d\)
+## The target in \(\mathbb R^d\)
 
 ### Definition (Standard Gaussian target)
 The “gold standard” distribution is:
@@ -106,7 +106,7 @@ Intuition:
 
 ---
 
-## 4) The wristband map \(\Phi\)
+## The wristband map \(\Phi\)
 
 This is the core engineering choice of the method.
 
@@ -136,7 +136,7 @@ Because \(u=z/\|z\|\) is undefined at \(z=0\). Continuous distributions (like Ga
 
 ---
 
-## 5) The probabilistic engine behind wristband
+## The probabilistic engine behind wristband
 
 Now we explain the two classical results that make \(\Phi\) work.
 
@@ -188,7 +188,7 @@ For \(y\in[0,1]\),
 
 ---
 
-## 6) Spherical reconstruction: direction + radius determine the whole distribution
+## Spherical reconstruction: direction + radius determine the whole distribution
 
 ### Lemma (Spherical construction determined by the radius)
 Let \(U\sim\sigma_{d-1}\) be uniform on the sphere, and let \(R\ge 0\) be independent of \(U\).
@@ -216,7 +216,7 @@ Once direction is uniform, the only remaining freedom is the radius distribution
 
 ---
 
-## 7) The wristband equivalence theorem (the cornerstone)
+## The wristband equivalence theorem (the cornerstone)
 
 ### Theorem (Wristband equivalence)
 Let \(Q\) be a distribution on \(\mathbb R^d\) with \(Q(\{0\})=0\). Then
@@ -232,7 +232,7 @@ This says:
 
 ### Proof, slowly
 
-#### (A) If \(Q=\gamma\), then \(\Phi_\#Q=\mu_0\)
+#### Forward direction: if \(Q=\gamma\), then \(\Phi_\#Q=\mu_0\)
 Let \(Z\sim\gamma\).
 
 1. By Gaussian polar decomposition, \(U=Z/\|Z\|\sim\sigma_{d-1}\).
@@ -243,7 +243,7 @@ Let \(Z\sim\gamma\).
 
 So \((U,T)\) has uniform marginals and independence, hence \((U,T)\sim\mu_0\).
 
-#### (B) If \(\Phi_\#Q=\mu_0\), then \(Q=\gamma\)
+#### Backward direction: if \(\Phi_\#Q=\mu_0\), then \(Q=\gamma\)
 Assume \((U,T)=\Phi(Z)\sim\mu_0\) when \(Z\sim Q\). Then:
 - \(U\sim\sigma_{d-1}\),
 - \(T\sim\mathrm{Unif}[0,1]\),
@@ -266,7 +266,7 @@ Since \(\gamma\) has the same \(R\) distribution, \(Q\) must equal \(\gamma\).
 
 ---
 
-## 8) Where this fits in a proof repository
+## Where this fits in a proof repository
 
 A practical structure (both docs and formal proofs) is to split the project into layers:
 
@@ -281,7 +281,7 @@ This mirrors how the method is built:
 
 ---
 
-## 9) References (minimal, high-level)
+## References (minimal, high-level)
 
 - Gaussian polar decomposition / spherical symmetry: standard multivariate probability (e.g., Fang–Kotz–Ng; Anderson).
 - Probability integral transform: standard statistics (e.g., Casella–Berger).
