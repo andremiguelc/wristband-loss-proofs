@@ -1,19 +1,19 @@
 # Wristband — Foundational Tutorial (Step-by-step)
 
-This tutorial explains, very slowly and intuitively, the most foundational pieces of the Goal‑A framework from `wristband_goalA_framework.md`.
+This tutorial explains, very slowly and intuitively, the most foundational pieces of the wristband correctness framework.
 
 It covers:
 
-1. **Definition 1.1 (Pushforward)**  
-2. **Definition 1.2 (Wristband space \(\mathcal W\) and uniform measure \(\mu_0\))**  
-3. **Definition 1.3 (Target distribution \(\gamma\))**  
-4. **Definition 2.1 (Wristband map \(\Phi\))**
+1. **Definition (Pushforward)**  
+2. **Definition (Wristband space \(\mathcal W\) and uniform measure \(\mu_0\))**  
+3. **Definition (Target distribution \(\gamma\))**  
+4. **Definition (Wristband map \(\Phi\))**
 
 The goal is to make the meaning of each object obvious before we move on to deeper theorems.
 
 ---
 
-## Definition 1.1 — Pushforward \(f_\#Q\)
+## Pushforward \(f_\#Q\)
 
 ### The statement
 
@@ -66,7 +66,7 @@ The wristband version is the same idea, but \(f=\Phi\) is “take direction and 
 
 ---
 
-## Definition 1.2 — Wristband space \(\mathcal W\) and “uniform wristband” \(\mu_0\)
+## Wristband space \(\mathcal W\) and “uniform wristband” \(\mu_0\)
 
 ### The statement
 
@@ -126,7 +126,7 @@ That is exactly what \(\mu_0\) captures.
 
 ---
 
-## Definition 1.3 — The target distribution \(\gamma = \mathcal N(0,I_d)\)
+## The target distribution \(\gamma = \mathcal N(0,I_d)\)
 
 ### The statement
 
@@ -157,11 +157,11 @@ So the “correctness” statement is:
 
 > If the loss is minimized, the distribution must match \(\gamma\).
 
-That is what Goal A is about.
+That is the core correctness objective.
 
 ---
 
-## Definition 2.1 — The wristband map \(\Phi\)
+## The wristband map \(\Phi\)
 
 This is the heart of the method.
 
@@ -245,5 +245,5 @@ Now that we have the objects, the next step is to justify the two key facts that
 1. **Gaussian polar decomposition**: Gaussian → direction is uniform and independent of radius  
 2. **Probability integral transform**: applying the right CDF to radius → uniform \([0,1]\)
 
-These are **Theorem 3.1** and **Theorem 3.2** in the framework document, and they are the “engine” behind the wristband equivalence.
-
+These are the **Gaussian polar decomposition theorem** and the
+**Probability integral transform theorem** in the framework document, and they are the “engine” behind the wristband equivalence.

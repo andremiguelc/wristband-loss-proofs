@@ -1,9 +1,9 @@
-# Wristband Gaussian Loss — Goal A Correctness Framework (Lean-friendly)
+# Wristband Gaussian Loss — Correctness Framework (Lean-friendly)
 
 This note provides a **formal, proof-oriented framework** for the “Wristband Gaussian Loss” used in `C_WristbandGaussianLoss` (see `EmbedModels.py`).
 It is written as a **theorem/lemma/definition** chain suitable as a basis for later formalization (e.g., in Lean).
 
-The focus is **Goal A (Correctness)**:
+The focus is the **population correctness objective**:
 
 > In the infinite-data / population limit, the Wristband loss should have a **unique minimizer** at the standard Gaussian  
 > \(\gamma := \mathcal N(0,I_d)\), and no non-Gaussian distribution should achieve the same optimum.
@@ -41,11 +41,11 @@ Fix an integer \(d\ge 2\).
 - Let \(S^{d-1} := \{u\in\mathbb R^d : \|u\|=1\}\) with Borel \(\sigma\)-algebra.
 - Let \([0,1]\) have its Borel \(\sigma\)-algebra.
 
-**Definition 1.1 (Pushforward).**  
+**Definition (Pushforward).**  
 If \(f:X\to Y\) is measurable and \(Q\in \mathcal P(X)\), define the pushforward \(f_\#Q\in\mathcal P(Y)\) by
 \((f_\#Q)(A):=Q(f^{-1}(A))\).
 
-**Definition 1.2 (Wristband space and uniform measure).**
+**Definition (Wristband space and uniform measure).**
 Define the wristband space and its uniform measure:
 \[
 \mathcal W := S^{d-1}\times[0,1],\qquad
@@ -55,7 +55,7 @@ where:
 - \(\sigma_{d-1}\) is the Haar (uniform) probability measure on \(S^{d-1}\);
 - \(\lambda\) is the uniform probability measure on \([0,1]\).
 
-**Definition 1.3 (Target distribution).**  
+**Definition (Target distribution).**  
 \(\gamma := \mathcal N(0,I_d)\).
 
 ---
@@ -72,7 +72,7 @@ Theoretical statements ignore the clamp (it changes nothing at population level 
 Let \(P(a,x)\) denote the **regularized lower incomplete gamma** function. For \(S\sim\chi^2_d\),
 \(\mathbb P(S\le s) = P(d/2,\; s/2)\).
 
-**Definition 2.1 (Wristband map \(\Phi\)).**  
+**Definition (Wristband map \(\Phi\)).**  
 For \(z\in\mathbb R^d\setminus\{0\}\), define
 \[
 \Phi(z):=(u,t)
@@ -91,7 +91,7 @@ This section is the “information preservation” result: testing Gaussianity o
 
 ### 3.1 Imported facts about Gaussians and the probability integral transform
 
-**Theorem 3.1 (Gaussian polar decomposition; imported).**  
+**Theorem (Gaussian polar decomposition; imported).**  
 Let \(Z\sim \mathcal N(0,I_d)\). Define \(R:=\|Z\|\) and \(U:=Z/\|Z\|\). Then:
 1. \(U\sim \sigma_{d-1}\),
 2. \(R^2\sim \chi^2_d\),
@@ -99,14 +99,14 @@ Let \(Z\sim \mathcal N(0,I_d)\). Define \(R:=\|Z\|\) and \(U:=Z/\|Z\|\). Then:
 
 *(Reference: [1], Ch. 2; see also standard multivariate analysis texts.)*
 
-**Theorem 3.2 (Probability integral transform; imported).**  
+**Theorem (Probability integral transform; imported).**  
 If \(X\) has a continuous CDF \(F\), then \(F(X)\sim\mathrm{Unif}[0,1]\).
 
 *(Reference: [2], Ch. 2.)*
 
 ### 3.2 Direction–radius reconstruction
 
-**Lemma 3.3 (Spherical construction is determined by radius).**  
+**Lemma (Spherical construction is determined by radius).**  
 Let \(U\sim \sigma_{d-1}\) and \(R\ge 0\) be a real random variable independent of \(U\).
 Define \(Z:=RU\in\mathbb R^d\). Then:
 1. \(Z\) is rotation-invariant (spherically symmetric);
@@ -120,7 +120,7 @@ so the mixture over radii determines the law. \(\square\)
 
 ### 3.3 Main wristband equivalence theorem
 
-**Theorem 3.4 (Wristband equivalence).**  
+**Theorem (Wristband equivalence).**  
 Let \(Q\in\mathcal P(\mathbb R^d)\) satisfy \(Q(\{0\})=0\). Then
 \[
 P_Q=\mu_0
@@ -130,15 +130,15 @@ Q=\gamma.
 
 **Proof.**
 
-**(\(\Rightarrow\))** Suppose \(Q=\gamma\). By Theorem 3.1, \(U:=Z/\|Z\|\sim\sigma_{d-1}\) and \(S:=\|Z\|^2\sim\chi^2_d\) with \(U\perp S\).
-Define \(T:=P(d/2,\;S/2)\). Since \(T\) is the CDF of \(S\), by Theorem 3.2 we have \(T\sim\mathrm{Unif}[0,1]\), and \(U\perp T\).
+**(\(\Rightarrow\))** Suppose \(Q=\gamma\). By the Gaussian polar decomposition theorem, \(U:=Z/\|Z\|\sim\sigma_{d-1}\) and \(S:=\|Z\|^2\sim\chi^2_d\) with \(U\perp S\).
+Define \(T:=P(d/2,\;S/2)\). Since \(T\) is the CDF of \(S\), by the Probability integral transform theorem we have \(T\sim\mathrm{Unif}[0,1]\), and \(U\perp T\).
 Thus \((U,T)\sim\sigma_{d-1}\otimes\lambda=\mu_0\), i.e. \(P_\gamma=\mu_0\).
 
 **(\(\Leftarrow\))** Suppose \(P_Q=\mu_0\).
 Let \(Z\sim Q\) and set \((U,T):=\Phi(Z)\). Then \(U\sim\sigma_{d-1}\), \(T\sim\mathrm{Unif}[0,1]\), and \(U\perp T\).
 Let \(S:=\|Z\|^2\). By definition \(T=P(d/2,\;S/2)=F_{\chi^2_d}(S)\). Since \(T\) is uniform, \(S\sim\chi^2_d\), and \(U\perp S\).
-Let \(R:=\sqrt S\). By Lemma 3.3, \(Z\) is spherically symmetric and determined by the law of \(R\).
-But \(\gamma\) has the same pair \((U,R)\) distribution (Theorem 3.1), hence \(Q=\gamma\). \(\square\)
+Let \(R:=\sqrt S\). By the spherical construction determined by radius lemma, \(Z\) is spherically symmetric and determined by the law of \(R\).
+But \(\gamma\) has the same pair \((U,R)\) distribution (by Gaussian polar decomposition), hence \(Q=\gamma\). \(\square\)
 
 ---
 
@@ -155,21 +155,21 @@ For a clean correctness theorem we formalize the **chordal** variant (which is P
 
 Fix parameters \(\beta>0\) and \(\alpha>0\).
 
-**Definition 4.1 (Chordal distance).**
+**Definition (Chordal distance).**
 For \(u,u'\in S^{d-1}\),
 \[
 d_{\mathrm{ch}}(u,u') := \|u-u'\|.
 \]
 Equivalently \(d_{\mathrm{ch}}^2(u,u')=2-2\langle u,u'\rangle\).
 
-**Definition 4.2 (Angular kernel).**
+**Definition (Angular kernel).**
 \[
 k_{\mathrm{ang}}(u,u') := \exp\!\big(-\beta\alpha^2\, d_{\mathrm{ch}}^2(u,u')\big).
 \]
 
 ### 4.2 Radial component (3-image reflection as in code)
 
-**Definition 4.3 (Three-image displacements).**
+**Definition (Three-image displacements).**
 For \(t,t'\in[0,1]\) define
 \[
 \delta_0(t,t') := t-t',\qquad
@@ -177,14 +177,14 @@ For \(t,t'\in[0,1]\) define
 \delta_2(t,t') := t+t'-2.
 \]
 
-**Definition 4.4 (Three-image radial kernel).**
+**Definition (Three-image radial kernel).**
 \[
 k_{\mathrm{rad}}^{(3)}(t,t') := \sum_{m=0}^{2}\exp\!\big(-\beta\,\delta_m(t,t')^2\big).
 \]
 
 ### 4.3 Joint kernel on the wristband
 
-**Definition 4.5 (Wristband kernel \(K^{(3)}\)).**
+**Definition (Wristband kernel \(K^{(3)}\)).**
 For \(w=(u,t)\), \(w'=(u',t')\in\mathcal W\),
 \[
 K^{(3)}(w,w')
@@ -201,7 +201,7 @@ This matches the code’s joint repulsion terms computed via:
 
 To analyze correctness we define the population (infinite-data) functional corresponding to the repulsion term.
 
-**Definition 5.1 (Kernel energy).**  
+**Definition (Kernel energy).**  
 For \(P\in\mathcal P(\mathcal W)\), define
 \[
 \mathcal E^{(3)}(P):=\iint_{\mathcal W\times\mathcal W}K^{(3)}(w,w')\,dP(w)\,dP(w').
@@ -209,7 +209,7 @@ For \(P\in\mathcal P(\mathcal W)\), define
 Equivalently, if \(W,W'\stackrel{iid}{\sim}P\),
 \(\mathcal E^{(3)}(P)=\mathbb E[K^{(3)}(W,W')]\).
 
-**Definition 5.2 (Population repulsion loss).**  
+**Definition (Population repulsion loss).**  
 For \(Q\in\mathcal P(\mathbb R^d)\) with \(Q(\{0\})=0\), define
 \[
 \mathcal L_{\mathrm{rep}}(Q) := \frac{1}{\beta}\log \mathcal E^{(3)}(P_Q).
@@ -242,7 +242,7 @@ The kernel \(K^{(3)}\) satisfies:
 
 The following “sufficient condition route” is useful for a formal proof plan:
 
-**Definition 6.1 (MMD for a PSD kernel).**  
+**Definition (MMD for a PSD kernel).**  
 Let \(K\) be PSD and bounded on \(\mathcal W\). Define for \(P,Q\in\mathcal P(\mathcal W)\):
 \[
 \mathrm{MMD}_K^2(P,Q)
@@ -250,13 +250,13 @@ Let \(K\) be PSD and bounded on \(\mathcal W\). Define for \(P,Q\in\mathcal P(\m
 \]
 where \(X,X'\stackrel{iid}{\sim}P\), \(Y,Y'\stackrel{iid}{\sim}Q\), independent.
 
-**Theorem 6.2 (Characteristic kernel; imported).**  
+**Theorem (Characteristic kernel; imported).**  
 If \(K\) is **characteristic** on \(\mathcal W\), then
 \(\mathrm{MMD}_K(P,Q)=0\iff P=Q\).
 
 *(Reference: [8], [9], [16].)*
 
-**Lemma 6.3 (Constant potential \(\Rightarrow\) energy difference equals MMD; standard).**  
+**Lemma (Constant potential \(\Rightarrow\) energy difference equals MMD; standard).**  
 Let \(K\) be PSD and bounded. Fix a measure \(\mu\in\mathcal P(\mathcal W)\) and define the potential
 \(h(w):=\int K(w,w')\,d\mu(w')\).
 If \(h\) is constant \(\mu\)-a.e. (or everywhere), then for all \(P\in\mathcal P(\mathcal W)\),
@@ -268,7 +268,7 @@ If \(h\) is constant \(\mu\)-a.e. (or everywhere), then for all \(P\in\mathcal P
 Using \(\iint K\,dP\,d\mu=\int h\,dP\) and \(\int h\,d\mu = \mathcal E_K(\mu)\), the constant-potential condition implies
 \(\int h\,dP=\int h\,d\mu=\mathcal E_K(\mu)\), giving the identity. \(\square\)
 
-**Corollary 6.4 (Uniqueness via characteristicness).**  
+**Corollary (Uniqueness via characteristicness).**  
 If \(K\) is characteristic and \(h\) is constant for \(\mu=\mu_0\), then \(\mu_0\) is the unique minimizer of \(\mathcal E_K\).
 
 This corollary is the typical “external-results” pathway to establish Hypothesis K for a suitably symmetric kernel.
@@ -277,7 +277,7 @@ This corollary is the typical “external-results” pathway to establish Hypoth
 
 ## 7. Main correctness theorem (population)
 
-**Theorem 7.1 (Population correctness of wristband repulsion).**  
+**Theorem (Population correctness of wristband repulsion).**  
 Assume Hypothesis K holds for \(K^{(3)}\). Then the population repulsion loss
 \(\mathcal L_{\mathrm{rep}}(Q)\) has a unique minimizer over \(\{Q\in\mathcal P(\mathbb R^d):Q(\{0\})=0\}\),
 namely
@@ -289,7 +289,7 @@ Q^\star=\gamma=\mathcal N(0,I_d).
 By Hypothesis K(2–3), \(\mathcal E^{(3)}(P)\) is uniquely minimized at \(P=\mu_0\).
 Since \(\log\) is strictly increasing, the same holds for \(\mathcal L_{\mathrm{rep}}(Q)\), so its unique minimizer must satisfy
 \(P_Q=\mu_0\).
-By Theorem 3.4, \(P_Q=\mu_0\iff Q=\gamma\). \(\square\)
+By the Wristband equivalence theorem, \(P_Q=\mu_0\iff Q=\gamma\). \(\square\)
 
 ---
 
@@ -304,10 +304,10 @@ Calibration is an affine transformation under the null, which does not change po
 The code’s radial term is an empirical \(W_2^2\)-style functional on \(t\in[0,1]\), up to a positive scale factor.
 At population level we can define the canonical target.
 
-**Definition 8.1 (Radial marginal).**  
+**Definition (Radial marginal).**  
 For \(P\in\mathcal P(\mathcal W)\), let \(P^t := (\pi_t)_\# P\in\mathcal P([0,1])\).
 
-**Definition 8.2 (Population radial penalty).**
+**Definition (Population radial penalty).**
 \[
 \mathcal L_{\mathrm{rad}}(Q):= W_2^2(P_Q^t,\lambda).
 \]
@@ -321,7 +321,7 @@ The code supports several moment penalties; the cleanest population statement is
 
 Assume \(Q\) has finite second moment. Let \(\mu_Q:=\mathbb E_Q[Z]\) and \(\Sigma_Q:=\mathrm{Cov}_Q(Z)\).
 
-**Definition 8.3 (Gaussian moment penalty).**
+**Definition (Gaussian moment penalty).**
 \[
 \mathcal L_{\mathrm{mom}}(Q):=\frac{1}{d}W_2^2\big(\mathcal N(\mu_Q,\Sigma_Q),\;\mathcal N(0,I_d)\big).
 \]
@@ -329,15 +329,15 @@ Then \(\mathcal L_{\mathrm{mom}}(Q)\ge 0\) and equals \(0\) iff \(\mu_Q=0\) and 
 
 ### 8.3 Composite loss does not change the population minimizer
 
-**Lemma 8.4 (Nonnegative add-ons preserve a unique minimizer).**  
+**Lemma (Nonnegative add-ons preserve a unique minimizer).**  
 Let \(f\) have a unique minimizer at \(x^\star\).
 If \(g\ge 0\) and \(g(x^\star)=0\), then \(f+\lambda g\) has the same unique minimizer for any \(\lambda\ge 0\).
 
-**Lemma 8.5 (Affine calibration preserves minimizers).**  
+**Lemma (Affine calibration preserves minimizers).**  
 If \(a>0\) and \(b\in\mathbb R\), then \(\arg\min f = \arg\min (af+b)\).
 
-**Corollary 8.6 (Population correctness of the full wristband loss).**  
-Assume Theorem 7.1 (repulsion term has unique minimizer \(\gamma\)).
+**Corollary (Population correctness of the full wristband loss).**  
+Assume the Population correctness of wristband repulsion theorem (repulsion term has unique minimizer \(\gamma\)).
 Let \(\lambda_{\mathrm{rad}},\lambda_{\mathrm{mom}},\lambda_{\mathrm{ang}}\ge 0\) and define any calibrated/affine combination of
 \(\mathcal L_{\mathrm{rep}},\mathcal L_{\mathrm{rad}},\mathcal L_{\mathrm{mom}}\) (and an optional angular-only uniformity term).
 Then the composite population loss is uniquely minimized at \(Q=\gamma\).
@@ -352,7 +352,7 @@ Let \(W_1,\dots,W_N\stackrel{iid}{\sim}P\) and consider the U-statistic
 \(\widehat{\mathcal E}_N := \frac{1}{N(N-1)}\sum_{i\ne j}K^{(3)}(W_i,W_j)\).
 The “global” reduction is essentially \(\log \widehat{\mathcal E}_N\) up to diagonal/image conventions.
 
-**Theorem 9.1 (Law of large numbers for U-statistics; imported).**  
+**Theorem (Law of large numbers for U-statistics; imported).**  
 If \(K^{(3)}\) is bounded, then \(\widehat{\mathcal E}_N\to \mathcal E^{(3)}(P)\) almost surely as \(N\to\infty\).
 
 *(Reference: [15] for U-statistics and convergence.)*
