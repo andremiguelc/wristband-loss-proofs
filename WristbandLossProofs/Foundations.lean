@@ -100,11 +100,11 @@ def wristbandUniform (d : ℕ) : Distribution (Wristband d) :=
 /-- Rotate a point on the sphere via a linear isometric equivalence. -/
 def rotateSphere {d : ℕ} (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) (u : Sphere d) : Sphere d := by
   refine ⟨O u.1, ?_⟩
-  have hu : ‖u.1‖ = 1 := by simpa [Metric.mem_sphere, dist_eq_norm] using u.2
+  have hu : ‖u.1‖ = 1 := by simp
   have hOu : ‖O u.1‖ = 1 := by
     calc ‖O u.1‖ = ‖u.1‖ := O.norm_map u.1
       _ = 1 := hu
-  simpa [Metric.mem_sphere, dist_eq_norm] using hOu
+  simp [hOu]
 
 /-! ## CDF and PIT Definitions -/
 
