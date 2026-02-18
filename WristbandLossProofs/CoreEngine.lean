@@ -1,8 +1,4 @@
-import WristbandLossProofs.CoreEngine.Geometry
-import WristbandLossProofs.CoreEngine.SphereUniform
-import WristbandLossProofs.CoreEngine.PITDefs
-import WristbandLossProofs.CoreEngine.Imported.GaussianPolar
-import WristbandLossProofs.CoreEngine.Imported.PIT
+import WristbandLossProofs.Foundations
 
 set_option autoImplicit false
 
