@@ -6,6 +6,8 @@ noncomputable section
 
 namespace WristbandLossProofs
 
+open MeasureTheory
+
 /-!
 # Core Probabilistic Engine (Scaffold)
 
@@ -14,13 +16,12 @@ This file is the first Lean scaffold for the correctness framework in
 It is intentionally tutorial-oriented and intentionally incremental:
 
 - we define the geometric objects used by the wristband map,
-- we introduce an abstract `Distribution` interface for now,
+- we use concrete Mathlib measures for distributions and pushforwards,
 - we state theorem skeletons with detailed proof roadmaps in comments.
 
-Why abstract distributions first?
-The short-term goal is to lock in theorem structure and dependency flow.
-In a later pass we can replace these abstract primitives by concrete
-measure-theoretic definitions from Mathlib.
+Why use concrete measures already at this stage?
+This removes "plumbing axioms" and keeps the imported assumptions focused only
+on genuine mathematics that we still plan to prove or cite explicitly.
 -/
 
 /-! ## Basic Geometric Types -/
@@ -34,37 +35,73 @@ def Sphere (d : ℕ) : Type := {u : Vec d // ‖u‖ = 1}
 /-- Nonzero vectors, used because `z / ‖z‖` is undefined at the origin. -/
 def VecNZ (d : ℕ) : Type := {z : Vec d // z ≠ 0}
 
-/-- The closed unit interval `[0,1]` as a subtype of real numbers. -/
-def UnitInterval : Type := {t : ℝ // t ∈ Set.Icc (0 : ℝ) 1}
+/--
+The closed unit interval `[0,1]` as a subtype of real numbers.
+
+This is the same underlying type as Mathlib's `I` (from `open scoped unitInterval`),
+written explicitly to keep the file self-contained and readable.
+-/
+abbrev UnitInterval : Type := Set.Icc (0 : ℝ) 1
 
 /-- Wristband space: direction coordinate plus radial-percentile coordinate. -/
 abbrev Wristband (d : ℕ) : Type := Sphere d × UnitInterval
 
-/-! ## Abstract Distribution Interface (First Scaffold Pass) -/
+/-!
+The following instances are all definitional consequences of subtype/product
+constructions. We register them explicitly so later declarations stay readable
+and typeclass search remains predictable in this scaffold.
+-/
+
+instance instMeasurableSpaceSphere (d : ℕ) : MeasurableSpace (Sphere d) := by
+  unfold Sphere
+  infer_instance
+
+instance instMeasurableSpaceVecNZ (d : ℕ) : MeasurableSpace (VecNZ d) := by
+  unfold VecNZ
+  infer_instance
+
+instance instMeasurableSpaceUnitInterval : MeasurableSpace UnitInterval := by
+  unfold UnitInterval
+  infer_instance
+
+/-! ## Concrete Distribution Interface (Mathlib Measures) -/
 
 universe u v w
 
 /--
 `Distribution α` means "a probability law on `α`".
 
-For this first scaffold we treat it as abstract data.
-Later this will be concretized as a Mathlib probability measure.
+At this stage we model laws as measures. Later we can enforce probability
+normalization at the type level (`ProbabilityMeasure`) where useful.
 -/
-axiom Distribution : Type u → Type u
+abbrev Distribution (α : Type u) [MeasurableSpace α] : Type u := Measure α
 
-/-- Pushforward of a distribution along a measurable/random-variable map. -/
-axiom pushforward {α : Type u} {β : Type v} :
+/--
+Pushforward of a distribution along a random-variable map.
+
+For a function `f : α → β` and law `μ` on `α`, this is the law of `f(X)` when `X ∼ μ`.
+-/
+def pushforward {α : Type u} {β : Type v}
+    [MeasurableSpace α] [MeasurableSpace β] :
     (α → β) → Distribution α → Distribution β
+  | f, μ => Measure.map f μ
 
-/-- Product law constructor (independent coupling). -/
-axiom productLaw {α : Type u} {β : Type v} :
+/--
+Product law constructor for independent couplings.
+
+`productLaw μ ν` is the measure-theoretic product `μ.prod ν`.
+-/
+def productLaw {α : Type u} {β : Type v}
+    [MeasurableSpace α] [MeasurableSpace β] :
     Distribution α → Distribution β → Distribution (α × β)
+  | μ, ν => μ.prod ν
 
 /--
 Independence encoded by the usual identity:
 joint law equals product of marginals.
 -/
 def IndepLaw {Ω : Type u} {α : Type v} {β : Type w}
+    [MeasurableSpace Ω] [MeasurableSpace α] [MeasurableSpace β]
     (μ : Distribution Ω) (X : Ω → α) (Y : Ω → β) : Prop :=
   pushforward (fun ω => (X ω, Y ω)) μ =
     productLaw (pushforward X μ) (pushforward Y μ)
@@ -74,8 +111,13 @@ def IndepLaw {Ω : Type u} {α : Type v} {β : Type w}
 /-- Uniform law on the sphere (Haar probability), imported for now. -/
 axiom sphereUniform (d : ℕ) : Distribution (Sphere d)
 
-/-- Uniform law on `[0,1]`, imported for now. -/
-axiom uniform01 : Distribution UnitInterval
+/--
+Uniform law on `[0,1]`.
+
+Mathlib already equips the unit interval subtype with its canonical probability
+measure, so we can use `volume` directly here.
+-/
+def uniform01 : Distribution UnitInterval := (volume : Measure UnitInterval)
 
 /-- Target wristband law `μ₀ = σ_{d-1} ⊗ λ`. -/
 def wristbandUniform (d : ℕ) : Distribution (Wristband d) :=
@@ -108,6 +150,24 @@ def wristbandLaw (d : ℕ) (Q : Distribution (VecNZ d)) : Distribution (Wristban
   pushforward (wristbandMap d) Q
 
 /-! ## Imported Gaussian Facts (Gaussian Polar Decomposition Package) -/
+
+/-!
+### Axiom Ledger (Current Status)
+
+At this stage, all *infrastructure* objects (measures, pushforwards, products, uniform
+law on `[0,1]`) are concrete Mathlib definitions.
+
+The remaining axioms are only the mathematically substantive imported facts we still need
+to formalize or reference:
+
+1. `sphereUniform` and its rotation invariance;
+2. Gaussian polar decomposition facts (`direction`, chi-square radius law, independence);
+3. abstract PIT hypotheses (`IsContinuousCDFFor`, `IsStrictlyIncreasingCDFFor`) used by
+   theorem skeletons.
+
+This separation keeps the scaffold honest: axioms now correspond to actual theorem debt,
+not missing API plumbing.
+-/
 
 /--
 Standard Gaussian law, encoded on nonzero vectors for the wristband map domain.
