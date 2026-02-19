@@ -40,18 +40,69 @@ def IsRotationInvariant (d : ℕ) (μ : Distribution (Vec d)) : Prop :=
 /--
 **Lemma (Spherical law, rotation-invariance part):**
 spherical construction is rotation-invariant.
+
+Technical note: this formal proof uses `SFinite` assumptions so that
+Mathlib's product-measure transport lemmas (`Measure.map_prod_map`) apply.
 -/
 theorem sphericalLaw_rotationInvariant
     (d : ℕ)
-    (radiusLaw : Distribution NNReal) :
+    (radiusLaw : Distribution NNReal)
+    [SFinite radiusLaw]
+    [SFinite (sphereUniform d)] :
     IsRotationInvariant d (sphericalLaw d radiusLaw) := by
   intro O
-  -- Tutorial roadmap:
-  -- 1. Show `O (r • u) = r • (O u)` pointwise.
-  -- 2. Push this identity through the distribution construction.
-  -- 3. Use `sphereUniform_rotationInvariant`.
-  -- 4. Conclude the final law is unchanged by `O`.
-  sorry
+  unfold sphericalLaw pushforward productLaw
+  -- Step 1: establish measurability of every map that appears in `map_map` rewrites.
+  have hMeasO : Measurable (fun z : Vec d => O z) := O.continuous.measurable
+  have hMeasRadialReconstruct : Measurable (radialReconstruct d) := by
+    change Measurable (fun p : NNReal × Sphere d => (p.1 : ℝ) • p.2.1)
+    exact (measurable_coe_nnreal_real.comp measurable_fst).smul
+      (measurable_subtype_coe.comp measurable_snd)
+  have hMeasRotateSphere : Measurable (rotateSphere O) := by
+    unfold rotateSphere
+    refine Measurable.subtype_mk ?_
+    simpa [Function.comp] using
+      (O.continuous.comp continuous_subtype_val).measurable
+  have hMeasRotateProd :
+      Measurable (Prod.map id (rotateSphere O) : NNReal × Sphere d → NNReal × Sphere d) :=
+    measurable_id.prodMap hMeasRotateSphere
+  -- Step 2: pointwise algebra. Rotating `r • u` equals reconstructing from `(r, O u)`.
+  have hPointwiseCommute :
+      ((fun z : Vec d => O z) ∘ radialReconstruct d) =
+        radialReconstruct d ∘ Prod.map id (rotateSphere O) := by
+    funext p
+    rcases p with ⟨r, u⟩
+    simp [radialReconstruct, rotateSphere, Function.comp]
+  -- Step 3: transport the product law through `Prod.map id (rotateSphere O)`.
+  -- The first coordinate is unchanged, and the second one is invariant by imported axiom.
+  have hProdMap :
+      Measure.map (Prod.map id (rotateSphere O)) (radiusLaw.prod (sphereUniform d)) =
+        radiusLaw.prod (sphereUniform d) := by
+    calc
+      Measure.map (Prod.map id (rotateSphere O)) (radiusLaw.prod (sphereUniform d))
+          = (Measure.map id radiusLaw).prod (Measure.map (rotateSphere O) (sphereUniform d)) := by
+              symm
+              exact Measure.map_prod_map radiusLaw (sphereUniform d) measurable_id hMeasRotateSphere
+      _ = radiusLaw.prod (Measure.map (rotateSphere O) (sphereUniform d)) := by
+            simp [Measure.map_id]
+      _ = radiusLaw.prod (sphereUniform d) := by
+            simpa [pushforward] using congrArg (fun μ => radiusLaw.prod μ)
+              (sphereUniform_rotationInvariant d O)
+  -- Step 4: chain the previous identities into equality of pushforward laws.
+  calc
+    Measure.map (fun z : Vec d => O z)
+        (Measure.map (radialReconstruct d) (radiusLaw.prod (sphereUniform d)))
+        = Measure.map ((fun z : Vec d => O z) ∘ radialReconstruct d)
+            (radiusLaw.prod (sphereUniform d)) := by
+            rw [Measure.map_map hMeasO hMeasRadialReconstruct]
+    _ = Measure.map (radialReconstruct d ∘ Prod.map id (rotateSphere O))
+          (radiusLaw.prod (sphereUniform d)) := by
+            rw [hPointwiseCommute]
+    _ = Measure.map (radialReconstruct d)
+          (Measure.map (Prod.map id (rotateSphere O)) (radiusLaw.prod (sphereUniform d))) := by
+            rw [← Measure.map_map hMeasRadialReconstruct hMeasRotateProd]
+    _ = Measure.map (radialReconstruct d) (radiusLaw.prod (sphereUniform d)) := by
+            rw [hProdMap]
 
 /--
 **Lemma (Spherical law, radius-identification part):**
