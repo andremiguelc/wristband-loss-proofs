@@ -1,4 +1,4 @@
-import WristbandLossProofs.Foundations
+import WristbandLossProofs.ImportedFacts
 
 set_option autoImplicit false
 
@@ -105,9 +105,14 @@ theorem sphericalLaw_rotationInvariant
             rw [hProdMap]
 
 /--
-**Lemma (Spherical law, radius-identification part):**
-once direction is uniform/independent,
-the law of `Z = R•U` is fully determined by the law of `R`.
+**Lemma (Current placeholder): radius-law extensionality.**
+
+This lemma currently proves only the direct rewrite:
+if the two radius laws are equal, the induced spherical laws are equal.
+
+TODO: replace with the stronger identification theorem used in the proof plan:
+under uniform-direction and independence assumptions, the law of `Z = R•U`
+is determined by the radius law.
 -/
 theorem sphericalLaw_determinedByRadius
     (d : ℕ)
