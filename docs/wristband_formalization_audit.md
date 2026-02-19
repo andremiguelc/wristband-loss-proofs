@@ -120,7 +120,7 @@ The current statement-level mismatches are listed below.
 
 ### 3.1 High-priority gap A: `sphericalLaw_determinedByRadius` is only extensional rewrite
 
-Current theorem:
+Previous (too-weak) theorem shape:
 
 $$
 \text{radiusSqLaw}_1 = \text{radiusSqLaw}_2
@@ -128,7 +128,7 @@ $$
 \text{sphericalLaw}(\text{radiusSqLaw}_1)=\text{sphericalLaw}(\text{radiusSqLaw}_2).
 $$
 
-This is a definitional rewrite, not the identification theorem in the proof plan.
+This was a definitional rewrite, not the identification theorem in the proof plan.
 
 What the proof plan needs is logically stronger:
 
@@ -143,7 +143,39 @@ $$
 
 and in practice one also needs a converse/uniqueness style statement to recover law equality from radial data.
 
-Why this audit call is correct: the current header cannot be used to infer anything from independence + uniform direction assumptions; it only rewrites equal arguments.
+Python context and why this matters:
+- The core loss is built from the wristband coordinates only:
+  - `s = ||x||^2`, `u = x/||x||`, `t = gammainc(d/2, s/2)` in `ml-tidbits/python/embed_models/EmbedModels.py:748`.
+  - Joint repulsion is computed on `(u,t)` in `ml-tidbits/python/embed_models/EmbedModels.py:784`.
+  - Radial term enforces `t` uniformity in `ml-tidbits/python/embed_models/EmbedModels.py:754`.
+- So the formal bridge from wristband-space uniformity back to ambient Gaussianity is not optional; it is exactly the theorem-level assumption behind the algorithmic claim.
+- The previous Lean header could not carry that bridge, because it only rewrote equal inputs and did not mention uniform direction or independence.
+
+Implemented header update in Lean (proof intentionally deferred with `sorry`):
+
+```lean
+theorem sphericalLaw_determinedByRadius
+    (d : ℕ)
+    {Ω : Type _}
+    [MeasurableSpace Ω]
+    (μ : Distribution Ω)
+    (S : Ω → NNReal)
+    (U : Ω → Sphere d)
+    (hU : pushforward U μ = sphereUniform d)
+    (hIndep : IndepLaw μ S U) :
+    pushforward (fun ω => (Real.sqrt (S ω : ℝ)) • (U ω).1) μ =
+      sphericalLaw d (pushforward S μ) := by
+  sorry
+```
+
+Why this now corresponds to the intended math:
+- `hU` encodes \(U \sim \sigma_{d-1}\).
+- `hIndep` encodes \(S \perp U\).
+- The conclusion states
+  \[
+  \mathcal{L}(\sqrt{S}U) = \text{sphericalLaw}(d, \mathcal{L}(S)),
+  \]
+  which is exactly the identification-by-squared-radius statement needed before backward equivalence.
 
 ### 3.2 High-priority gap B: missing CDF contract for `chiSqCDFToUnit`
 
@@ -174,7 +206,18 @@ $$
 
 for an arbitrary function into $[0,1]$.
 
-Why this audit call is correct: PIT is a theorem about a specific CDF $F$, not any bounded map.
+Python context and why this matters:
+- In the implementation, `t` is specifically
+  \[
+  t = \operatorname{gammainc}\!\left(\frac d2, \frac s2\right),
+  \]
+  via `torch.special.gammainc(a_df, .5 * s)` in `ml-tidbits/python/embed_models/EmbedModels.py:752`.
+- This is the regularized lower incomplete gamma expression for the \(\chi^2_d\) CDF, and the code treats it that way:
+  - radial term compares sorted `t` to uniform quantiles in `ml-tidbits/python/embed_models/EmbedModels.py:757`,
+  - reflected kernel treats `t` as living in \([0,1]\) in `ml-tidbits/python/embed_models/EmbedModels.py:787`.
+- Lean currently has the law and the map as independent symbols. Without the CDF-link axiom, PIT theorems in Lean cannot specialize to this `t`, even though Python assumes exactly that specialization.
+
+Why this audit call is correct: PIT is a theorem about one specific CDF for one specific law, while current Lean headers allow an arbitrary map into `[0,1]`.
 
 ### 3.3 High-priority gap C: `Distribution := Measure` is too weak for theorem headers
 
@@ -188,7 +231,21 @@ $$
 
 So if $\mu(\Omega)\neq 1$, the pushforward cannot equal a probability distribution like uniform law.
 
-Why this audit call is correct: equivalence theorems compare to probability targets ($\mu_0$, Gaussian law), so total mass constraints are semantically required.
+Python context and why this matters:
+- The code is entirely statistical/Monte Carlo over probability samples:
+  - calibration samples are drawn with `torch.randn` in `ml-tidbits/python/embed_models/EmbedModels.py:642`,
+  - component means/variances are estimated in `ml-tidbits/python/embed_models/EmbedModels.py:654`,
+  - final loss is a weighted z-score mean in `ml-tidbits/python/embed_models/EmbedModels.py:833`.
+- Repulsion uses normalized averages like
+  \[
+  \frac{1}{3n-1}\sum_j K_{ij}
+  \quad\text{or}\quad
+  \frac{1}{3n^2-n}\sum_{i,j}K_{ij},
+  \]
+  exactly as probability-style expectations (see `ml-tidbits/python/embed_models/EmbedModels.py:796` and `ml-tidbits/python/embed_models/EmbedModels.py:803`).
+- If Lean allows general finite measures here, theorem statements can include non-probability objects that the Python algorithm never represents.
+
+Why this audit call is correct: the modeled object in Python is always a law with total mass \(1\), so theorem headers should enforce that same semantic domain.
 
 ### 3.4 Medium-priority gap D: missing dimension assumptions
 
@@ -364,13 +421,22 @@ Why: declaration-level map is exactly the target map modulo missing CDF-link axi
 
 ## 4.7 `sphericalLaw_determinedByRadius`
 
-Current Lean theorem:
+Current Lean theorem header (implemented, proof deferred):
 
-$$
-\text{radiusSqLaw}_1=\text{radiusSqLaw}_2
-\implies
-\text{sphericalLaw}(\text{radiusSqLaw}_1)=\text{sphericalLaw}(\text{radiusSqLaw}_2).
-$$
+```lean
+theorem sphericalLaw_determinedByRadius
+    (d : ℕ)
+    {Ω : Type _}
+    [MeasurableSpace Ω]
+    (μ : Distribution Ω)
+    (S : Ω → NNReal)
+    (U : Ω → Sphere d)
+    (hU : pushforward U μ = sphereUniform d)
+    (hIndep : IndepLaw μ S U) :
+    pushforward (fun ω => (Real.sqrt (S ω : ℝ)) • (U ω).1) μ =
+      sphericalLaw d (pushforward S μ) := by
+  sorry
+```
 
 Proof-plan need:
 
@@ -390,9 +456,11 @@ $$
 
 for $U\sim \sigma_{d-1}$, independent from each $S_i$.
 
-Verdict: **Placeholder only**.
+Verdict: **Header now matches the required identification claim; proof is still deferred**.
 
-Why: current statement has no independence/uniform-direction hypotheses.
+Why:
+- Uniform-direction and independence hypotheses are now explicit in the theorem assumptions.
+- The conclusion is phrased as equality of laws, exactly in the form needed by downstream equivalence arguments.
 
 ## 4.8 Wristband equivalence headers
 
