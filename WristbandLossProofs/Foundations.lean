@@ -42,10 +42,10 @@ universe u v w
 abbrev Distribution (α : Type u) [MeasurableSpace α] : Type u := Measure α
 
 /-- Pushforward of a distribution along a random-variable map. -/
-def pushforward {α : Type u} {β : Type v}
+abbrev pushforward {α : Type u} {β : Type v}
     [MeasurableSpace α] [MeasurableSpace β] :
-    (α → β) → Distribution α → Distribution β
-  | f, μ => Measure.map f μ
+    (α → β) → Distribution α → Distribution β :=
+  Measure.map
 
 /-- Product law constructor for independent couplings. -/
 def productLaw {α : Type u} {β : Type v}
