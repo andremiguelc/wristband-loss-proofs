@@ -221,7 +221,8 @@ Why this audit call is correct: PIT is a theorem about one specific CDF for one 
 
 ### 3.3 High-priority gap C: `Distribution := Measure` is too weak for theorem headers
 
-Many declarations quantify over arbitrary measures. But all target statements are probability-law statements.
+At the Python/model level, everything is a probability law.  
+So theorem headers should live in probability spaces, not arbitrary measures.
 
 Core fact:
 
@@ -229,7 +230,7 @@ $$
 (f_\#\mu)(\text{target space}) = \mu(\text{source space}).
 $$
 
-So if $\mu(\Omega)\neq 1$, the pushforward cannot equal a probability distribution like uniform law.
+So if $\mu(\Omega)\neq 1$, pushforward identities against probability targets are semantically mis-typed.
 
 Python context and why this matters:
 - The code is entirely statistical/Monte Carlo over probability samples:
@@ -245,7 +246,39 @@ Python context and why this matters:
   exactly as probability-style expectations (see `ml-tidbits/python/embed_models/EmbedModels.py:796` and `ml-tidbits/python/embed_models/EmbedModels.py:803`).
 - If Lean allows general finite measures here, theorem statements can include non-probability objects that the Python algorithm never represents.
 
-Why this audit call is correct: the modeled object in Python is always a law with total mass \(1\), so theorem headers should enforce that same semantic domain.
+Header-level refactor now implemented (Lean):
+
+```lean
+def IndepLaw ...
+    (μ : Distribution Ω) [IsProbabilityMeasure μ] (X : Ω → α) (Y : Ω → β) : Prop := ...
+
+axiom gaussianNZ_isProbability (d : ℕ) :
+    IsProbabilityMeasure (gaussianNZ d)
+
+axiom chiSqRadiusLaw_isProbability (d : ℕ) :
+    IsProbabilityMeasure (chiSqRadiusLaw d)
+
+axiom sphereUniform_isProbability (d : ℕ) :
+    IsProbabilityMeasure (sphereUniform d)
+
+theorem sphericalLaw_determinedByRadius ...
+    (μ : Distribution Ω) [IsProbabilityMeasure μ] ...
+
+theorem wristbandEquivalence_backward
+    (d : ℕ) (Q : Distribution (VecNZ d))
+    [IsProbabilityMeasure Q]
+    (hUniform : wristbandLaw d Q = wristbandUniform d) :
+    Q = gaussianNZ d := by
+  sorry
+```
+
+Why this now corresponds better to Python assumptions:
+- It enforces probability-mass \(=1\) at the theorem boundary where Gaussian/uniform laws are compared.
+- It keeps compatibility with current proof scripts while preventing non-probability models from silently entering core equivalence statements.
+
+Remaining limitation:
+- `Distribution` is still an alias of `Measure` (with probability expressed via typeclass assumptions), not `ProbabilityMeasure` as a base type.
+- A deeper refactor to `ProbabilityMeasure` is still possible, but requires broader measurability plumbing for pushforwards.
 
 ### 3.4 Medium-priority gap D: missing dimension assumptions
 
@@ -472,6 +505,7 @@ theorem wristbandEquivalence_forward (d : ℕ) :
 
 theorem wristbandEquivalence_backward
     (d : ℕ) (Q : Distribution (VecNZ d))
+    [IsProbabilityMeasure Q]
     (hUniform : wristbandLaw d Q = wristbandUniform d) :
     Q = gaussianNZ d := by sorry
 ```

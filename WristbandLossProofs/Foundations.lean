@@ -56,12 +56,17 @@ def productLaw {α : Type u} {β : Type v}
 /-- Independence encoded by joint law equals product of marginals. -/
 def IndepLaw {Ω : Type u} {α : Type v} {β : Type w}
     [MeasurableSpace Ω] [MeasurableSpace α] [MeasurableSpace β]
-    (μ : Distribution Ω) (X : Ω → α) (Y : Ω → β) : Prop :=
+    (μ : Distribution Ω) [IsProbabilityMeasure μ] (X : Ω → α) (Y : Ω → β) : Prop :=
   pushforward (fun ω => (X ω, Y ω)) μ =
     productLaw (pushforward X μ) (pushforward Y μ)
 
 /-- Uniform law on `[0,1]`. -/
 def uniform01 : Distribution UnitInterval := (volume : Measure UnitInterval)
+
+instance instIsProbabilityMeasureUniform01 : IsProbabilityMeasure uniform01 := by
+  -- `volume` on `[0,1]` has total mass 1.
+  simpa [uniform01] using
+    (show IsProbabilityMeasure ((volume : Measure UnitInterval)) by infer_instance)
 
 /-- Squared radius of a nonzero vector, stored in nonnegative reals. -/
 def radiusSq {d : ℕ} (z : VecNZ d) : NNReal :=

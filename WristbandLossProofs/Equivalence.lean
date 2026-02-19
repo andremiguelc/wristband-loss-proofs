@@ -122,6 +122,7 @@ theorem sphericalLaw_determinedByRadius
     {Ω : Type _}
     [MeasurableSpace Ω]
     (μ : Distribution Ω)
+    [IsProbabilityMeasure μ]
     (S : Ω → NNReal)
     (U : Ω → Sphere d)
     (hU : pushforward U μ = sphereUniform d)
@@ -159,6 +160,7 @@ Roadmap:
 theorem wristbandEquivalence_backward
     (d : ℕ)
     (Q : Distribution (VecNZ d))
+    [IsProbabilityMeasure Q]
     (hUniform : wristbandLaw d Q = wristbandUniform d) :
     Q = gaussianNZ d := by
   -- Deferred until PIT reverse direction is implemented concretely.
@@ -171,7 +173,8 @@ This is the core logical bridge used later by kernel/energy minimization results
 -/
 theorem wristbandEquivalence
     (d : ℕ)
-    (Q : Distribution (VecNZ d)) :
+    (Q : Distribution (VecNZ d))
+    [IsProbabilityMeasure Q] :
     wristbandLaw d Q = wristbandUniform d ↔ Q = gaussianNZ d := by
   constructor
   · intro hUniform

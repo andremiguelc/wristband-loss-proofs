@@ -33,8 +33,20 @@ References:
 /-- Standard Gaussian law, encoded on nonzero vectors for wristband-map domain. -/
 axiom gaussianNZ (d : ℕ) : Distribution (VecNZ d)
 
+/-- Imported: Gaussian law is a probability measure. -/
+axiom gaussianNZ_isProbability (d : ℕ) :
+    IsProbabilityMeasure (gaussianNZ d)
+
+attribute [instance] gaussianNZ_isProbability
+
 /-- Chi-square law for squared radius. -/
 axiom chiSqRadiusLaw (d : ℕ) : Distribution NNReal
+
+/-- Imported: chi-square radius law is a probability measure. -/
+axiom chiSqRadiusLaw_isProbability (d : ℕ) :
+    IsProbabilityMeasure (chiSqRadiusLaw d)
+
+attribute [instance] chiSqRadiusLaw_isProbability
 
 /-- Chi-square CDF map used by the wristband transform, valued in `[0,1]`. -/
 axiom chiSqCDFToUnit (d : ℕ) : NNReal → UnitInterval
@@ -61,5 +73,11 @@ TODO theorem debt: prove via Mathlib transport/invariance lemmas for `toSphere`.
 axiom sphereUniform_rotationInvariant
     (d : ℕ) (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) :
     pushforward (rotateSphere O) (sphereUniform d) = sphereUniform d
+
+/-- Imported: sphere-uniform law is a probability measure. -/
+axiom sphereUniform_isProbability (d : ℕ) :
+    IsProbabilityMeasure (sphereUniform d)
+
+attribute [instance] sphereUniform_isProbability
 
 end WristbandLossProofs
