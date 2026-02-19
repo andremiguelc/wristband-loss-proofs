@@ -1,1 +1,1 @@
-import WristbandLossProofs.CoreEngine
+import WristbandLossProofs.Equivalence
