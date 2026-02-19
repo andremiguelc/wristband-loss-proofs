@@ -110,21 +110,26 @@ theorem sphericalLaw_rotationInvariant
             rw [hProdMap]
 
 /--
-**Lemma (Current placeholder): radius-law extensionality.**
+**Lemma (header-level identification by squared-radius law).**
 
-This lemma currently proves only the direct rewrite:
-if the two radius laws are equal, the induced spherical laws are equal.
+If `U` is uniform on the sphere, independent of nonnegative squared-radius variable `S`,
+then the law of `Z = √S • U` is exactly the spherical law built from `S`'s law.
 
-TODO: replace with the stronger identification theorem used in the proof plan:
-under uniform-direction and independence assumptions, the law of `Z = √S•U`
-is determined by the radius law.
+This is the theorem-shape needed in the proof plan; proof is deferred for now.
 -/
 theorem sphericalLaw_determinedByRadius
     (d : ℕ)
-    {radiusSqLaw₁ radiusSqLaw₂ : Distribution NNReal}
-    (hRadius : radiusSqLaw₁ = radiusSqLaw₂) :
-    sphericalLaw d radiusSqLaw₁ = sphericalLaw d radiusSqLaw₂ := by
-  simp [sphericalLaw, hRadius]
+    {Ω : Type _}
+    [MeasurableSpace Ω]
+    (μ : Distribution Ω)
+    (S : Ω → NNReal)
+    (U : Ω → Sphere d)
+    (hU : pushforward U μ = sphereUniform d)
+    (hIndep : IndepLaw μ S U) :
+    pushforward (fun ω => (Real.sqrt (S ω : ℝ)) • (U ω).1) μ =
+      sphericalLaw d (pushforward S μ) := by
+  -- Deferred: this is the identification theorem required by the proof plan.
+  sorry
 
 /-! ## Wristband Equivalence Skeleton -/
 
