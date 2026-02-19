@@ -1,400 +1,230 @@
-# Wristband Gaussian Loss — Correctness Framework (Lean-friendly)
+# Wristband Gaussian Loss — Proof Plan
 
-This note provides a **formal, proof-oriented framework** for the “Wristband Gaussian Loss” used in `C_WristbandGaussianLoss` (see `EmbedModels.py`).
-It is written as a **theorem/lemma/definition** chain suitable as a basis for later formalization (e.g., in Lean).
+This document lays out a **correctness proof** for the Wristband Gaussian Loss (implemented in `C_WristbandGaussianLoss`, see `EmbedModels.py`), written as a guide for formalization in Lean.
 
-The focus is the **population correctness objective**:
+**The central claim** is:
 
-> In the infinite-data / population limit, the Wristband loss should have a **unique minimizer** at the standard Gaussian  
-> \(\gamma := \mathcal N(0,I_d)\), and no non-Gaussian distribution should achieve the same optimum.
+> In the idealized (infinite-data) setting, the wristband loss has a **unique minimizer**: the standard Gaussian distribution. No other distribution can achieve the same minimum.
 
-We aim for a balance:
-- Strong enough statements to support a correctness proof;
-- Not over-generalizing beyond what the method uses;
-- Explicitly marking **imported external results** (which a formal proof assistant may treat as axioms or later formalize).
+The proof proceeds in four steps:
 
----
+1. **Wristband equivalence** — Show that a distribution is Gaussian if and only if its wristband-transformed version is uniform. This reduces the problem from "detect Gaussianity" to "detect uniformity."
+2. **Kernel energy identifies uniformity** — Show that the repulsion kernel used in the loss is uniquely minimized by the uniform distribution on the wristband space.
+3. **Combine (1) and (2)** — Conclude that the repulsion loss uniquely identifies the Gaussian.
+4. **Extra terms don't break things** — Show that the additional penalty terms (radial, moment, angular) and calibration preserve the unique minimizer.
 
-## 0. High-level plan
-
-Let \(Q\) be a distribution on \(\mathbb R^d\). The method computes a “wristband representation”
-\((u,t)=\Phi(z)\) where \(u\) is direction and \(t\) is a CDF-transformed radius.
-
-Correctness is proved by the chain:
-
-1. **Wristband equivalence**:  
-   \[
-   \Phi_\# Q = \mu_0 \quad\Longleftrightarrow\quad Q = \gamma
-   \]
-   where \(\mu_0\) is uniform on the wristband space \(\mathcal W = S^{d-1}\times[0,1]\).
-2. **Kernel energy identifies uniformity**: the repulsion kernel has a population objective uniquely minimized by \(\mu_0\).
-3. Combine (1) and (2) to conclude the repulsion loss uniquely identifies \(\gamma\).
-4. Show additional nonnegative penalty terms and calibration do **not** change the population minimizer.
+The document marks **imported results** (classical theorems we take as given, encoded as axioms in Lean) separately from what we prove ourselves.
 
 ---
 
-## 1. Measure-theoretic setup and notation
+## Lean proof status
 
-Fix an integer \(d\ge 2\).
-
-- Let \(\mathcal B(\mathbb R^d)\) be the Borel \(\sigma\)-algebra, and \(\mathcal P(\mathbb R^d)\) the set of Borel probability measures.
-- Let \(S^{d-1} := \{u\in\mathbb R^d : \|u\|=1\}\) with Borel \(\sigma\)-algebra.
-- Let \([0,1]\) have its Borel \(\sigma\)-algebra.
-
-**Definition (Pushforward).**  
-If \(f:X\to Y\) is measurable and \(Q\in \mathcal P(X)\), define the pushforward \(f_\#Q\in\mathcal P(Y)\) by
-\((f_\#Q)(A):=Q(f^{-1}(A))\).
-
-**Definition (Wristband space and uniform measure).**
-Define the wristband space and its uniform measure:
-\[
-\mathcal W := S^{d-1}\times[0,1],\qquad
-\mu_0 := \sigma_{d-1}\otimes\lambda,
-\]
-where:
-- \(\sigma_{d-1}\) is the Haar (uniform) probability measure on \(S^{d-1}\);
-- \(\lambda\) is the uniform probability measure on \([0,1]\).
-
-**Definition (Target distribution).**  
-\(\gamma := \mathcal N(0,I_d)\).
+| Proof step | Status | Files |
+|------------|--------|-------|
+| 1. **Wristband equivalence** (Section 2) | In progress — theorems stated, proofs contain `sorry` | `Foundations.lean`, `Equivalence.lean` |
+| 2. **Kernel energy identifies uniformity** (Sections 3–4) | Not started | — |
+| 3. **Main correctness theorem** (Section 5) | Not started | — |
+| 4. **Extra terms and calibration** (Section 6) | Not started | — |
 
 ---
 
-## 2. Wristband map
+## 1. Setup: the wristband map and its target space
 
-The code computes:
-- \(s=\|z\|^2\),
-- \(u=z/\|z\|\),
-- \(t=\mathrm{gammainc}(d/2,\; s/2)\), clamped to \((\varepsilon,1-\varepsilon)\) for numerical stability.
+### What we're working with
 
-Theoretical statements ignore the clamp (it changes nothing at population level under absolutely continuous laws).
+We work in \(d\)-dimensional Euclidean space (with \(d \ge 2\)). The key objects are:
 
-Let \(P(a,x)\) denote the **regularized lower incomplete gamma** function. For \(S\sim\chi^2_d\),
-\(\mathbb P(S\le s) = P(d/2,\; s/2)\).
+- **Standard Gaussian** \(\gamma = \mathcal N(0, I_d)\): the distribution on \(\mathbb R^d\) (d-dimensional real space) with zero mean and identity covariance. This is the distribution we want to prove is the unique minimizer.
 
-**Definition (Wristband map \(\Phi\)).**  
-For \(z\in\mathbb R^d\setminus\{0\}\), define
-\[
-\Phi(z):=(u,t)
-:=\left(\frac{z}{\|z\|},\; P\!\left(\frac d2,\frac{\|z\|^2}{2}\right)\right)\in \mathcal W.
-\]
-For \(Q\in\mathcal P(\mathbb R^d)\) satisfying \(Q(\{0\})=0\), define the induced wristband distribution
-\[
-P_Q := \Phi_\# Q\in\mathcal P(\mathcal W).
-\]
+- **Unit sphere** \(S^{d-1}\): the set of all unit vectors in \(\mathbb R^d\), i.e., vectors \(u\) with \(\|u\| = 1\) (where \(\|u\|\) denotes the Euclidean length of \(u\)).
 
----
+- **Wristband space** \(\mathcal W = S^{d-1} \times [0,1]\): the product of the unit sphere and the unit interval. Each point in this space is a pair \((u, t)\) where \(u\) is a direction on the sphere and \(t\) is a number between 0 and 1. Think of it as a cylinder: direction times a radial coordinate.
 
-## 3. Wristband equivalence: \(\Phi_\#Q=\mu_0\iff Q=\gamma\)
+- **Uniform measure on the wristband space** \(\mu_0\): the probability distribution on \(\mathcal W\) that is uniform in both coordinates independently — uniform over directions on the sphere (denoted \(\sigma_{d-1}\)) and uniform over the interval \([0,1]\). Formally, \(\mu_0 = \sigma_{d-1} \otimes \lambda\) (the product of the two uniform measures).
 
-This section is the “information preservation” result: testing Gaussianity of \(Q\) is equivalent to testing uniformity of \(P_Q\).
+### The wristband map
 
-### 3.1 Imported facts about Gaussians and the probability integral transform
+The wristband map \(\Phi\) takes a point \(z \in \mathbb R^d\) (with \(z \ne 0\)) and produces a pair \((u, t)\) in the wristband space:
 
-**Theorem (Gaussian polar decomposition; imported).**  
-Let \(Z\sim \mathcal N(0,I_d)\). Define \(R:=\|Z\|\) and \(U:=Z/\|Z\|\). Then:
-1. \(U\sim \sigma_{d-1}\),
-2. \(R^2\sim \chi^2_d\),
-3. \(U\) is independent of \(R\) (equivalently \(R^2\)).
+- **Direction**: \(u = z / \|z\|\), the unit vector pointing in the direction of \(z\).
+- **Radial CDF value**: \(t = F_{\chi^2_d}(\|z\|^2)\), where \(F_{\chi^2_d}\) is the cumulative distribution function (CDF) of the chi-squared distribution with \(d\) degrees of freedom. The CDF at a value \(x\) gives the probability that a random draw is at most \(x\). So \(t\) answers: "what fraction of a standard Gaussian's probability mass has a squared norm at most \(\|z\|^2\)?" The CDF is computed using the regularized lower incomplete gamma function: \(F_{\chi^2_d}(x) = P(d/2, x/2)\).
 
-*(Reference: [1], Ch. 2; see also standard multivariate analysis texts.)*
+The code applies numerical clamps (to avoid division by zero and boundary issues), but the theoretical analysis uses the unclamped, idealized version.
 
-**Theorem (Probability integral transform; imported).**  
-If \(X\) has a continuous CDF \(F\), then \(F(X)\sim\mathrm{Unif}[0,1]\).
-
-*(Reference: [2], Ch. 2.)*
-
-### 3.2 Direction–radius reconstruction
-
-**Lemma (Spherical construction is determined by radius).**  
-Let \(U\sim \sigma_{d-1}\) and \(R\ge 0\) be a real random variable independent of \(U\).
-Define \(Z:=RU\in\mathbb R^d\). Then:
-1. \(Z\) is rotation-invariant (spherically symmetric);
-2. the law of \(Z\) is uniquely determined by the law of \(R\).
-
-**Proof (sketch).**  
-(1) For any orthogonal matrix \(O\), \(OU\stackrel d=U\), so \(ORU\stackrel d=RU\).  
-(2) For any Borel \(A\subset\mathbb R^d\),
-\(\mathbb P(RU\in A)=\int_0^\infty \sigma_{d-1}(\{u:ru\in A\})\,d\mathbb P_R(r)\),
-so the mixture over radii determines the law. \(\square\)
-
-### 3.3 Main wristband equivalence theorem
-
-**Theorem (Wristband equivalence).**  
-Let \(Q\in\mathcal P(\mathbb R^d)\) satisfy \(Q(\{0\})=0\). Then
-\[
-P_Q=\mu_0
-\quad\Longleftrightarrow\quad
-Q=\gamma.
-\]
-
-**Proof.**
-
-**(\(\Rightarrow\))** Suppose \(Q=\gamma\). By the Gaussian polar decomposition theorem, \(U:=Z/\|Z\|\sim\sigma_{d-1}\) and \(S:=\|Z\|^2\sim\chi^2_d\) with \(U\perp S\).
-Define \(T:=P(d/2,\;S/2)\). Since \(T\) is the CDF of \(S\), by the Probability integral transform theorem we have \(T\sim\mathrm{Unif}[0,1]\), and \(U\perp T\).
-Thus \((U,T)\sim\sigma_{d-1}\otimes\lambda=\mu_0\), i.e. \(P_\gamma=\mu_0\).
-
-**(\(\Leftarrow\))** Suppose \(P_Q=\mu_0\).
-Let \(Z\sim Q\) and set \((U,T):=\Phi(Z)\). Then \(U\sim\sigma_{d-1}\), \(T\sim\mathrm{Unif}[0,1]\), and \(U\perp T\).
-Let \(S:=\|Z\|^2\). By definition \(T=P(d/2,\;S/2)=F_{\chi^2_d}(S)\). Since \(T\) is uniform, \(S\sim\chi^2_d\), and \(U\perp S\).
-Let \(R:=\sqrt S\). By the spherical construction determined by radius lemma, \(Z\) is spherically symmetric and determined by the law of \(R\).
-But \(\gamma\) has the same pair \((U,R)\) distribution (by Gaussian polar decomposition), hence \(Q=\gamma\). \(\square\)
+**Pushforward.** Given a distribution \(Q\), we write \(P_Q = \Phi_\# Q\) for the distribution you get by applying \(\Phi\) to every point drawn from \(Q\). Concretely: draw \(z \sim Q\), compute \(\Phi(z)\), and look at the resulting distribution over the wristband space. The notation \(\Phi_\# Q\) (read "pushforward of \(Q\) through \(\Phi\)") is standard: for any region \(A\) in the target space, \((\Phi_\# Q)(A) = Q(\Phi^{-1}(A))\), i.e., the probability that \(\Phi(z)\) lands in \(A\) equals the probability that \(z\) lands in the preimage of \(A\).
 
 ---
 
-## 4. Repulsion kernel used by the method
+## 2. Wristband equivalence
 
-The code builds a kernel on \(\mathcal W\) with:
-- an **angular** Gaussian factor using either chordal or geodesic distance on \(S^{d-1}\);
-- a **radial** Gaussian factor in \(t\);
-- a **3-image reflection** in \(t\) to reduce boundary bias near \(t=0\) and \(t=1\).
+This is the core structural result. It says that testing whether \(Q\) is Gaussian is the same as testing whether its wristband image \(P_Q\) is uniform:
 
-For a clean correctness theorem we formalize the **chordal** variant (which is PSD by restriction of the Euclidean Gaussian kernel).
-
-### 4.1 Angular component (chordal)
-
-Fix parameters \(\beta>0\) and \(\alpha>0\).
-
-**Definition (Chordal distance).**
-For \(u,u'\in S^{d-1}\),
+**Theorem (Wristband equivalence).** For any distribution \(Q\) on \(\mathbb R^d\) that puts no mass on the origin:
 \[
-d_{\mathrm{ch}}(u,u') := \|u-u'\|.
-\]
-Equivalently \(d_{\mathrm{ch}}^2(u,u')=2-2\langle u,u'\rangle\).
-
-**Definition (Angular kernel).**
-\[
-k_{\mathrm{ang}}(u,u') := \exp\!\big(-\beta\alpha^2\, d_{\mathrm{ch}}^2(u,u')\big).
+P_Q = \mu_0 \quad\Longleftrightarrow\quad Q = \gamma.
 \]
 
-### 4.2 Radial component (3-image reflection as in code)
+The proof relies on two classical imported results and one lemma.
 
-**Definition (Three-image displacements).**
-For \(t,t'\in[0,1]\) define
-\[
-\delta_0(t,t') := t-t',\qquad
-\delta_1(t,t') := t+t',\qquad
-\delta_2(t,t') := t+t'-2.
-\]
+### Imported results
 
-**Definition (Three-image radial kernel).**
-\[
-k_{\mathrm{rad}}^{(3)}(t,t') := \sum_{m=0}^{2}\exp\!\big(-\beta\,\delta_m(t,t')^2\big).
-\]
+**Theorem (Gaussian polar decomposition; imported [1]).**
+If \(Z\) is drawn from the standard Gaussian, decompose it into direction and magnitude: let \(U = Z/\|Z\|\) (the direction) and \(S = \|Z\|^2\) (the squared norm). Then:
+- \(U\) is uniformly distributed on the sphere \(S^{d-1}\),
+- \(S\) follows a chi-squared distribution with \(d\) degrees of freedom (the distribution of the sum of \(d\) independent squared standard normals),
+- \(U\) and \(S\) are independent (knowing the direction tells you nothing about the magnitude, and vice versa).
 
-### 4.3 Joint kernel on the wristband
+**Theorem (Probability integral transform; imported [2]).**
+If a random variable \(X\) has a continuous CDF \(F\), then \(F(X)\) is uniformly distributed on \([0,1]\). Conversely, if \(T\) is uniform on \([0,1]\), then \(F^{-1}(T)\) has CDF \(F\). (Recall: the CDF of \(X\) is the function \(F(x) = \mathrm{Prob}(X \le x)\).)
 
-**Definition (Wristband kernel \(K^{(3)}\)).**
-For \(w=(u,t)\), \(w'=(u',t')\in\mathcal W\),
-\[
-K^{(3)}(w,w')
-:=k_{\mathrm{ang}}(u,u')\,k_{\mathrm{rad}}^{(3)}(t,t')
-=\sum_{m=0}^{2}\exp\!\Big(-\beta\big(\alpha^2 d_{\mathrm{ch}}^2(u,u')+\delta_m(t,t')^2\big)\Big).
-\]
+### Reconstruction from direction and radius
 
-This matches the code’s joint repulsion terms computed via:
-\(\exp(e_{\mathrm{ang}}-\beta\,\delta_m^2)\) summed over \(m\in\{0,1,2\}\).
+**Lemma (Spherical construction is determined by radius).**
+If \(U\) is uniform on the sphere and \(R \ge 0\) is independent of \(U\), then the vector \(Z = RU\) is spherically symmetric (its distribution looks the same after any rotation), and the distribution of \(Z\) is completely determined by the distribution of \(R\).
+
+*Proof sketch.* Rotating \(Z = RU\) by any rotation \(O\) gives \(ORU\), but \(OU\) has the same distribution as \(U\) (by uniformity on the sphere), so the distribution of \(Z\) is unchanged. Since the law of \(Z\) is a mixture over radii of uniform shells, knowing the radial distribution pins down everything.
+
+### Proof of the equivalence
+
+**Forward direction** (\(Q = \gamma \Rightarrow P_Q = \mu_0\)):
+Start with \(Z \sim \gamma\). By Gaussian polar decomposition, the direction \(U\) is uniform on the sphere and \(S = \|Z\|^2\) is chi-squared, with \(U\) and \(S\) independent. Apply the probability integral transform: \(T = F_{\chi^2_d}(S)\) is uniform on \([0,1]\), and since \(T\) is a function of \(S\) alone, it remains independent of \(U\). So \((U, T)\) is uniform on the wristband space, meaning \(P_\gamma = \mu_0\).
+
+**Reverse direction** (\(P_Q = \mu_0 \Rightarrow Q = \gamma\)):
+Suppose the wristband image is uniform. Then the direction \(U\) is uniform on the sphere, \(T\) is uniform on \([0,1]\), and they are independent. Since \(T = F_{\chi^2_d}(S)\) and \(T\) is uniform, the reverse probability integral transform tells us \(S\) has a chi-squared distribution. Because the chi-squared CDF is strictly increasing, \(S\) is a deterministic function of \(T\), so independence of \(U\) and \(T\) implies independence of \(U\) and \(S\). By the reconstruction lemma, \(Z\) is spherically symmetric and determined by the distribution of \(R = \sqrt{S}\). But the standard Gaussian has the same direction-radius distribution (by Gaussian polar decomposition), so \(Q = \gamma\).
 
 ---
 
-## 5. Population repulsion objective
+## 3. The repulsion kernel
 
-To analyze correctness we define the population (infinite-data) functional corresponding to the repulsion term.
+With the equivalence established, the remaining task is to show that the loss function used in the code is uniquely minimized when the wristband distribution is uniform — and therefore when the original distribution is Gaussian.
 
-**Definition (Kernel energy).**  
-For \(P\in\mathcal P(\mathcal W)\), define
+### Why a kernel?
+
+We need a concrete way to measure "how far from uniform" a distribution on the wristband space is. The method uses a **repulsion kernel**: a function \(K(w, w')\) that takes two points in the wristband space and returns a non-negative number measuring their similarity. The idea is that if points are spread uniformly, the average pairwise similarity (the "kernel energy") is minimized. If points cluster together, the energy increases.
+
+### Structure of the kernel
+
+The kernel on the wristband space has two factors — one for direction, one for the radial coordinate — multiplied together. Both are controlled by bandwidth parameters \(\beta > 0\) and \(\alpha > 0\).
+
+**Angular factor.** This measures similarity between directions \(u, u'\) on the sphere using chordal distance (the straight-line distance \(\|u - u'\|\) between two points on the sphere, cutting through the interior):
 \[
-\mathcal E^{(3)}(P):=\iint_{\mathcal W\times\mathcal W}K^{(3)}(w,w')\,dP(w)\,dP(w').
+k_{\mathrm{ang}}(u, u') = \exp\!\big(-\beta\alpha^2 \|u - u'\|^2\big).
 \]
-Equivalently, if \(W,W'\stackrel{iid}{\sim}P\),
-\(\mathcal E^{(3)}(P)=\mathbb E[K^{(3)}(W,W')]\).
+This is a Gaussian-shaped kernel restricted to the sphere. Two directions that are close get a value near 1; distant (e.g. antipodal) directions get a value near 0.
 
-**Definition (Population repulsion loss).**  
-For \(Q\in\mathcal P(\mathbb R^d)\) with \(Q(\{0\})=0\), define
+**Radial factor (with boundary reflection).** For radial coordinates \(t, t' \in [0,1]\), the code uses a **three-image** trick to handle boundary effects. Instead of a single Gaussian kernel comparing \(t\) and \(t'\), it sums three terms using reflected copies:
 \[
-\mathcal L_{\mathrm{rep}}(Q) := \frac{1}{\beta}\log \mathcal E^{(3)}(P_Q).
+k_{\mathrm{rad}}(t, t') = \exp\!\big(-\beta(t-t')^2\big) + \exp\!\big(-\beta(t+t')^2\big) + \exp\!\big(-\beta(t+t'-2)^2\big).
 \]
-Since \(\log\) is strictly increasing, \(\arg\min \mathcal L_{\mathrm{rep}} = \arg\min \mathcal E^{(3)}\).
+The first term is the standard comparison. The second and third are "reflections" at the boundaries 0 and 1, which prevent the kernel from treating points near the edges differently from points in the interior. (Without reflection, a point at \(t = 0\) would appear to have no neighbors on one side, biasing the energy.)
+
+**Joint kernel.** The full wristband kernel is the product of the angular and radial factors:
+\[
+K(w, w') = k_{\mathrm{ang}}(u, u') \cdot k_{\mathrm{rad}}(t, t').
+\]
+
+> **Note on the geodesic variant.** The code also supports measuring angular distance via the geodesic (arc length along the sphere surface) instead of chordal distance. Proving the required properties for the geodesic variant is more delicate, so we focus the correctness proof on the chordal version.
 
 ---
 
-## 6. Kernel conditions needed for correctness
+## 4. Population energy and the identification property
 
-The full analytic proof that \(\mu_0\) uniquely minimizes \(\mathcal E^{(3)}\) for the **3-image** kernel is nontrivial.
-However, the method only needs an “identification property”:
-the energy should be uniquely minimized at the uniform wristband measure.
+### The population objective
 
-We isolate that as an explicit hypothesis.
-
-**Hypothesis K (Uniform-energy identification).**  
-The kernel \(K^{(3)}\) satisfies:
-1. (**PSD & bounded**) \(K^{(3)}\) is positive semidefinite and bounded on \(\mathcal W\).
-2. (**Uniform minimizes energy**) for all \(P\in\mathcal P(\mathcal W)\),
-   \(\mathcal E^{(3)}(P)\ge \mathcal E^{(3)}(\mu_0)\).
-3. (**Uniqueness**) if \(\mathcal E^{(3)}(P)=\mathcal E^{(3)}(\mu_0)\) then \(P=\mu_0\).
-
-> **Remark.** For an *idealized* kernel that uses a **full Neumann reflection series** on \([0,1]\) (instead of 3 images),
-> one can typically prove Hypothesis K using RKHS mean embeddings (characteristic kernels) and symmetry/constant-potential arguments.
-> The 3-image kernel is a truncation of that ideal object; Hypothesis K can be treated as an approximation assumption justified when
-> omitted images contribute negligibly (large \(\beta\)).
-
-### Optional: sufficient conditions implying Hypothesis K (imported framework)
-
-The following “sufficient condition route” is useful for a formal proof plan:
-
-**Definition (MMD for a PSD kernel).**  
-Let \(K\) be PSD and bounded on \(\mathcal W\). Define for \(P,Q\in\mathcal P(\mathcal W)\):
+In the infinite-data (population) setting, the repulsion loss measures the expected pairwise kernel similarity. For a distribution \(P\) on the wristband space, the **kernel energy** is:
 \[
-\mathrm{MMD}_K^2(P,Q)
-:=\mathbb E[K(X,X')]+\mathbb E[K(Y,Y')]-2\,\mathbb E[K(X,Y)]
+\mathcal E(P) = \mathbb E_{W, W' \sim P}\!\big[K(W, W')\big],
 \]
-where \(X,X'\stackrel{iid}{\sim}P\), \(Y,Y'\stackrel{iid}{\sim}Q\), independent.
+meaning: draw two independent points \(W, W'\) from \(P\) and compute the expected value of their kernel similarity. If \(P\) concentrates its mass, many pairs will be close and the energy will be high. If \(P\) is spread out (uniform), the energy is low.
 
-**Theorem (Characteristic kernel; imported).**  
-If \(K\) is **characteristic** on \(\mathcal W\), then
-\(\mathrm{MMD}_K(P,Q)=0\iff P=Q\).
+The population repulsion loss used in the code wraps this in a logarithm: \(\mathcal L_{\mathrm{rep}}(Q) = \frac{1}{\beta}\log \mathcal E(P_Q)\). Since \(\log\) is a strictly increasing function, minimizing the loss is the same as minimizing the energy — they have the same minimizer.
 
-*(Reference: [8], [9], [16].)*
+### The key hypothesis
 
-**Lemma (Constant potential \(\Rightarrow\) energy difference equals MMD; standard).**  
-Let \(K\) be PSD and bounded. Fix a measure \(\mu\in\mathcal P(\mathcal W)\) and define the potential
-\(h(w):=\int K(w,w')\,d\mu(w')\).
-If \(h\) is constant \(\mu\)-a.e. (or everywhere), then for all \(P\in\mathcal P(\mathcal W)\),
+The central property we need from the kernel is:
+
+**Hypothesis K (Uniform-energy identification).**
+1. The kernel \(K\) is **positive semi-definite**: for any finite collection of wristband points, the matrix of pairwise kernel values has no negative eigenvalues. (This is a standard regularity condition ensuring the kernel defines a valid notion of similarity.) The kernel is also bounded (its values don't blow up).
+2. The uniform measure \(\mu_0\) minimizes the energy: \(\mathcal E(P) \ge \mathcal E(\mu_0)\) for all distributions \(P\).
+3. The minimizer is **unique**: if \(\mathcal E(P) = \mathcal E(\mu_0)\), then \(P = \mu_0\).
+
+This hypothesis encapsulates exactly what we need from the kernel. The rest of the proof does not depend on the specific form of the kernel — only on this identification property.
+
+### How to establish Hypothesis K
+
+There is a standard pathway using two ideas from the kernel methods literature:
+
+**Maximum Mean Discrepancy.** For a positive semi-definite kernel \(K\), there is a natural notion of distance between probability distributions called the Maximum Mean Discrepancy (MMD). It measures how much two distributions differ, as seen through the lens of the kernel. The key imported result ([8], [9], [16]) is: if the kernel is **characteristic** — meaning it is rich enough to distinguish any two distinct distributions — then MMD equals zero if and only if the two distributions are identical.
+
+**Constant-potential argument.** Define the **potential function** of the uniform measure: \(h(w) = \mathbb E_{W' \sim \mu_0}[K(w, W')]\), the average kernel value between a fixed point \(w\) and a random uniform point. If this function is the same for every \(w\) (the kernel "treats all locations equally" under the uniform measure), then one can show:
 \[
-\mathcal E_K(P)-\mathcal E_K(\mu)=\mathrm{MMD}_K^2(P,\mu)\ge 0.
+\mathcal E(P) - \mathcal E(\mu_0) = \mathrm{MMD}^2(P, \mu_0) \ge 0,
 \]
+with equality if and only if \(P = \mu_0\) (when the kernel is characteristic). This directly establishes Hypothesis K.
 
-**Proof.** Expand \(\mathrm{MMD}_K^2(P,\mu)=\mathcal E_K(P)+\mathcal E_K(\mu)-2\iint K\,dP\,d\mu\).
-Using \(\iint K\,dP\,d\mu=\int h\,dP\) and \(\int h\,d\mu = \mathcal E_K(\mu)\), the constant-potential condition implies
-\(\int h\,dP=\int h\,d\mu=\mathcal E_K(\mu)\), giving the identity. \(\square\)
-
-**Corollary (Uniqueness via characteristicness).**  
-If \(K\) is characteristic and \(h\) is constant for \(\mu=\mu_0\), then \(\mu_0\) is the unique minimizer of \(\mathcal E_K\).
-
-This corollary is the typical “external-results” pathway to establish Hypothesis K for a suitably symmetric kernel.
+The three-image kernel is a truncation of an ideal kernel that uses infinitely many reflections (called a "Neumann reflection series"). For the ideal version, the constant-potential property follows from symmetry. For the three-image version, the omitted reflection terms are exponentially small when the bandwidth parameter \(\beta\) is large, so Hypothesis K can be treated as an approximation that becomes exact in the large-\(\beta\) limit.
 
 ---
 
-## 7. Main correctness theorem (population)
+## 5. Main correctness theorem
 
-**Theorem (Population correctness of wristband repulsion).**  
-Assume Hypothesis K holds for \(K^{(3)}\). Then the population repulsion loss
-\(\mathcal L_{\mathrm{rep}}(Q)\) has a unique minimizer over \(\{Q\in\mathcal P(\mathbb R^d):Q(\{0\})=0\}\),
-namely
-\[
-Q^\star=\gamma=\mathcal N(0,I_d).
-\]
+This is the punchline of the whole proof.
 
-**Proof.**
-By Hypothesis K(2–3), \(\mathcal E^{(3)}(P)\) is uniquely minimized at \(P=\mu_0\).
-Since \(\log\) is strictly increasing, the same holds for \(\mathcal L_{\mathrm{rep}}(Q)\), so its unique minimizer must satisfy
-\(P_Q=\mu_0\).
-By the Wristband equivalence theorem, \(P_Q=\mu_0\iff Q=\gamma\). \(\square\)
+**Theorem (Population correctness of wristband repulsion).**
+Assuming Hypothesis K, the population repulsion loss \(\mathcal L_{\mathrm{rep}}(Q)\) has a unique minimizer over all distributions on \(\mathbb R^d\) that put no mass on the origin: the standard Gaussian \(\gamma = \mathcal N(0, I_d)\).
+
+**Proof.** By Hypothesis K, the kernel energy is uniquely minimized at \(P = \mu_0\). Since \(\log\) is strictly increasing, the repulsion loss \(\mathcal L_{\mathrm{rep}}\) is also uniquely minimized when \(P_Q = \mu_0\). By the wristband equivalence theorem (Section 2), \(P_Q = \mu_0\) if and only if \(Q = \gamma\).
 
 ---
 
-## 8. Adding radial/moment penalties and calibration
+## 6. Additional loss terms and calibration
 
-The code’s returned scalar is a **calibrated** sum of components:
-\(\text{total} = \text{zscore(rep)} + \lambda_{\mathrm{rad}}\text{zscore(rad)} + \lambda_{\mathrm{ang}}\text{zscore(ang)} + \lambda_{\mathrm{mom}}\text{zscore(mom)}\).
-Calibration is an affine transformation under the null, which does not change population minimizers.
+The code's loss function is not just the repulsion term — it includes additional penalties and calibration. We need to confirm these do not change the population minimizer.
 
-### 8.1 Radial uniformity term (as used in code)
+### Why extra terms?
 
-The code’s radial term is an empirical \(W_2^2\)-style functional on \(t\in[0,1]\), up to a positive scale factor.
-At population level we can define the canonical target.
+The repulsion kernel alone is theoretically sufficient to identify the Gaussian. In practice, additional terms help the optimizer converge faster by providing gradient signal for specific aspects of the distribution (its mean, covariance, radial profile).
 
-**Definition (Radial marginal).**  
-For \(P\in\mathcal P(\mathcal W)\), let \(P^t := (\pi_t)_\# P\in\mathcal P([0,1])\).
+### Radial uniformity penalty
 
-**Definition (Population radial penalty).**
-\[
-\mathcal L_{\mathrm{rad}}(Q):= W_2^2(P_Q^t,\lambda).
-\]
-Then \(\mathcal L_{\mathrm{rad}}(Q)\ge 0\) and equals \(0\) iff \(P_Q^t=\lambda\).
+This term measures how far the radial marginal (the distribution of \(t\) values alone, ignoring direction) is from uniform, using a squared Wasserstein distance (a standard way to measure distance between distributions on the real line, based on how much probability mass needs to be moved to transform one distribution into another; see [11], [12]). The penalty equals zero when the radial marginal is exactly uniform — which is the case when \(Q = \gamma\).
 
-*(References for Wasserstein basics: [11], [12].)*
+### Moment penalty
 
-### 8.2 Moment penalty (one example: Gaussian \(W_2^2\))
+This term measures how far the mean and covariance of \(Q\) are from those of the standard Gaussian (zero mean, identity covariance matrix), using a squared Wasserstein distance between Gaussian approximations. It equals zero when \(Q\) has the correct first two moments — which the standard Gaussian does.
 
-The code supports several moment penalties; the cleanest population statement is for squared Wasserstein distance between Gaussians.
+### Why they don't break the minimizer
 
-Assume \(Q\) has finite second moment. Let \(\mu_Q:=\mathbb E_Q[Z]\) and \(\Sigma_Q:=\mathrm{Cov}_Q(Z)\).
+Two simple observations:
 
-**Definition (Gaussian moment penalty).**
-\[
-\mathcal L_{\mathrm{mom}}(Q):=\frac{1}{d}W_2^2\big(\mathcal N(\mu_Q,\Sigma_Q),\;\mathcal N(0,I_d)\big).
-\]
-Then \(\mathcal L_{\mathrm{mom}}(Q)\ge 0\) and equals \(0\) iff \(\mu_Q=0\) and \(\Sigma_Q=I_d\).
+1. **Nonnegative add-ons preserve a unique minimizer.** If a function \(f\) has a unique minimizer at some point \(x^\star\), and we add another function \(g\) that is always nonnegative and equals zero at \(x^\star\), then \(f + \lambda g\) (for any weight \(\lambda \ge 0\)) still has the same unique minimizer.
+2. **Affine rescaling preserves minimizers.** Multiplying a function by a positive constant and adding a constant does not change where its minimum occurs.
 
-### 8.3 Composite loss does not change the population minimizer
+Since all the extra terms are nonnegative and equal zero at \(Q = \gamma\), and the code's calibration (centering and rescaling each term by its mean and standard deviation under the null distribution, using positive scale factors) is an affine transformation, the composite loss has the same unique minimizer as the repulsion term alone.
 
-**Lemma (Nonnegative add-ons preserve a unique minimizer).**  
-Let \(f\) have a unique minimizer at \(x^\star\).
-If \(g\ge 0\) and \(g(x^\star)=0\), then \(f+\lambda g\) has the same unique minimizer for any \(\lambda\ge 0\).
-
-**Lemma (Affine calibration preserves minimizers).**  
-If \(a>0\) and \(b\in\mathbb R\), then \(\arg\min f = \arg\min (af+b)\).
-
-**Corollary (Population correctness of the full wristband loss).**  
-Assume the Population correctness of wristband repulsion theorem (repulsion term has unique minimizer \(\gamma\)).
-Let \(\lambda_{\mathrm{rad}},\lambda_{\mathrm{mom}},\lambda_{\mathrm{ang}}\ge 0\) and define any calibrated/affine combination of
-\(\mathcal L_{\mathrm{rep}},\mathcal L_{\mathrm{rad}},\mathcal L_{\mathrm{mom}}\) (and an optional angular-only uniformity term).
-Then the composite population loss is uniquely minimized at \(Q=\gamma\).
+**Corollary (Population correctness of the full wristband loss).**
+Under Hypothesis K, any positive-weight combination of the repulsion, radial, moment, and angular penalty terms — with any affine calibration using positive scale — is uniquely minimized at \(Q = \gamma\).
 
 ---
 
-## 9. Optional: empirical estimator consistency (for algorithmic correctness)
+## 7. Empirical consistency (optional)
 
-To connect population correctness to the batch loss, one typically shows that the batch statistic estimates \(\mathcal E^{(3)}(P_Q)\).
+The results above are about the **population** (infinite-data) loss. To connect this to what the code actually computes with finite batches, we need the finite-sample estimate to converge to the population value.
 
-Let \(W_1,\dots,W_N\stackrel{iid}{\sim}P\) and consider the U-statistic
-\(\widehat{\mathcal E}_N := \frac{1}{N(N-1)}\sum_{i\ne j}K^{(3)}(W_i,W_j)\).
-The “global” reduction is essentially \(\log \widehat{\mathcal E}_N\) up to diagonal/image conventions.
-
-**Theorem (Law of large numbers for U-statistics; imported).**  
-If \(K^{(3)}\) is bounded, then \(\widehat{\mathcal E}_N\to \mathcal E^{(3)}(P)\) almost surely as \(N\to\infty\).
-
-*(Reference: [15] for U-statistics and convergence.)*
-
-This justifies that minimizing the empirical repulsion approximates minimizing the population energy.
+The batch repulsion statistic is an average over all pairs of points in the batch. This is a standard statistical object called a **U-statistic**: an unbiased estimator computed by averaging a symmetric function (here, the kernel) over all distinct pairs from a sample. By the law of large numbers for U-statistics (imported from [15]), if the kernel is bounded, the batch average converges almost surely to the population energy as the batch size grows. This justifies that minimizing the empirical loss approximates minimizing the population loss.
 
 ---
 
-## 10. Notes on the geodesic option
-
-The code optionally uses a geodesic distance on the sphere:
-\(\theta(u,u')=\arccos(\langle u,u'\rangle)\) and kernel factor \(\exp(-\beta\alpha^2\theta^2)\).
-
-A full correctness proof for the geodesic squared-exponential kernel requires care: positive definiteness and characteristicness on
-curved manifolds are more delicate than in the chordal case. For a clean correctness theorem, the chordal variant is the safest default.
-
----
-
-## 11. Bibliography (as in the project document)
+## References
 
 [1] K.T. Fang, S. Kotz, K.W. Ng. *Symmetric Multivariate and Related Distributions.* Chapman & Hall, 1990.
 
 [2] G. Casella, R.L. Berger. *Statistical Inference.* 2nd edition, Duxbury, 2002.
 
-[3] I.J. Schoenberg. "Metric spaces and positive definite functions." *Trans. AMS*, 44(3):522–536, 1938.
-
-[4] H. Wendland. *Scattered Data Approximation.* Cambridge University Press, 2005.
-
-[5] R. Gangolli. "Positive definite kernels on homogeneous spaces and certain stochastic processes related to Lévy's Brownian motion of several parameters."
-*Ann. Inst. Henri Poincaré (B)*, 3(2):121–226, 1967.
-
-[6] F. Dai, Y. Xu. *Approximation Theory and Harmonic Analysis on Spheres and Balls.* Springer, 2013.
-
-[7] N.S. Landkof. *Foundations of Modern Potential Theory.* Springer, 1972.
-
 [8] B.K. Sriperumbudur, A. Gretton, K. Fukumizu, B. Schölkopf, G.R.G. Lanckriet.
 "Hilbert space embeddings and metrics on probability measures." *JMLR*, 11:1517–1561, 2010.
 
 [9] I. Steinwart, A. Christmann. *Support Vector Machines.* Springer, 2008.
-
-[10] A. Gretton, K.M. Borgwardt, M.J. Rasch, B. Schölkopf, A. Smola, et al.
-"A kernel two-sample test." *JMLR*, 13:723–773, 2012.
 
 [11] E. del Barrio, E. Giné, C. Matrán. "Central limit theorems for the Wasserstein distance between the empirical and the true distributions."
 *Ann. Probab.*, 27(2):1009–1071, 1999.
@@ -402,12 +232,6 @@ curved manifolds are more delicate than in the chordal case. For a clean correct
 [12] S.G. Bobkov, M. Ledoux. "One-dimensional empirical measures, order statistics, and Kantorovich transport distances."
 *Mem. AMS*, 261(1259), 2019.
 
-[13] R. Vershynin. *High-Dimensional Probability.* Cambridge University Press, 2018.
-
-[14] T.W. Anderson. *An Introduction to Multivariate Statistical Analysis.* 3rd edition, Wiley, 2003.
-
 [15] R.J. Serfling. *Approximation Theorems of Mathematical Statistics.* Wiley, 1980.
 
 [16] A. Berlinet, C. Thomas-Agnan. *Reproducing Kernel Hilbert Spaces in Probability and Statistics.* Springer, 2004.
-
-[17] Y.I. Ingster, I.A. Suslina. *Nonparametric Goodness-of-Fit Testing Under Gaussian Models.* Springer, 2003.
