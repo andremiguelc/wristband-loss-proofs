@@ -161,18 +161,15 @@ Verdict: Match.
 Lean:
 
 ```lean
+abbrev Distribution (α : Type u) [MeasurableSpace α] : Type u := ProbabilityMeasure α
+
 axiom gaussianNZ (d : ℕ) : Distribution (VecNZ d)
-axiom gaussianNZ_isProbability (d : ℕ) :
-  IsProbabilityMeasure (gaussianNZ d)
 axiom chiSqRadiusLaw (d : ℕ) : Distribution NNReal
-axiom chiSqRadiusLaw_isProbability (d : ℕ) :
-  IsProbabilityMeasure (chiSqRadiusLaw d)
 axiom chiSqCDFToUnit (d : ℕ) : NNReal → UnitInterval
+axiom chiSqCDFToUnit_measurable (d : ℕ) : Measurable (chiSqCDFToUnit d)
 axiom gaussianPolar_direction_uniform (d : ℕ) : ...
 axiom gaussianPolar_radius_chiSq (d : ℕ) : ...
 axiom gaussianPolar_independent (d : ℕ) : ...
-axiom sphereUniform_isProbability (d : ℕ) :
-  IsProbabilityMeasure (sphereUniform d)
 ```
 
 Math target:
@@ -200,7 +197,7 @@ def IsContinuousCDFFor (μ : Distribution NNReal) (F : NNReal → UnitInterval) 
 def IsStrictlyIncreasingCDFFor (μ : Distribution NNReal) (F : NNReal → UnitInterval) : Prop := ...
 
 theorem probabilityIntegralTransform ... :
-  pushforward F μ = uniform01 := by sorry
+  pushforward F μ hFMeas = uniform01 := by sorry
 
 theorem probabilityIntegralTransform_reverse ... :
   observedLaw = targetLaw := by sorry
@@ -234,13 +231,15 @@ theorem sphericalLaw_determinedByRadius
     {Ω : Type _}
     [MeasurableSpace Ω]
     (μ : Distribution Ω)
-    [IsProbabilityMeasure μ]
     (S : Ω → NNReal)
     (U : Ω → Sphere d)
-    (hU : pushforward U μ = sphereUniform d)
-    (hIndep : IndepLaw μ S U) :
-    pushforward (fun ω => (Real.sqrt (S ω : ℝ)) • (U ω).1) μ =
-      sphericalLaw d (pushforward S μ) := by
+    (hS : Measurable S)
+    (hUmeas : Measurable U)
+    (hReconstruct : Measurable (fun ω => (Real.sqrt (S ω : ℝ)) • (U ω).1))
+    (hU : pushforward U μ hUmeas = sphereUniform d)
+    (hIndep : IndepLaw μ S U hS hUmeas) :
+    pushforward (fun ω => (Real.sqrt (S ω : ℝ)) • (U ω).1) μ hReconstruct =
+      sphericalLaw d (pushforward S μ hS) := by
   sorry
 
 theorem wristbandEquivalence_forward (d : ℕ) :
@@ -248,13 +247,11 @@ theorem wristbandEquivalence_forward (d : ℕ) :
 
 theorem wristbandEquivalence_backward
     (d : ℕ) (Q : Distribution (VecNZ d))
-    [IsProbabilityMeasure Q]
     (hUniform : wristbandLaw d Q = wristbandUniform d) :
     Q = gaussianNZ d := by sorry
 
 theorem wristbandEquivalence
-    (d : ℕ) (Q : Distribution (VecNZ d))
-    [IsProbabilityMeasure Q] :
+    (d : ℕ) (Q : Distribution (VecNZ d)) :
     wristbandLaw d Q = wristbandUniform d ↔ Q = gaussianNZ d := by
   sorry
 ```
@@ -273,7 +270,7 @@ Verdict: Partial.
 
 Open conditions: CDF bridge for PIT specialization and explicit dimension assumptions.
 
-## 4. Active Mismatches (Unresolved)
+## 4. Active Mismatches and Status
 
 ### 4.1 Missing CDF contract for `chiSqCDFToUnit`
 
@@ -292,20 +289,18 @@ Why Python requires this:
 Minimal Lean fix:
 - Add imported axioms linking `chiSqCDFToUnit` to `chiSqRadiusLaw` through `IsContinuousCDFFor` and `IsStrictlyIncreasingCDFFor`.
 
-### 4.2 `Distribution := Measure` design gap
+### 4.2 `Distribution := Measure` design gap (Resolved)
 
 Current status:
-- Key statements now require probability assumptions via `[IsProbabilityMeasure ...]`.
-- Imported Gaussian/sphere/chi-square laws now have probability instances.
+- `Distribution` is now a type alias to `ProbabilityMeasure`, so probability is type-driven.
+- Core theorem boundaries no longer carry redundant `[IsProbabilityMeasure ...]` assumptions.
+- `pushforward` and `productLaw` are built from probability-measure constructors.
 
 Remaining mismatch:
-- `Distribution` is still a `Measure` alias, so probability is assumption-driven, not type-driven.
+- None for this item.
 
-Minimal Lean fix:
-- Keep current approach and continue adding `[IsProbabilityMeasure ...]` on new theorem boundaries.
-
-Optional stronger fix:
-- Migrate to `ProbabilityMeasure` as the base law type.
+Note:
+- The migration introduces explicit measurability arguments for pushforwards, which is expected with `ProbabilityMeasure.map`.
 
 ### 4.3 Missing explicit dimension assumptions
 
@@ -334,8 +329,8 @@ Minimal Lean fix:
 1. Add chi-square CDF bridge axioms for `chiSqRadiusLaw` and `chiSqCDFToUnit`.
 2. Add explicit `2 <= d` assumptions where geometric equivalence statements rely on nondegenerate sphere geometry.
 3. Add optional ambient-Gaussian bridge for `gaussianNZ`.
-4. Keep `[IsProbabilityMeasure ...]` discipline for all new theorem boundaries.
+4. Completed: migrate base law type from `Measure` alias to `ProbabilityMeasure`.
 
 ## 6. Current Bottom Line
 
-Header-level formalization now captures the wristband map, Gaussian polar structure, and equivalence theorem shape with explicit probability assumptions on core statements. Remaining alignment work is concentrated in three places: chi-square CDF linkage for PIT specialization, explicit dimension assumptions, and an optional ambient-Gaussian bridge for `gaussianNZ`.
+Header-level formalization now captures the wristband map, Gaussian polar structure, and equivalence theorem shape with type-driven probability laws (`Distribution := ProbabilityMeasure`). Remaining alignment work is concentrated in three places: chi-square CDF linkage for PIT specialization, explicit dimension assumptions, and an optional ambient-Gaussian bridge for `gaussianNZ`.

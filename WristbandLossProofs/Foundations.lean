@@ -38,14 +38,14 @@ instance instMeasurableSpaceUnitInterval : MeasurableSpace UnitInterval := by
 
 universe u v w
 
-/-- `Distribution α` means "a law on `α`". -/
-abbrev Distribution (α : Type u) [MeasurableSpace α] : Type u := Measure α
+/-- `Distribution α` means "a probability law on `α`". -/
+abbrev Distribution (α : Type u) [MeasurableSpace α] : Type u := ProbabilityMeasure α
 
 /-- Pushforward of a distribution along a random-variable map. -/
-abbrev pushforward {α : Type u} {β : Type v}
+abbrev pushforward {α : Type u} {β : Type v} (f : α → β)
     [MeasurableSpace α] [MeasurableSpace β] :
-    (α → β) → Distribution α → Distribution β :=
-  Measure.map
+    Distribution α → Measurable f → Distribution β
+  | μ, hf => μ.map hf.aemeasurable
 
 /-- Product law constructor for independent couplings. -/
 def productLaw {α : Type u} {β : Type v}
@@ -56,21 +56,24 @@ def productLaw {α : Type u} {β : Type v}
 /-- Independence encoded by joint law equals product of marginals. -/
 def IndepLaw {Ω : Type u} {α : Type v} {β : Type w}
     [MeasurableSpace Ω] [MeasurableSpace α] [MeasurableSpace β]
-    (μ : Distribution Ω) [IsProbabilityMeasure μ] (X : Ω → α) (Y : Ω → β) : Prop :=
-  pushforward (fun ω => (X ω, Y ω)) μ =
-    productLaw (pushforward X μ) (pushforward Y μ)
+    (μ : Distribution Ω) (X : Ω → α) (Y : Ω → β)
+    (hX : Measurable X) (hY : Measurable Y) : Prop :=
+  pushforward (fun ω => (X ω, Y ω)) μ (hX.prodMk hY) =
+    productLaw (pushforward X μ hX) (pushforward Y μ hY)
 
 /-- Uniform law on `[0,1]`. -/
-def uniform01 : Distribution UnitInterval := (volume : Measure UnitInterval)
-
-instance instIsProbabilityMeasureUniform01 : IsProbabilityMeasure uniform01 := by
-  -- `volume` on `[0,1]` has total mass 1.
-  simpa [uniform01] using
-    (show IsProbabilityMeasure ((volume : Measure UnitInterval)) by infer_instance)
+def uniform01 : Distribution UnitInterval :=
+  ⟨(volume : Measure UnitInterval), by infer_instance⟩
 
 /-- Squared radius of a nonzero vector, stored in nonnegative reals. -/
 def radiusSq {d : ℕ} (z : VecNZ d) : NNReal :=
   ⟨‖z.1‖ ^ 2, by positivity⟩
+
+/-- Measurability of `radiusSq`. -/
+lemma measurable_radiusSq (d : ℕ) : Measurable (radiusSq (d := d)) := by
+  unfold radiusSq
+  refine Measurable.subtype_mk ?_
+  simpa using ((continuous_norm.pow 2).measurable.comp measurable_subtype_coe)
 
 /-- Direction map `z ↦ z / ‖z‖` into the unit sphere. -/
 noncomputable def direction {d : ℕ} (z : VecNZ d) : Sphere d := by
@@ -83,6 +86,12 @@ noncomputable def direction {d : ℕ} (z : VecNZ d) : Sphere d := by
       _ = 1 := by simp [hz]
   simpa [Metric.mem_sphere, dist_eq_norm] using hnorm
 
+/-- Measurability of `direction`. -/
+lemma measurable_direction (d : ℕ) : Measurable (direction (d := d)) := by
+  unfold direction
+  refine Measurable.subtype_mk ?_
+  exact ((measurable_norm.comp measurable_subtype_coe).inv.smul measurable_subtype_coe)
+
 /-! ## Sphere Measure -/
 
 /-- Surface measure on the unit sphere induced from ambient `volume`. -/
@@ -94,9 +103,12 @@ Uniform sphere law as normalized surface measure.
 
 This is the ambient-surface measure scaled by inverse total mass.
 -/
+axiom sphereUniform_isProbability
+    (d : ℕ) :
+    IsProbabilityMeasure (((sphereSurface d) Set.univ)⁻¹ • sphereSurface d)
+
 noncomputable def sphereUniform (d : ℕ) : Distribution (Sphere d) :=
-  let μs : Measure (Sphere d) := sphereSurface d
-  (μs Set.univ)⁻¹ • μs
+  ⟨((sphereSurface d) Set.univ)⁻¹ • sphereSurface d, sphereUniform_isProbability d⟩
 
 /-- Target wristband law `μ₀ = σ_{d-1} ⊗ λ`. -/
 def wristbandUniform (d : ℕ) : Distribution (Wristband d) :=
@@ -111,11 +123,19 @@ def rotateSphere {d : ℕ} (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) (u : Sphere d) : S
       _ = 1 := hu
   simp [hOu]
 
+/-- Measurability of sphere rotations. -/
+lemma measurable_rotateSphere {d : ℕ} (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) :
+    Measurable (rotateSphere O) := by
+  unfold rotateSphere
+  refine Measurable.subtype_mk ?_
+  simpa [Function.comp] using
+    (O.continuous.comp continuous_subtype_val).measurable
+
 /-! ## CDF and PIT Definitions -/
 
 /-- A concrete CDF-on-`NNReal` associated to a measure `μ` on `NNReal`. -/
 noncomputable def cdfNNReal (μ : Distribution NNReal) (x : NNReal) : ℝ :=
-  (μ (Set.Iic x)).toReal
+  ((μ : Measure NNReal) (Set.Iic x)).toReal
 
 /-- `F` is the CDF of `μ` and is continuous. -/
 def IsContinuousCDFFor (μ : Distribution NNReal) (F : NNReal → UnitInterval) : Prop :=
@@ -147,10 +167,10 @@ If `X` has continuous CDF `F`, then `F(X)` has uniform law on `[0,1]`.
 -/
 theorem probabilityIntegralTransform
     (μ : Distribution NNReal)
-    [IsProbabilityMeasure μ]
     (F : NNReal → UnitInterval)
+    (hFMeas : Measurable F)
     (hF : IsContinuousCDFFor μ F) :
-    pushforward F μ = uniform01 := by
+    pushforward F μ hFMeas = uniform01 := by
   -- Deferred in this pass: concrete CDF formalization details.
   sorry
 
@@ -162,12 +182,11 @@ then `X` must follow `targetLaw`.
 -/
 theorem probabilityIntegralTransform_reverse
     (targetLaw observedLaw : Distribution NNReal)
-    [IsProbabilityMeasure targetLaw]
-    [IsProbabilityMeasure observedLaw]
     (F : NNReal → UnitInterval)
+    (hFMeas : Measurable F)
     (hCDF : IsContinuousCDFFor targetLaw F)
     (hStrict : IsStrictlyIncreasingCDFFor targetLaw F)
-    (hUniform : pushforward F observedLaw = uniform01) :
+    (hUniform : pushforward F observedLaw hFMeas = uniform01) :
     observedLaw = targetLaw := by
   -- Deferred for the same reason as `probabilityIntegralTransform`.
   sorry
