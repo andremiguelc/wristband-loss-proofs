@@ -519,21 +519,137 @@ External bibliography:
 -/
 
 /-- **Probability Integral Transform (forward direction).**
-    If `X ~ μ` and `F` is the continuous CDF of `μ`, then `F(X) ~ Unif[0,1]`.
+    If `X ~ μ`, `F` is the continuous CDF of `μ`, and `F 0 = 0`,
+    then `F(X) ~ Unif[0,1]`.
+
+    The endpoint condition excludes the degenerate-at-zero case on `ℝ≥0`,
+    where continuity alone is not enough for uniform output.
 
     Application to wristband: with `X = ‖Z‖²` (chi-square) and `F = chiSqCDFToUnit`,
     this gives `t = F(‖Z‖²) ~ Unif[0,1]`, which is the radial percentile coordinate.
 
-    Proof status: deferred (`sorry`). This is a classical result; formalization
-    requires careful handling of measure-theoretic CDF inversion. -/
+    Proof idea: for each threshold `u ∈ [0,1)`, the sublevel set
+    `{x | F x ≤ u}` is a closed lower set, hence an interval `(-∞, y]`.
+    Continuity pins down `F y = u`, so `μ({x | F x ≤ u}) = u`; at `u = 1`,
+    both sides are `1`. -/
 theorem probabilityIntegralTransform
     (μ : Distribution NNReal)
     (F : NNReal → UnitInterval)
     (hFMeas : Measurable F)
-    (hF : IsContinuousCDFFor μ F) :
+    (hF : IsContinuousCDFFor μ F)
+    (hFZero : (F 0 : ℝ) = 0) :
     pushforward F μ hFMeas = uniform01 := by
-  -- Deferred in this pass: concrete CDF formalization details.
-  sorry
+  rcases hF with ⟨hF_cdf, hF_cont⟩
+  have hmono : Monotone (fun x : NNReal => (F x : ℝ)) := by
+    intro a b hab
+    have hmeas : (μ : Measure NNReal) (Set.Iic a) ≤ (μ : Measure NNReal) (Set.Iic b) :=
+      measure_mono (Set.Iic_subset_Iic.mpr hab)
+    have htop : (μ : Measure NNReal) (Set.Iic b) ≠ (⊤ : ENNReal) :=
+      measure_ne_top (μ : Measure NNReal) (Set.Iic b)
+    simpa [hF_cdf a, hF_cdf b, cdfNNReal] using ENNReal.toReal_mono htop hmeas
+  apply Subtype.ext
+  change ((μ : Measure NNReal).map F) = (volume : Measure UnitInterval)
+  refine Measure.ext_of_Iic _ _ ?_
+  intro u
+  by_cases hu1 : (u : ℝ) = 1
+  · have hIicTop : (Set.Iic u : Set UnitInterval) = Set.univ := by
+      ext v
+      constructor
+      · intro _
+        trivial
+      · intro _
+        change (v : ℝ) ≤ (u : ℝ)
+        simpa [hu1] using v.2.2
+    rw [hIicTop, Measure.map_apply hFMeas MeasurableSet.univ]
+    simp
+  · have hu_lt_one : (u : ℝ) < 1 := lt_of_le_of_ne u.2.2 hu1
+    let x : ℝ := (u : ℝ)
+    let A : Set NNReal := (fun t : NNReal => (F t : ℝ)) ⁻¹' Set.Iic x
+    have hA_nonempty : A.Nonempty := by
+      refine ⟨0, ?_⟩
+      change (F 0 : ℝ) ≤ x
+      exact le_trans (by simpa [hFZero]) u.2.1
+    have hToOne : Filter.Tendsto (fun t : NNReal => (F t : ℝ)) Filter.atTop (nhds 1) := by
+      have hTmeas : Filter.Tendsto
+          (fun t : NNReal => ((μ : Measure NNReal) (Set.Iic t)))
+          Filter.atTop
+          (nhds ((μ : Measure NNReal) Set.univ)) :=
+        MeasureTheory.tendsto_measure_Iic_atTop (μ : Measure NNReal)
+      have hTtoReal : Filter.Tendsto
+          (fun t : NNReal => (((μ : Measure NNReal) (Set.Iic t)).toReal))
+          Filter.atTop
+          (nhds (((μ : Measure NNReal) Set.univ).toReal)) :=
+        (ENNReal.continuousAt_toReal (measure_ne_top (μ : Measure NNReal) Set.univ)).tendsto.comp hTmeas
+      have hUnivToReal : (((μ : Measure NNReal) Set.univ).toReal) = (1 : ℝ) := by
+        have hUniv : ((μ : Measure NNReal) Set.univ) = 1 := by
+          simpa using (MeasureTheory.IsProbabilityMeasure.measure_univ (μ := (μ : Measure NNReal)))
+        simpa [hUniv]
+      have hEqFun : (fun t : NNReal => (F t : ℝ)) =
+          (fun t : NNReal => (((μ : Measure NNReal) (Set.Iic t)).toReal)) := by
+        funext t
+        simpa [cdfNNReal] using hF_cdf t
+      rw [hEqFun]
+      simpa [hUnivToReal] using hTtoReal
+    have hA_bddAbove : BddAbove A := by
+      have hEvent : ∀ᶠ t : NNReal in Filter.atTop, x < (F t : ℝ) :=
+        (tendsto_order.1 hToOne).1 x hu_lt_one
+      rcases Filter.eventually_atTop.1 hEvent with ⟨b, hb⟩
+      refine ⟨b, ?_⟩
+      intro t ht
+      by_contra htb
+      have htb' : b ≤ t := le_of_not_ge htb
+      have hlt : x < (F t : ℝ) := hb t htb'
+      exact not_lt_of_ge ht hlt
+    let y : NNReal := sSup A
+    have hyA : y ∈ A := by
+      refine IsClosed.csSup_mem ?_ hA_nonempty hA_bddAbove
+      simpa [A, x] using (IsClosed.preimage hF_cont isClosed_Iic)
+    have hA_upper : ∀ t, t ∈ A → t ≤ y := by
+      intro t ht
+      exact le_csSup hA_bddAbove ht
+    have hA_lower : IsLowerSet A := by
+      intro a b hab hbA
+      exact by
+        simpa [A] using (le_trans (hmono hab) hbA)
+    have hA_eq_Iic : A = Set.Iic y := by
+      ext t
+      constructor
+      · intro ht
+        exact hA_upper t ht
+      · intro ht
+        exact hA_lower ht hyA
+    have hy_eq_x : (F y : ℝ) = x := by
+      apply le_antisymm hyA
+      by_contra hxy
+      have hxy' : (F y : ℝ) < x := lt_of_not_ge hxy
+      have hN : (fun t : NNReal => (F t : ℝ)) ⁻¹' Set.Iio x ∈ nhds y :=
+        IsOpen.mem_nhds (IsOpen.preimage hF_cont isOpen_Iio) hxy'
+      obtain ⟨z, hyz, hzsub⟩ := exists_Ico_subset_of_mem_nhds hN (exists_gt y)
+      rcases exists_between hyz with ⟨w, hyw, hwz⟩
+      have hwA : w ∈ A := by
+        have hwIn : w ∈ Set.Ico y z := ⟨le_of_lt hyw, hwz⟩
+        have hwlt : (F w : ℝ) < x := hzsub hwIn
+        exact by simpa [A] using (le_of_lt hwlt)
+      have hwy : w ≤ y := hA_upper w hwA
+      exact not_lt_of_ge hwy hyw
+    have hMapA : ((μ : Measure NNReal).map F) (Set.Iic u) = (μ : Measure NNReal) A := by
+      rw [Measure.map_apply hFMeas measurableSet_Iic]
+      rfl
+    rw [hMapA, hA_eq_Iic]
+    have hIic : (μ : Measure NNReal) (Set.Iic y) = ENNReal.ofReal (x : ℝ) := by
+      calc
+        (μ : Measure NNReal) (Set.Iic y)
+            = ENNReal.ofReal (((μ : Measure NNReal) (Set.Iic y)).toReal) := by
+                symm
+                exact ENNReal.ofReal_toReal (measure_ne_top (μ : Measure NNReal) (Set.Iic y))
+        _ = ENNReal.ofReal ((F y : ℝ)) := by
+              congr 1
+              symm
+              exact hF_cdf y
+        _ = ENNReal.ofReal x := by rw [hy_eq_x]
+    rw [hIic]
+    symm
+    simpa [x] using unitInterval.volume_Iic u
 
 /-- **Probability Integral Transform (reverse direction).**
     If `F(X) ~ Unif[0,1]` and `F` is a strictly increasing continuous CDF of
