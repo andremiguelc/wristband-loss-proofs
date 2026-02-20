@@ -1,53 +1,24 @@
 # wristband-loss-proofs
 
-Lean 4 + Mathlib formal proofs for results developed in [ml-tidbits](https://github.com/mvparakhin/ml-tidbits).
+Lean 4 + Mathlib formalization of the wristband-Gaussian arguments used in
+[`ml-tidbits`](https://github.com/mvparakhin/ml-tidbits).
 
-## Structure
+## Build
 
-```
-.
-├── WristbandLossProofs/
-│   ├── Foundations.lean      # Types, distributions, sphere measure, CDF defs, imported theorem debt
-│   └── CoreEngine.lean       # Wristband map, spherical law, wristband equivalence theorem
-├── WristbandLossProofs.lean  # Library root (imports CoreEngine)
-├── docs/
-│   ├── wristband_proof_plan.md          # Formal proof framework (definitions → kernels → objectives)
-│   └── wristband_tutorial_core_engine.md # Step-by-step tutorial on the probabilistic engine
-├── lakefile.toml             # Lake build config
-├── lean-toolchain            # Lean version pin
-├── lake-manifest.json        # Dependency lock file
-└── ml-tidbits/               # Reference implementation (local only, not tracked)
-```
-
-## Proof status
-
-| Result | File | Status |
-|--------|------|--------|
-| `sphericalLaw_determinedByRadius` | CoreEngine | proved |
-| `wristbandEquivalence` | CoreEngine | proved (via forward + backward) |
-| `sphericalLaw_rotationInvariant` | CoreEngine | sorry |
-| `wristbandEquivalence_forward` | CoreEngine | sorry |
-| `wristbandEquivalence_backward` | CoreEngine | sorry |
-| `probabilityIntegralTransform` | Foundations | sorry |
-| `probabilityIntegralTransform_reverse` | Foundations | sorry |
-| Gaussian polar facts | Foundations | axiom (imported) |
-| `sphereUniform_rotationInvariant` | Foundations | axiom (imported) |
-
-## Setup
-
-Requires [elan](https://github.com/leanprover/elan) (Lean version manager).
+Requires [elan](https://github.com/leanprover/elan).
 
 ```bash
-lake exe cache get   # download Mathlib cache (first time)
+lake exe cache get
 lake build
 ```
 
-## ml-tidbits reference
+## Layout
 
-The `ml-tidbits/` folder contains a local clone of the Python repository whose
-results we are formalising. It is listed in `.gitignore` and is not part of
-this repo. Re-clone if missing:
+- `WristbandLossProofs/Foundations.lean`: core types, measures/distributions, chi-square CDF/PIT infrastructure.
+- `WristbandLossProofs/ImportedFacts.lean`: imported theorem debt isolated as axioms.
+- `WristbandLossProofs/Equivalence.lean`: wristband map, spherical-law lemmas, and equivalence theorem statements.
+- `WristbandLossProofs.lean`: library root.
+- `docs/wristband_proof_plan.md`: proof roadmap.
+- `docs/wristband_formalization_audit.md`: Python-to-Lean mapping audit.
 
-```bash
-git clone https://github.com/mvparakhin/ml-tidbits --depth=1
-```
+`ml-tidbits/` is an optional local reference clone and is not part of this repository.
