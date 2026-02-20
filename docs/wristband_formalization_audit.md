@@ -386,13 +386,13 @@ Math: for any orthogonal $O$, $O_\# \sigma_{d-1} = \sigma_{d-1}$.
 
 ---
 
-## 6. The Probability Integral Transform
+## 6. CDF-to-Uniform Transform
 
 The wristband map uses the CDF $F_{\chi^2_d}$ to turn a chi-square random
-variable into a uniform one. This is a special case of the probability integral
-transform (PIT).
+variable into a uniform one. This is the forward CDF-to-uniform transform used
+in the wristband argument.
 
-### 6.1 Forward PIT
+### 6.1 Forward CDF-to-uniform theorem
 
 ```lean
 theorem probabilityIntegralTransform
@@ -409,17 +409,20 @@ theorem probabilityIntegralTransform
 Math: if $X \sim \mu$, $F = F_\mu$ is continuous, and $F(0)=0$, then
 $F(X) \sim \mathrm{Unif}(0,1)$.
 
-**Partial match.** The classical PIT holds for any continuous CDF on any
-ordered space. The Lean statement is restricted to `Distribution NNReal` —
-it only applies to nonneg-real-valued random variables. This is sufficient
-for the wristband use case (where the argument is $\|z\|^2 \geq 0$), but
-narrower than the textbook version.
+**Match** The Lean statement
+is on `Distribution NNReal`, matching the nonnegative squared-radius coordinate
+used by the code. The endpoint hypothesis `hFZero : F 0 = 0` is satisfied in the
+intended regime (`d \geq 1`, chi-square CDF), so it does not add an extra
+constraint beyond the pipeline assumptions.
+
+Scope note: this remains a deliberately scoped theorem rather than the most
+general textbook statement.
 
 Status: **fully proven** (`Foundations.lean:535`). The endpoint guard
 `hFZero : F 0 = 0` is essential on `ℝ≥0` to exclude degenerate-at-zero
 counterexamples.
 
-### 6.2 Reverse PIT
+### 6.2 Reverse CDF-to-law theorem
 
 ```lean
 theorem probabilityIntegralTransform_reverse
@@ -708,10 +711,11 @@ Gaussian measure on `Vec d` to the nonzero subtype yields `gaussianNZ d`.
 
 Four theorem statements have no proof:
 
-1. `probabilityIntegralTransform_reverse` (`Foundations.lean:662`) — reverse PIT
+1. `probabilityIntegralTransform_reverse` (`Foundations.lean:662`) — reverse CDF-to-law theorem
 2. `sphericalLaw_determinedByRadius` (`Equivalence.lean:156`) — identification
 3. `wristbandEquivalence_forward` (`Equivalence.lean:185`) — forward equivalence
 4. `wristbandEquivalence_backward` (`Equivalence.lean:201`) — backward equivalence
 
-The last two depend on the first two. With forward PIT now proven, reverse PIT
-(item 1) plus the identification lemma (item 2) are the main blockers.
+The last two depend on the first two. With the forward CDF-to-uniform theorem
+now proven, the reverse CDF-to-law theorem (item 1) plus the identification
+lemma (item 2) are the main blockers.
