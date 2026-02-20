@@ -1,6 +1,6 @@
 # Wristband Formalization Audit (Lean vs. `ml-tidbits`)
 
-Date: 2026-02-19
+Date: 2026-02-20 (updated)
 
 ## 1. Scope and Sources
 
@@ -59,9 +59,9 @@ Reflected radial term:
 $$
 \begin{aligned}
 k_{\mathrm{rad}}(t_i,t_j)
-&= e^{-\beta(t_i-t_j)^2}
-+ e^{-\beta(t_i+t_j)^2}
-+ e^{-\beta(t_i+t_j-2)^2}.
+&= e^{-\beta(t_i-t_j)^2} +
+e^{-\beta(t_i+t_j)^2} +
+e^{-\beta(t_i+t_j-2)^2}.
 \end{aligned}
 $$
 
@@ -101,10 +101,10 @@ $$
 \widehat{L}_c = \frac{L_c-m_c}{s_c},
 \qquad
 L_{\mathrm{total}}
-= \frac{\widehat{L}_{\mathrm{rep}}
-+ \lambda_{\mathrm{rad}}\widehat{L}_{\mathrm{rad}}
-+ \lambda_{\mathrm{ang}}\widehat{L}_{\mathrm{ang}}
-+ \lambda_{\mathrm{mom}}\widehat{L}_{\mathrm{mom}}}{s_{\mathrm{total}}}.
+= \frac{\widehat{L}_{\mathrm{rep}} +
+\lambda_{\mathrm{rad}}\widehat{L}_{\mathrm{rad}} +
+\lambda_{\mathrm{ang}}\widehat{L}_{\mathrm{ang}} +
+\lambda_{\mathrm{mom}}\widehat{L}_{\mathrm{mom}}}{s_{\mathrm{total}}}.
 $$
 
 Python anchors:
@@ -117,7 +117,7 @@ Python anchors:
 
 ### 3.1 Geometry and types
 
-Lean:
+Lean (`Foundations.lean`):
 
 ```lean
 abbrev Vec (d : ℕ) : Type := EuclideanSpace ℝ (Fin d)
@@ -139,7 +139,7 @@ Verdict: Match.
 
 ### 3.2 Radius and direction
 
-Lean:
+Lean (`Foundations.lean`):
 
 ```lean
 def radiusSq {d : ℕ} (z : VecNZ d) : NNReal := ⟨‖z.1‖ ^ 2, by positivity⟩
@@ -156,20 +156,72 @@ $$
 
 Verdict: Match.
 
-### 3.3 Imported Gaussian-polar package
+### 3.3 Chi-square radius law and CDF (Resolved — previously axioms, now definitions)
 
-Lean:
+**Previous state**: `chiSqRadiusLaw`, `chiSqCDFToUnit`, and `chiSqCDFToUnit_measurable` were axioms in `ImportedFacts.lean`.
+
+**Current state**: All three are now concrete definitions/lemmas in `Foundations.lean`, backed by Mathlib's `gammaMeasure`:
 
 ```lean
-abbrev Distribution (α : Type u) [MeasurableSpace α] : Type u := ProbabilityMeasure α
+-- Chi-square as Gamma(d/2, 1/2):
+noncomputable def chiSqMeasureR (d : ℕ) : Measure ℝ :=
+  ProbabilityTheory.gammaMeasure (chiSqShape d) chiSqRate
 
+-- Pushed forward to ℝ≥0 and wrapped as ProbabilityMeasure:
+noncomputable def chiSqRadiusLaw (d : ℕ) : Distribution NNReal := ...
+
+-- CDF map using Mathlib's ProbabilityTheory.cdf:
+noncomputable def chiSqCDFToUnit (d : ℕ) : NNReal → UnitInterval := ...
+
+-- Measurability proven from CDF continuity:
+lemma chiSqCDFToUnit_measurable (d : ℕ) : Measurable (chiSqCDFToUnit d) := ...
+```
+
+Math target:
+
+$$
+\chi^2_d = \operatorname{Gamma}(d/2,\, 1/2),
+\qquad
+F_{\chi^2_d}(x) = \operatorname{gammainc}(d/2,\, x/2).
+$$
+
+Python correspondence: `torch.special.gammainc(d/2, s/2)` in `EmbedModels.py:752`.
+
+Verdict: **Match.** Previously partial; now fully resolved.
+
+### 3.4 CDF contracts for PIT (Resolved — previously missing, now proven)
+
+**Previous state**: No declaration linking `chiSqCDFToUnit` to `chiSqRadiusLaw` through the CDF predicates. The audit flagged this as the primary missing piece.
+
+**Current state**: Both CDF contracts are now proven theorems in `Foundations.lean`:
+
+```lean
+-- Continuity contract (needed for forward PIT):
+theorem chiSqCDFToUnit_isContinuousCDF (d : ℕ) (hDim : 1 ≤ d) :
+    IsContinuousCDFFor (chiSqRadiusLaw d) (chiSqCDFToUnit d) := ...
+
+-- Strict monotonicity contract (needed for reverse PIT):
+theorem chiSqCDFToUnit_isStrictlyIncreasingCDF (d : ℕ) (hDim : 1 ≤ d) :
+    IsStrictlyIncreasingCDFFor (chiSqRadiusLaw d) (chiSqCDFToUnit d) := ...
+```
+
+These are backed by proven supporting lemmas:
+- `continuous_cdf_gammaMeasure` — CDF continuity via no-atoms property of gamma measures.
+- `strictMono_cdf_gammaMeasure` — strict monotonicity via positive density on all intervals.
+- `gammaMeasure_Ioc_pos` — positive mass on `(x, y]` for `0 ≤ x < y`.
+
+Verdict: **Match.** Previously missing; now fully resolved with Mathlib-backed proofs.
+
+### 3.5 Gaussian polar decomposition (axioms in `ImportedFacts.lean`)
+
+Lean (`ImportedFacts.lean`):
+
+```lean
 axiom gaussianNZ (d : ℕ) : Distribution (VecNZ d)
-axiom chiSqRadiusLaw (d : ℕ) : Distribution NNReal
-axiom chiSqCDFToUnit (d : ℕ) : NNReal → UnitInterval
-axiom chiSqCDFToUnit_measurable (d : ℕ) : Measurable (chiSqCDFToUnit d)
 axiom gaussianPolar_direction_uniform (d : ℕ) : ...
 axiom gaussianPolar_radius_chiSq (d : ℕ) : ...
 axiom gaussianPolar_independent (d : ℕ) : ...
+axiom sphereUniform_rotationInvariant (d : ℕ) (O : ...) : ...
 ```
 
 Math target:
@@ -184,18 +236,13 @@ S=\|Z\|^2\sim\chi_d^2,
 U\perp S.
 $$
 
-Verdict: Partial.
+Verdict: Partial (these remain axioms — theorem debt).
 
-Missing piece: no declaration that `chiSqCDFToUnit` is the CDF of `chiSqRadiusLaw`.
+### 3.6 PIT theorem headers
 
-### 3.4 PIT declarations
-
-Lean:
+Lean (`Foundations.lean`):
 
 ```lean
-def IsContinuousCDFFor (μ : Distribution NNReal) (F : NNReal → UnitInterval) : Prop := ...
-def IsStrictlyIncreasingCDFFor (μ : Distribution NNReal) (F : NNReal → UnitInterval) : Prop := ...
-
 theorem probabilityIntegralTransform ... :
   pushforward F μ hFMeas = uniform01 := by sorry
 
@@ -217,43 +264,22 @@ U\sim \mathrm{Unif}(0,1),\ F\ \text{strictly increasing CDF}
 F^{-1}(U)\sim\mu.
 $$
 
-Verdict: Partial.
+Verdict: Partial — headers match, proofs deferred (`sorry`). But the CDF hypotheses can now be instantiated via the proven contracts in section 3.4.
 
-Missing piece: no instantiated bridge connecting `chiSqRadiusLaw` and `chiSqCDFToUnit` through these predicates.
+### 3.7 Equivalence headers
 
-### 3.5 Equivalence headers
-
-Lean:
+Lean (`Equivalence.lean`):
 
 ```lean
-theorem sphericalLaw_determinedByRadius
-    (d : ℕ)
-    {Ω : Type _}
-    [MeasurableSpace Ω]
-    (μ : Distribution Ω)
-    (S : Ω → NNReal)
-    (U : Ω → Sphere d)
-    (hS : Measurable S)
-    (hUmeas : Measurable U)
-    (hReconstruct : Measurable (fun ω => (Real.sqrt (S ω : ℝ)) • (U ω).1))
-    (hU : pushforward U μ hUmeas = sphereUniform d)
-    (hIndep : IndepLaw μ S U hS hUmeas) :
-    pushforward (fun ω => (Real.sqrt (S ω : ℝ)) • (U ω).1) μ hReconstruct =
-      sphericalLaw d (pushforward S μ hS) := by
-  sorry
-
 theorem wristbandEquivalence_forward (d : ℕ) :
   wristbandLaw d (gaussianNZ d) = wristbandUniform d := by sorry
 
-theorem wristbandEquivalence_backward
-    (d : ℕ) (Q : Distribution (VecNZ d))
+theorem wristbandEquivalence_backward (d : ℕ) (Q : Distribution (VecNZ d))
     (hUniform : wristbandLaw d Q = wristbandUniform d) :
     Q = gaussianNZ d := by sorry
 
-theorem wristbandEquivalence
-    (d : ℕ) (Q : Distribution (VecNZ d)) :
-    wristbandLaw d Q = wristbandUniform d ↔ Q = gaussianNZ d := by
-  sorry
+theorem wristbandEquivalence (d : ℕ) (Q : Distribution (VecNZ d)) :
+    wristbandLaw d Q = wristbandUniform d ↔ Q = gaussianNZ d := ...
 ```
 
 Math target:
@@ -266,28 +292,15 @@ Q = \gamma_d
 (\text{modelled on }\mathbb{R}^d\setminus\{0\}).
 $$
 
-Verdict: Partial.
-
-Open conditions: CDF bridge for PIT specialization and explicit dimension assumptions.
+Verdict: Partial — headers match, forward/backward proofs deferred.
 
 ## 4. Active Mismatches and Status
 
-### 4.1 Missing CDF contract for `chiSqCDFToUnit`
+### 4.1 CDF contract for `chiSqCDFToUnit` (Resolved)
 
-Missing declarations:
-- `IsContinuousCDFFor (chiSqRadiusLaw d) (chiSqCDFToUnit d)`
-- `IsStrictlyIncreasingCDFFor (chiSqRadiusLaw d) (chiSqCDFToUnit d)`
+**Previous status**: Missing. No declaration that `chiSqCDFToUnit` is the CDF of `chiSqRadiusLaw`.
 
-Why Python requires this:
-- Python uses
-  $$
-  t = \operatorname{gammainc}\!\left(\frac d2,\frac s2\right)
-  $$
-  as the chi-square CDF value in `ml-tidbits/python/embed_models/EmbedModels.py:752`.
-- Radial loss compares sorted `t` to uniform quantiles in `ml-tidbits/python/embed_models/EmbedModels.py:757`.
-
-Minimal Lean fix:
-- Add imported axioms linking `chiSqCDFToUnit` to `chiSqRadiusLaw` through `IsContinuousCDFFor` and `IsStrictlyIncreasingCDFFor`.
+**Current status**: Fully resolved. Both `IsContinuousCDFFor` and `IsStrictlyIncreasingCDFFor` contracts are proven theorems in `Foundations.lean`, backed by Mathlib's `gammaMeasure` infrastructure. Additionally, `chiSqRadiusLaw` and `chiSqCDFToUnit` are no longer axioms — they are concrete definitions.
 
 ### 4.2 `Distribution := Measure` design gap (Resolved)
 
@@ -299,16 +312,15 @@ Current status:
 Remaining mismatch:
 - None for this item.
 
-Note:
-- The migration introduces explicit measurability arguments for pushforwards, which is expected with `ProbabilityMeasure.map`.
-
 ### 4.3 Missing explicit dimension assumptions
 
 Current status:
 - Core headers use unrestricted `d : ℕ`.
+- The chi-square CDF contracts correctly require `hDim : 1 ≤ d`.
 
 Mismatch:
 - The intended geometry in the proof plan is for nondegenerate spherical setting (at least `2 <= d`).
+- The equivalence theorem headers do not yet carry dimension constraints.
 
 Minimal Lean fix:
 - Add `hDim : 2 <= d` to geometric and equivalence theorem headers where the argument semantically needs nondegenerate sphere behavior.
@@ -324,13 +336,42 @@ Mismatch:
 Minimal Lean fix:
 - Add an imported bridge statement expressing that restricting ambient Gaussian to `VecNZ` yields `gaussianNZ`.
 
-## 5. Implementation Queue
+### 4.5 Remaining axiom: `sphereUniform_isProbability`
 
-1. Add chi-square CDF bridge axioms for `chiSqRadiusLaw` and `chiSqCDFToUnit`.
+Current status:
+- `Foundations.lean` contains one axiom: `sphereUniform_isProbability`, asserting that the normalized sphere surface measure has total mass 1.
+
+Assessment:
+- This requires showing that the sphere has finite nonzero surface area, which is nontrivial in Mathlib currently.
+- Acceptable to keep as axiom for now.
+
+## 5. Axiom Inventory
+
+Complete list of axioms across all files:
+
+| Axiom | File | Status |
+|-------|------|--------|
+| `sphereUniform_isProbability` | `Foundations.lean` | Axiom (sphere has finite nonzero area) |
+| `gaussianNZ` | `ImportedFacts.lean` | Axiom (standard Gaussian on nonzero vectors) |
+| `gaussianPolar_direction_uniform` | `ImportedFacts.lean` | Axiom (direction is uniform on sphere) |
+| `gaussianPolar_radius_chiSq` | `ImportedFacts.lean` | Axiom (squared radius is chi-square) |
+| `gaussianPolar_independent` | `ImportedFacts.lean` | Axiom (direction ⊥ squared radius) |
+| `sphereUniform_rotationInvariant` | `ImportedFacts.lean` | Axiom (sphere law is rotation-invariant) |
+
+**No longer axioms** (now concrete definitions/lemmas in `Foundations.lean`):
+- `chiSqRadiusLaw` → definition via `gammaMeasure`
+- `chiSqCDFToUnit` → definition via `ProbabilityTheory.cdf`
+- `chiSqCDFToUnit_measurable` → proven lemma
+
+## 6. Implementation Queue
+
+1. ~~Add chi-square CDF bridge axioms for `chiSqRadiusLaw` and `chiSqCDFToUnit`.~~ **Done** — replaced axioms with Mathlib-backed definitions and proven CDF contracts.
 2. Add explicit `2 <= d` assumptions where geometric equivalence statements rely on nondegenerate sphere geometry.
 3. Add optional ambient-Gaussian bridge for `gaussianNZ`.
-4. Completed: migrate base law type from `Measure` alias to `ProbabilityMeasure`.
+4. ~~Migrate base law type from `Measure` alias to `ProbabilityMeasure`.~~ **Done.**
+5. Prove PIT theorems (`probabilityIntegralTransform` and `probabilityIntegralTransform_reverse`) — currently `sorry`.
+6. Prove equivalence theorems (`wristbandEquivalence_forward`, `wristbandEquivalence_backward`) — currently `sorry`.
 
-## 6. Current Bottom Line
+## 7. Current Bottom Line
 
-Header-level formalization now captures the wristband map, Gaussian polar structure, and equivalence theorem shape with type-driven probability laws (`Distribution := ProbabilityMeasure`). Remaining alignment work is concentrated in three places: chi-square CDF linkage for PIT specialization, explicit dimension assumptions, and an optional ambient-Gaussian bridge for `gaussianNZ`.
+Header-level formalization captures the wristband map, Gaussian polar structure, and equivalence theorem shape with type-driven probability laws (`Distribution := ProbabilityMeasure`). The chi-square CDF bridge — previously the primary gap — is now fully resolved with Mathlib-backed definitions and proven continuity/strict-monotonicity contracts. Remaining alignment work is in two places: explicit dimension assumptions for equivalence theorems, and an optional ambient-Gaussian bridge for `gaussianNZ`. The main deferred proofs are the PIT theorems and the equivalence forward/backward directions.
