@@ -401,10 +401,10 @@ theorem probabilityIntegralTransform
     (hFMeas : Measurable F)
     (hF : IsContinuousCDFFor μ F)
     (hFZero : (F 0 : ℝ) = 0) :
-    pushforward F μ hFMeas = uniform01 := by sorry
+    pushforward F μ hFMeas = uniform01 := by ...
 ```
 
-(`Foundations.lean:529`)
+(`Foundations.lean:535`)
 
 Math: if $X \sim \mu$, $F = F_\mu$ is continuous, and $F(0)=0$, then
 $F(X) \sim \mathrm{Unif}(0,1)$.
@@ -415,8 +415,9 @@ it only applies to nonneg-real-valued random variables. This is sufficient
 for the wristband use case (where the argument is $\|z\|^2 \geq 0$), but
 narrower than the textbook version.
 
-Status: **statement only** (`sorry`). The hypotheses `IsContinuousCDFFor` can
-be instantiated via `chiSqCDFToUnit_isContinuousCDF`.
+Status: **fully proven** (`Foundations.lean:535`). The endpoint guard
+`hFZero : F 0 = 0` is essential on `ℝ≥0` to exclude degenerate-at-zero
+counterexamples.
 
 ### 6.2 Reverse PIT
 
@@ -431,7 +432,7 @@ theorem probabilityIntegralTransform_reverse
     observedLaw = targetLaw := by sorry
 ```
 
-(`Foundations.lean:546`)
+(`Foundations.lean:662`)
 
 Math: if $F$ is a continuous, strictly increasing CDF for $\mu$, and
 $F(X) \sim \mathrm{Unif}(0,1)$, then $X \sim \mu$.
@@ -705,13 +706,12 @@ Gaussian measure on `Vec d` to the nonzero subtype yields `gaussianNZ d`.
 
 ### 9.7 Deferred proofs (`sorry`)
 
-Five theorem statements have no proof:
+Four theorem statements have no proof:
 
-1. `probabilityIntegralTransform` (`Foundations.lean:529`) — forward PIT
-2. `probabilityIntegralTransform_reverse` (`Foundations.lean:546`) — reverse PIT
-3. `sphericalLaw_determinedByRadius` (`Equivalence.lean:156`) — identification
-4. `wristbandEquivalence_forward` (`Equivalence.lean:185`) — forward equivalence
-5. `wristbandEquivalence_backward` (`Equivalence.lean:201`) — backward equivalence
+1. `probabilityIntegralTransform_reverse` (`Foundations.lean:662`) — reverse PIT
+2. `sphericalLaw_determinedByRadius` (`Equivalence.lean:156`) — identification
+3. `wristbandEquivalence_forward` (`Equivalence.lean:185`) — forward equivalence
+4. `wristbandEquivalence_backward` (`Equivalence.lean:201`) — backward equivalence
 
-The last two depend on the first three. Proving PIT (items 1–2) and the
-identification lemma (item 3) would unblock the main theorem.
+The last two depend on the first two. With forward PIT now proven, reverse PIT
+(item 1) plus the identification lemma (item 2) are the main blockers.
