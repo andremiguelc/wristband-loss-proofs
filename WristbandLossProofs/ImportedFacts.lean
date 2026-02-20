@@ -33,15 +33,6 @@ References:
 /-- Standard Gaussian law, encoded on nonzero vectors for wristband-map domain. -/
 axiom gaussianNZ (d : ℕ) : Distribution (VecNZ d)
 
-/-- Chi-square law for squared radius. -/
-axiom chiSqRadiusLaw (d : ℕ) : Distribution NNReal
-
-/-- Chi-square CDF map used by the wristband transform, valued in `[0,1]`. -/
-axiom chiSqCDFToUnit (d : ℕ) : NNReal → UnitInterval
-
-/-- Imported measurability for the chi-square CDF map. -/
-axiom chiSqCDFToUnit_measurable (d : ℕ) : Measurable (chiSqCDFToUnit d)
-
 /-- Imported Gaussian polar fact: direction is uniform on the sphere. -/
 axiom gaussianPolar_direction_uniform (d : ℕ) :
     pushforward (direction (d := d)) (gaussianNZ d) (measurable_direction d) = sphereUniform d
