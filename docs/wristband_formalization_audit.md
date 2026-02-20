@@ -271,14 +271,14 @@ Verdict: Partial — headers match, proofs deferred (`sorry`). But the CDF hypot
 Lean (`Equivalence.lean`):
 
 ```lean
-theorem wristbandEquivalence_forward (d : ℕ) :
+theorem wristbandEquivalence_forward (d : ℕ) (hDim : 2 ≤ d) :
   wristbandLaw d (gaussianNZ d) = wristbandUniform d := by sorry
 
-theorem wristbandEquivalence_backward (d : ℕ) (Q : Distribution (VecNZ d))
+theorem wristbandEquivalence_backward (d : ℕ) (hDim : 2 ≤ d) (Q : Distribution (VecNZ d))
     (hUniform : wristbandLaw d Q = wristbandUniform d) :
     Q = gaussianNZ d := by sorry
 
-theorem wristbandEquivalence (d : ℕ) (Q : Distribution (VecNZ d)) :
+theorem wristbandEquivalence (d : ℕ) (hDim : 2 ≤ d) (Q : Distribution (VecNZ d)) :
     wristbandLaw d Q = wristbandUniform d ↔ Q = gaussianNZ d := ...
 ```
 
@@ -312,18 +312,19 @@ Current status:
 Remaining mismatch:
 - None for this item.
 
-### 4.3 Missing explicit dimension assumptions
+### 4.3 Explicit dimension assumptions (Resolved)
 
 Current status:
-- Core headers use unrestricted `d : ℕ`.
-- The chi-square CDF contracts correctly require `hDim : 1 ≤ d`.
+- Geometric/equivalence theorem headers in `Equivalence.lean` now carry explicit `hDim : 2 ≤ d` assumptions where nondegenerate sphere geometry is used:
+  - `sphericalLaw_rotationInvariant`
+  - `sphericalLaw_determinedByRadius`
+  - `wristbandEquivalence_forward`
+  - `wristbandEquivalence_backward`
+  - `wristbandEquivalence`
+- The chi-square CDF contracts still correctly require `hDim : 1 ≤ d`.
 
-Mismatch:
-- The intended geometry in the proof plan is for nondegenerate spherical setting (at least `2 <= d`).
-- The equivalence theorem headers do not yet carry dimension constraints.
-
-Minimal Lean fix:
-- Add `hDim : 2 <= d` to geometric and equivalence theorem headers where the argument semantically needs nondegenerate sphere behavior.
+Remaining mismatch:
+- None for this item.
 
 ### 4.4 Missing ambient-Gaussian bridge for `gaussianNZ`
 
@@ -366,7 +367,7 @@ Complete list of axioms across all files:
 ## 6. Implementation Queue
 
 1. ~~Add chi-square CDF bridge axioms for `chiSqRadiusLaw` and `chiSqCDFToUnit`.~~ **Done** — replaced axioms with Mathlib-backed definitions and proven CDF contracts.
-2. Add explicit `2 <= d` assumptions where geometric equivalence statements rely on nondegenerate sphere geometry.
+2. ~~Add explicit `2 <= d` assumptions where geometric equivalence statements rely on nondegenerate sphere geometry.~~ **Done.**
 3. Add optional ambient-Gaussian bridge for `gaussianNZ`.
 4. ~~Migrate base law type from `Measure` alias to `ProbabilityMeasure`.~~ **Done.**
 5. Prove PIT theorems (`probabilityIntegralTransform` and `probabilityIntegralTransform_reverse`) — currently `sorry`.
@@ -374,4 +375,4 @@ Complete list of axioms across all files:
 
 ## 7. Current Bottom Line
 
-Header-level formalization captures the wristband map, Gaussian polar structure, and equivalence theorem shape with type-driven probability laws (`Distribution := ProbabilityMeasure`). The chi-square CDF bridge — previously the primary gap — is now fully resolved with Mathlib-backed definitions and proven continuity/strict-monotonicity contracts. Remaining alignment work is in two places: explicit dimension assumptions for equivalence theorems, and an optional ambient-Gaussian bridge for `gaussianNZ`. The main deferred proofs are the PIT theorems and the equivalence forward/backward directions.
+Header-level formalization captures the wristband map, Gaussian polar structure, and equivalence theorem shape with type-driven probability laws (`Distribution := ProbabilityMeasure`). The chi-square CDF bridge and explicit nondegenerate-dimension guards (`hDim : 2 ≤ d` on geometric/equivalence headers) are now in place. Remaining alignment work is primarily the optional ambient-Gaussian bridge for `gaussianNZ`. The main deferred proofs are the PIT theorems and the equivalence forward/backward directions.

@@ -62,6 +62,7 @@ probability measures to reuse `Measure.map_prod_map`.
 -/
 theorem sphericalLaw_rotationInvariant
     (d : ℕ)
+    (_hDim : 2 ≤ d)
     (radiusSqLaw : Distribution NNReal) :
     IsRotationInvariant d (sphericalLaw d radiusSqLaw) := by
   intro O
@@ -154,6 +155,7 @@ This is the theorem-shape needed in the proof plan; proof is deferred for now.
 -/
 theorem sphericalLaw_determinedByRadius
     (d : ℕ)
+    (hDim : 2 ≤ d)
     {Ω : Type _}
     [MeasurableSpace Ω]
     (μ : Distribution Ω)
@@ -180,7 +182,9 @@ Roadmap:
 3. Transfer independence through the CDF map.
 4. Identify the wristband law as `wristbandUniform`.
 -/
-theorem wristbandEquivalence_forward (d : ℕ) :
+theorem wristbandEquivalence_forward
+    (d : ℕ)
+    (hDim : 2 ≤ d) :
     wristbandLaw d (gaussianNZ d) = wristbandUniform d := by
   -- Deferred until PIT + independence lemmas are concretized.
   sorry
@@ -196,6 +200,7 @@ Roadmap:
 -/
 theorem wristbandEquivalence_backward
     (d : ℕ)
+    (hDim : 2 ≤ d)
     (Q : Distribution (VecNZ d))
     (hUniform : wristbandLaw d Q = wristbandUniform d) :
     Q = gaussianNZ d := by
@@ -209,12 +214,13 @@ This is the core logical bridge used later by kernel/energy minimization results
 -/
 theorem wristbandEquivalence
     (d : ℕ)
+    (hDim : 2 ≤ d)
     (Q : Distribution (VecNZ d)) :
     wristbandLaw d Q = wristbandUniform d ↔ Q = gaussianNZ d := by
   constructor
   · intro hUniform
-    exact wristbandEquivalence_backward d Q hUniform
+    exact wristbandEquivalence_backward d hDim Q hUniform
   · intro hGaussian
-    simpa [hGaussian] using wristbandEquivalence_forward d
+    simpa [hGaussian] using wristbandEquivalence_forward d hDim
 
 end WristbandLossProofs
