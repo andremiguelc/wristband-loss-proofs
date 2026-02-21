@@ -644,147 +644,28 @@ which is not yet available in Mathlib.
 
 ---
 
-## 9. Gaps and Proposed Fixes
+## 9. What is not yet formalized
 
-This section lists Python computations that have no Lean counterpart,
-and deferred proofs.
+The following Python computations have no Lean counterpart. The formalization
+strategy for each is described in
+[wristband_proof_plan.md](wristband_proof_plan.md) (Steps 2–4).
 
-### 9.1 Kernel losses (not formalized)
+| Python feature | Code ref | Proof plan step |
+|---------------|----------|----------------|
+| Joint repulsion kernel (angular × reflected radial) | `EmbedModels.py:762–789` | Step 2 |
+| Angular-only uniformity loss | `EmbedModels.py:772–782` | Step 4 |
+| Radial quantile penalty (Cramér–von Mises) | `EmbedModels.py:755–759` | Step 4 |
+| Moment penalty (Bures–Wasserstein W2) | `EmbedModels.py:711` | Step 4 |
+| Z-score calibration and loss aggregation | `EmbedModels.py:827–833` | Step 4 |
 
-The Python code computes a joint reflected kernel on wristband space as the
-product of an angular kernel and a reflected radial kernel:
+### Axiom-level gaps
 
-$$k_{\mathrm{ang}}(u_i, u_j) = \exp\!\bigl(-\beta\alpha^2 \, \delta(u_i, u_j)^2\bigr),$$
+**Ambient Gaussian bridge.** `gaussianNZ` is declared as a direct axiom on
+nonzero vectors (`ImportedFacts.lean:34`). There is no explicit connection to
+the ambient Gaussian $\mathcal{N}(0, I_d)$ on all of $\mathbb{R}^d$. A bridge
+lemma (restriction to the nonzero subtype) would close this gap.
 
-$$k_{\mathrm{rad}}(t_i, t_j) = e^{-\beta(t_i - t_j)^2} + e^{-\beta(t_i + t_j)^2} + e^{-\beta(t_i + t_j - 2)^2},$$
+### Deferred proofs
 
-$$K\bigl((u_i, t_i), (u_j, t_j)\bigr) = k_{\mathrm{ang}}(u_i, u_j) \cdot k_{\mathrm{rad}}(t_i, t_j).$$
-
-The angular distance $\delta$ has two variants in Python:
-
-- **Chordal** (`angular="chordal"`, default): $\delta(u_i, u_j)^2 = \|u_i - u_j\|^2 = 2 - 2\langle u_i, u_j\rangle$.
-  Python (`EmbedModels.py:764`): `e_ang = 2*beta*alpha^2*(g - 1)`.
-
-- **Geodesic** (`angular="geodesic"`): $\delta(u_i, u_j) = \arccos\langle u_i, u_j\rangle$.
-  Python (`EmbedModels.py:767`): `theta = torch.acos(g)`, then `e_ang = -beta*alpha^2*theta^2`.
-
-The Python loss function also wraps the kernel energy in a logarithm and
-averages it, with two reduction modes:
-
-- **Per-point** (`reduction="per_point"`): average kernel value per row, then
-  log, then mean over rows (`EmbedModels.py:792–797`).
-- **Global** (`reduction="global"`): average kernel value over all pairs,
-  then log (`EmbedModels.py:799–804`).
-
-The coupling constant $\alpha$ defaults to a heuristic that balances the
-angular and radial kernel bandwidths: $\alpha = \sqrt{1/12}$ for chordal,
-$\alpha = \sqrt{2/(3\pi^2)}$ for geodesic (`EmbedModels.py:606–611`).
-
-Python: `EmbedModels.py:762` (angular exponent), `EmbedModels.py:787–789`
-(reflected differences), `EmbedModels.py:792` (kernel aggregation).
-
-Lean: **nothing**. No kernel definitions, no energy functional, no uniqueness
-theorem for kernel-based losses.
-
-Proposed fix: define the kernel $K$ on `Wristband d × Wristband d → ℝ` and state
-that the kernel energy $\mathbb{E}[K(w_i, w_j)]$ is minimized uniquely at
-$\mu_0 = \sigma_{d-1} \otimes \mathrm{Unif}[0,1]$. This connects the
-optimization objective to the equivalence theorem. The chordal variant is
-the natural starting point for formalization (see `wristband_proof_plan.md`,
-section 3).
-
-### 9.2 Angular-only uniformity loss (not formalized)
-
-When `lambda_ang != 0`, Python computes a separate angular-only kernel energy
-using only $k_{\mathrm{ang}}$ (without the radial factor). This measures how
-far the directional marginal alone is from uniform on the sphere.
-
-Python (`EmbedModels.py:772–782`):
-
-$$L_{\mathrm{ang}} = \frac{1}{\beta} \log \frac{1}{n(n-1)} \sum_{i \neq j} k_{\mathrm{ang}}(u_i, u_j).$$
-
-Lean: **nothing**.
-
-Proposed fix: this is a special case of a kernel energy on $S^{d-1}$ alone. It
-could be stated as a corollary of the general kernel identification property
-(section 9.1), restricted to the angular marginal.
-
-### 9.3 Radial quantile penalty (not formalized)
-
-Python (`EmbedModels.py:757–759`):
-
-```python
-t_sorted, _ = torch.sort(t, dim=-1)
-q = (torch.arange(n, ...) + .5) / n_f
-rad_loss = 12. * (t_sorted - q).square().mean(dim=-1)
-```
-
-Math:
-
-$$L_{\mathrm{rad}} = 12 \cdot \frac{1}{n} \sum_{i=1}^{n} \bigl(t_{(i)} - q_i\bigr)^2, \qquad q_i = \frac{i - 1/2}{n}.$$
-
-This is the Cramér–von Mises statistic (up to scaling) for testing uniformity
-of the radial CDF values $t_i$.
-
-Lean: **nothing**.
-
-Proposed fix: define the empirical quantile loss as a function
-`List UnitInterval → ℝ` and state that it equals zero iff the empirical
-distribution is exactly the quantiles of $\mathrm{Unif}[0,1]$.
-
-### 9.4 Moment penalty (not formalized)
-
-The Python code supports six moment penalty types (`EmbedModels.py:711–746`).
-The default and mathematically most relevant is the squared Bures–Wasserstein
-distance to $\mathcal{N}(0, I)$:
-
-**`moment="w2"`** (default, `EmbedModels.py:711`, using `W2ToStandardNormalSq`
-at `EmbedModels.py:451`):
-
-$$W_2^2\bigl(\mathcal{N}(\hat\mu, \hat\Sigma),\; \mathcal{N}(0, I)\bigr) = \|\hat\mu\|^2 + \sum_k \bigl(\sqrt{\lambda_k} - 1\bigr)^2,$$
-
-where $\hat\mu$ and $\hat\Sigma$ are the sample mean and covariance, and
-$\lambda_k$ are eigenvalues of $\hat\Sigma$.
-
-The other five variants are:
-
-- `"jeff_diag"` (`EmbedModels.py:713`): diagonal Jeffreys divergence.
-- `"jeff_full"` (`EmbedModels.py:719`): full-covariance Jeffreys divergence.
-- `"mu_only"` (`EmbedModels.py:733`): squared mean norm only.
-- `"kl_diag"` (`EmbedModels.py:735`): diagonal KL divergence.
-- `"kl_full"` (`EmbedModels.py:738`): full-covariance KL divergence.
-
-All six are nonneg and equal zero at $Q = \mathcal{N}(0, I)$.
-
-Lean: **nothing**.
-
-Proposed fix: define the Bures–Wasserstein distance between two Gaussian
-measures on `Vec d` and prove the closed-form formula above. The other five
-variants are engineering alternatives; formalizing `w2` alone is sufficient
-for the main correctness argument.
-
-### 9.5 Calibration and loss aggregation (not formalized)
-
-Python (`EmbedModels.py:827–833`):
-
-$$\hat{L}_c = \frac{L_c - m_c}{s_c}, \qquad L_{\mathrm{total}} = \frac{\hat{L}_{\mathrm{rep}} + \lambda_{\mathrm{rad}} \hat{L}_{\mathrm{rad}} + \lambda_{\mathrm{ang}} \hat{L}_{\mathrm{ang}} + \lambda_{\mathrm{mom}} \hat{L}_{\mathrm{mom}}}{s_{\mathrm{total}}}.$$
-
-Lean: **nothing**. This is a numerical/engineering concern (z-scoring each loss
-component using calibration statistics from Gaussian samples). Formalizing it
-is low priority — it does not affect the mathematical correctness of the
-wristband characterization.
-
-### 9.6 Ambient Gaussian bridge (missing)
-
-`gaussianNZ` is declared as a direct axiom on nonzero vectors. There is no
-explicit bridge from the ambient Gaussian $\mathcal{N}(0, I_d)$ on all of
-$\mathbb{R}^d$, restricted to $\mathbb{R}^d \setminus \{0\}$.
-
-Proposed fix: add an axiom or lemma stating that restricting the standard
-Gaussian measure on `Vec d` to the nonzero subtype yields `gaussianNZ d`.
-
-### 9.7 Deferred proofs (`sorry`)
-
-No deferred proofs remain in `Equivalence.lean` for Section 2. In particular:
-
-1. `wristbandEquivalence_backward` is now fully proved (`Equivalence.lean:695`).
+No deferred proofs (`sorry`) remain. All theorems in Sections 1–8 are fully
+proven.
