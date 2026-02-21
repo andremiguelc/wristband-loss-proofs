@@ -262,14 +262,6 @@ def HasConstantPotential
 These are straightforward consequences of the definitions.
 -/
 
-/-- MMD² is nonnegative for PSD kernels. -/
-theorem mmdSq_nonneg
-    {X : Type*} [MeasurableSpace X]
-    (K : X → X → ℝ) (hK : IsPosSemiDefKernel K)
-    (P Q : Distribution X) :
-    mmdSq K P Q ≥ 0 := by
-  sorry
-
 /-- The angular kernel is symmetric. -/
 lemma kernelAngChordal_symmetric
     {d : ℕ} (β α : ℝ) (u u' : Sphere d) :

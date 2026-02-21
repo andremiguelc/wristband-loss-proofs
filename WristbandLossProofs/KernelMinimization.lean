@@ -8,7 +8,7 @@ namespace WristbandLossProofs
 
 open MeasureTheory
 
-/-! ## Kernel Energy Minimization (Step 2)
+/-! ## Kernel Energy Minimization
 
 This file proves **Hypothesis K**: the wristband kernel energy is uniquely
 minimized at the uniform measure `μ₀ = σ_{d-1} ⊗ Unif[0,1]`.
@@ -49,55 +49,13 @@ theorem wristbandKernelNeumann_posSemiDef
     IsPosSemiDefKernel (wristbandKernelNeumann (d := d) β α) := by
   sorry
 
-/-! ### Characteristicness of the joint kernel
-
-Product of characteristic kernels on a product space is characteristic. -/
-
-/-- Product of characteristic kernels on `X × Y` is characteristic.
-    Proof idea: the tensor product RKHS `H_X ⊗ H_Y` separates measures
-    on `X × Y` because it contains all functions of the form
-    `f(x)·g(y)`, which generate the product σ-algebra. -/
-theorem productKernel_characteristic
-    {X : Type*} {Y : Type*}
-    [MeasurableSpace X] [MeasurableSpace Y]
-    (Kx : X → X → ℝ) (Ky : Y → Y → ℝ)
-    (hKx : IsCharacteristicKernel Kx)
-    (hKy : IsCharacteristicKernel Ky) :
-    IsCharacteristicKernel
-      (fun (p q : X × Y) => Kx p.1 q.1 * Ky p.2 q.2) := by
-  sorry
-
-/-- The joint Neumann wristband kernel is characteristic.
-    Follows from: angular is characteristic + Neumann radial is
-    characteristic + product is characteristic. -/
-theorem wristbandKernelNeumann_characteristic
-    (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α) :
-    IsCharacteristicKernel (wristbandKernelNeumann (d := d) β α) := by
-  sorry
-
 /-! ### Constant potential of the joint kernel
 
 The potential of a product kernel under a product measure factors:
-`h(u,t) = h_ang(u) · h_rad(t)`.
-
-- Angular: `h_ang(u)` is constant by rotation invariance of `σ_{d-1}`.
-- Radial (Neumann): `h_rad(t)` is constant by the imported axiom.
-- Product: constant × constant = constant.
+`h(u,t) = h_ang(u) · h_rad(t)`. This combines with constant-potential
+facts for angular and radial factors to yield constancy of the joint
+Neumann kernel.
 -/
-
-/-- The angular potential is constant: rotation invariance of the sphere
-    measure implies `E_{u'~σ}[k_ang(u,u')]` doesn't depend on `u`.
-
-    Proof: for any rotation `O`, we have `h(Ou) = h(u)` because:
-    (1) `k_ang` depends on `‖u-u'‖`, which is preserved by isometries;
-    (2) `σ_{d-1}` is rotation-invariant (axiom `sphereUniform_rotationInvariant`).
-    Since `SO(d)` acts transitively on `S^{d-1}` for `d ≥ 2`, `h` is constant. -/
-theorem angularPotential_constant
-    (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α) :
-    ∃ c : ℝ,
-      HasConstantPotential
-        (kernelAngChordal (d := d) β α) (sphereUniform d) c := by
-  sorry
 
 /-- Potential of a product kernel under a product measure factors
     as the product of the component potentials:
