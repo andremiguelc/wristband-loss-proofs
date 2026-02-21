@@ -27,9 +27,9 @@ not yet in Mathlib, isolated in a single file.
 | Forward: Gaussian implies uniform wristband | `Equivalence.lean` | 515 |
 | Backward: uniform wristband implies Gaussian | `Equivalence.lean` | 695 |
 | Biconditional (iff) | `Equivalence.lean` | 999 |
-| Probability integral transform (forward) | `Foundations.lean` | 535 |
-| Probability integral transform (reverse) | `Foundations.lean` | 660 |
-| Chi-square CDF continuity and strict monotonicity | `Foundations.lean` | 482, 495 |
+| Probability integral transform (forward) | `EquivalenceFoundations.lean` | 535 |
+| Probability integral transform (reverse) | `EquivalenceFoundations.lean` | 660 |
+| Chi-square CDF continuity and strict monotonicity | `EquivalenceFoundations.lean` | 482, 495 |
 | Spherical law determined by radius | `Equivalence.lean` | 154 |
 
 ## Proof status
@@ -65,9 +65,12 @@ lake build
 
 | File | Contents |
 |------|----------|
-| `WristbandLossProofs/Foundations.lean` | Core types (Vec, Sphere, Wristband), distributions, chi-square CDF, probability integral transform |
-| `WristbandLossProofs/ImportedFacts.lean` | Classical axioms (Gaussian polar decomposition, sphere measure properties) |
+| `WristbandLossProofs/EquivalenceFoundations.lean` | Core types (Vec, Sphere, Wristband), distributions, chi-square CDF, probability integral transform |
+| `WristbandLossProofs/EquivalenceImportedFacts.lean` | Classical axioms (Gaussian polar decomposition, sphere measure properties) |
 | `WristbandLossProofs/Equivalence.lean` | Wristband map, spherical-law lemmas, equivalence theorem |
+| `WristbandLossProofs/KernelFoundations.lean` | Kernel definitions, energy, MMD, PSD/characteristic/constant-potential predicates |
+| `WristbandLossProofs/KernelImportedFacts.lean` | Imported kernel theory axioms (PSD, characteristic, constant potential) |
+| `WristbandLossProofs/KernelMinimization.lean` | Step-2 theorem statements (energy minimized at uniform) |
 | `WristbandLossProofs.lean` | Library root |
 
 `ml-tidbits/` is an optional local reference clone and is not part of this
