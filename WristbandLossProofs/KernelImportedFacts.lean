@@ -14,24 +14,22 @@ All declarations here are `axiom`s — external mathematical results from
 the kernel methods and RKHS literature, assumed without Lean proof.
 
 **Trust boundary.**
-- All five axioms are **relational** (equations/inequalities/existentials over
+- All axioms are **relational** (equations/inequalities/existentials over
   already-defined terms). They cannot introduce new objects or types.
 - A validator should check per axiom: does the Lean statement faithfully
   encode the cited result at the indicated source?
 
-**Axiom inventory (5 total).**
+**Axiom inventory.**
 1. `kernelAngChordal_posSemiDef` — angular Gaussian RBF is PSD.
 2. `kernelRadNeumann_posSemiDef` — Neumann radial kernel is PSD.
 3. `kernelAngChordal_characteristic` — angular kernel is characteristic.
 4. `kernelRadNeumann_characteristic` — Neumann kernel is characteristic.
-5. `neumannPotential_constant` — Neumann potential under Lebesgue is constant.
+5. `wristbandKernelNeumann_characteristic` — characteristicness of the
+   specific wristband product kernel.
+6. `angularPotential_constant` — angular potential under sphere uniform is constant.
+7. `neumannPotential_constant` — Neumann potential under Lebesgue is constant.
+8. `mmdSq_nonneg` — nonnegativity of MMD² for PSD kernels.
 
-**Dependency on definition correctness.**
-Axioms 2, 4, 5 refer to `kernelRadNeumann`, which is defined via Mathlib's
-`tsum` over `ℤ`. If `tsum` is not `Summable`, it returns 0 by convention.
-A separate lemma `kernelRadNeumann_summable` in `KernelFoundations.lean`
-establishes summability for `β > 0`, ensuring the definition computes the
-intended infinite series. See `KernelFoundations.lean` for details.
 
 **Proof architecture.**
 These axioms, together with definitions in `KernelFoundations.lean` and the
@@ -188,6 +186,41 @@ axiom kernelRadNeumann_characteristic
     (β : ℝ) (hβ : 0 < β) :
     IsCharacteristicKernel (kernelRadNeumann β)
 
+/-! ### Joint Characteristicness (Wristband-Specific)
+
+The statement "characteristic × characteristic ⇒ characteristic on products"
+is false in full generality. We therefore avoid a general product theorem and
+import only the statement needed by the wristband proof.
+-/
+
+/-- The specific wristband Neumann kernel is characteristic.
+
+    This replaces the overgeneral product statement in `KernelMinimization`:
+    we only assume what Step-2 actually needs.
+
+    **Validation chain (4 steps).**
+
+    Step 1 — `kernelAngChordal` (Gaussian RBF on `S^{d-1}`) is universal on
+    the compact sphere, hence characteristic (`kernelAngChordal_characteristic`).
+
+    Step 2 — `kernelRadNeumann` on `[0,1]` is characteristic
+    (`kernelRadNeumann_characteristic`), and in the intended proof route can
+    be treated via c₀-universality/universality conditions.
+
+    Step 3 — For the specific regularity class above, tensor-product kernels
+    on product spaces are characteristic under the corresponding sufficient
+    conditions (Szabó & Sriperumbudur, 2018, product-kernel criteria).
+
+    Step 4 — Apply the product result to
+    `K((u,t),(u',t')) = k_ang(u,u') * k_rad(t,t')`.
+
+    **Lean-to-math alignment.**
+    This axiom is intentionally *wristband-specific*; it does not claim a
+    general closure theorem for arbitrary characteristic kernels. -/
+axiom wristbandKernelNeumann_characteristic
+    (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α) :
+    IsCharacteristicKernel (wristbandKernelNeumann (d := d) β α)
+
 /-! ### Constant Potential of Neumann Kernel
 
 The Neumann heat kernel on `[0,1]` has the property that its integral
@@ -195,6 +228,32 @@ against the uniform (Lebesgue) measure is constant in the first argument.
 This is the key property that enables the energy-MMD identity:
   `E(P) - E(μ₀) = MMD²(P, μ₀)`.
 -/
+
+/-- The angular potential is constant under uniform measure on the sphere:
+    `∫ k_ang(u,u') dσ(u') = c` for all `u`.
+
+    **Validation chain (3 steps).**
+
+    Step 1 — Rotational invariance of the kernel:
+    `k_ang(Ou, Ou') = k_ang(u, u')` for every orthogonal map `O`.
+
+    Step 2 — Rotation invariance of `sphereUniform`:
+    `O#σ = σ` (already imported as `sphereUniform_rotationInvariant`).
+
+    Step 3 — Transitive action of `O(d)` on `S^{d-1}` for `d ≥ 2` implies a
+    function invariant under all rotations is constant.
+
+    References commonly used for Step 3:
+    Brockett (1973), *Lie Theory and Control Systems* (sphere orbit argument);
+    Eschenburg lecture notes on Lie groups/orthogonal actions.
+
+    **Lean-to-math alignment.**
+    `HasConstantPotential K μ c` is exactly `∀ w, kernelPotential K μ w = c`. -/
+axiom angularPotential_constant
+    (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α) :
+    ∃ c : ℝ,
+      HasConstantPotential
+        (kernelAngChordal (d := d) β α) (sphereUniform d) c
 
 /-- The Neumann radial kernel has constant potential under `Unif[0,1]`:
     `∫₀¹ k_rad^Neum(t, t') dt' = c` for all `t ∈ [0,1]`.
@@ -232,5 +291,29 @@ axiom neumannPotential_constant
     (β : ℝ) (hβ : 0 < β) :
     ∃ c : ℝ,
       HasConstantPotential (kernelRadNeumann β) uniform01 c
+
+/-! ### MMD Nonnegativity
+
+Nonnegativity of MMD² under PSD kernels is standard in RKHS theory:
+it is the squared RKHS norm of the difference of mean embeddings.
+-/
+
+/-- MMD² is nonnegative for PSD kernels.
+
+    Standard identity: `MMD²(P,Q) = ‖μ_P - μ_Q‖²_H ≥ 0`.
+    Equivalent signed-measure form: for `ν := P - Q`,
+    `∫∫ K dν dν ≥ 0` for PSD kernels.
+
+    Source direction used in this project:
+    Sriperumbudur et al. (2010), JMLR 11, §3.1 (MMD / embedding view);
+    Berlinet & Thomas-Agnan (2004), RKHS text (quadratic-form view).
+
+    Exact theorem/proposition numbers are tracked in
+    `docs/kernel_import_source_requests.md`. -/
+axiom mmdSq_nonneg
+    {X : Type*} [MeasurableSpace X]
+    (K : X → X → ℝ) (hK : IsPosSemiDefKernel K)
+    (P Q : Distribution X) :
+    mmdSq K P Q ≥ 0
 
 end WristbandLossProofs
