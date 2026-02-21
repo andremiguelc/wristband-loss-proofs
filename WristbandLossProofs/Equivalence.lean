@@ -186,8 +186,172 @@ theorem wristbandEquivalence_forward
     (d : ℕ)
     (hDim : 2 ≤ d) :
     wristbandLaw d (gaussianNZ d) = wristbandUniform d := by
-  -- Deferred until PIT + independence lemmas are concretized.
-  sorry
+  have hDim1 : 1 ≤ d := le_trans (by decide : 1 ≤ 2) hDim
+  have hDirMeas : Measurable (direction (d := d)) := measurable_direction d
+  have hRadMeas : Measurable (radiusSq (d := d)) := measurable_radiusSq d
+  have hPairMeas : Measurable (fun z : VecNZ d => (direction (d := d) z, radiusSq (d := d) z)) :=
+    hDirMeas.prodMk hRadMeas
+  have hCDFMeas : Measurable (chiSqCDFToUnit d) := chiSqCDFToUnit_measurable d
+  have hProdMapMeas :
+      Measurable (Prod.map id (chiSqCDFToUnit d) : Sphere d × NNReal → Sphere d × UnitInterval) :=
+    measurable_id.prodMap hCDFMeas
+  have hDir : pushforward (direction (d := d)) (gaussianNZ d) hDirMeas = sphereUniform d := by
+    simpa [hDirMeas] using gaussianPolar_direction_uniform d
+  have hRad : pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas = chiSqRadiusLaw d := by
+    simpa [hRadMeas] using gaussianPolar_radius_chiSq d
+
+  have hJoint :
+      pushforward (fun z : VecNZ d => (direction (d := d) z, radiusSq (d := d) z))
+        (gaussianNZ d) hPairMeas
+      = productLaw
+          (pushforward (direction (d := d)) (gaussianNZ d) hDirMeas)
+          (pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas) :=
+    gaussianPolar_independent d
+
+  have hMapJoint :
+      pushforward (Prod.map id (chiSqCDFToUnit d))
+          (pushforward (fun z : VecNZ d => (direction (d := d) z, radiusSq (d := d) z))
+            (gaussianNZ d) hPairMeas)
+          hProdMapMeas
+      = pushforward (Prod.map id (chiSqCDFToUnit d))
+          (productLaw
+            (pushforward (direction (d := d)) (gaussianNZ d) hDirMeas)
+            (pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas))
+          hProdMapMeas := by
+    rw [hJoint]
+
+  have hMapProd :
+      pushforward (Prod.map id (chiSqCDFToUnit d))
+          (productLaw
+            (pushforward (direction (d := d)) (gaussianNZ d) hDirMeas)
+            (pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas))
+          hProdMapMeas
+      = productLaw
+          (pushforward (direction (d := d)) (gaussianNZ d) hDirMeas)
+          (pushforward (chiSqCDFToUnit d)
+            (pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas)
+            hCDFMeas) := by
+    apply Subtype.ext
+    change
+      Measure.map
+          (Prod.map id (chiSqCDFToUnit d))
+          (((pushforward (direction (d := d)) (gaussianNZ d) hDirMeas : Distribution (Sphere d)) : Measure (Sphere d)).prod
+            ((pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas : Distribution NNReal) : Measure NNReal))
+      =
+      (((pushforward (direction (d := d)) (gaussianNZ d) hDirMeas : Distribution (Sphere d)) : Measure (Sphere d)).prod
+        ((pushforward (chiSqCDFToUnit d)
+          (pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas) hCDFMeas : Distribution UnitInterval) : Measure UnitInterval))
+    calc
+      Measure.map
+          (Prod.map id (chiSqCDFToUnit d))
+          (((pushforward (direction (d := d)) (gaussianNZ d) hDirMeas : Distribution (Sphere d)) : Measure (Sphere d)).prod
+            ((pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas : Distribution NNReal) : Measure NNReal))
+          = (Measure.map id ((pushforward (direction (d := d)) (gaussianNZ d) hDirMeas : Distribution (Sphere d)) : Measure (Sphere d))).prod
+              (Measure.map (chiSqCDFToUnit d) ((pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas : Distribution NNReal) : Measure NNReal)) := by
+              symm
+              exact Measure.map_prod_map
+                (((pushforward (direction (d := d)) (gaussianNZ d) hDirMeas : Distribution (Sphere d)) : Measure (Sphere d)))
+                (((pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas : Distribution NNReal) : Measure NNReal))
+                measurable_id hCDFMeas
+      _ =
+        (((pushforward (direction (d := d)) (gaussianNZ d) hDirMeas : Distribution (Sphere d)) : Measure (Sphere d)).prod
+          (Measure.map (chiSqCDFToUnit d)
+            ((pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas : Distribution NNReal) : Measure NNReal))) := by
+            simp [Measure.map_id]
+      _ =
+        (((pushforward (direction (d := d)) (gaussianNZ d) hDirMeas : Distribution (Sphere d)) : Measure (Sphere d)).prod
+          ((pushforward (chiSqCDFToUnit d)
+            (pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas)
+            hCDFMeas : Distribution UnitInterval) : Measure UnitInterval)) := by
+            rfl
+
+  have hWristbandAsMap :
+      wristbandLaw d (gaussianNZ d)
+      = pushforward (Prod.map id (chiSqCDFToUnit d))
+          (pushforward (fun z : VecNZ d => (direction (d := d) z, radiusSq (d := d) z))
+            (gaussianNZ d) hPairMeas)
+          hProdMapMeas := by
+    apply Subtype.ext
+    change
+      Measure.map (wristbandMap d) (gaussianNZ d : Measure (VecNZ d))
+      =
+      Measure.map
+        (Prod.map id (chiSqCDFToUnit d))
+        (Measure.map (fun z : VecNZ d => (direction (d := d) z, radiusSq (d := d) z))
+          (gaussianNZ d : Measure (VecNZ d)))
+    calc
+      Measure.map (wristbandMap d) (gaussianNZ d : Measure (VecNZ d))
+          = Measure.map
+              ((Prod.map id (chiSqCDFToUnit d)) ∘
+                (fun z : VecNZ d => (direction (d := d) z, radiusSq (d := d) z)))
+              (gaussianNZ d : Measure (VecNZ d)) := by
+                rfl
+      _ = Measure.map
+            (Prod.map id (chiSqCDFToUnit d))
+            (Measure.map (fun z : VecNZ d => (direction (d := d) z, radiusSq (d := d) z))
+              (gaussianNZ d : Measure (VecNZ d))) := by
+              rw [Measure.map_map hProdMapMeas hPairMeas]
+
+  have hZero : ((chiSqCDFToUnit d 0 : UnitInterval) : ℝ) = 0 := by
+    rw [chiSqCDFToUnit_eq_pos d hDim1, chiSqCDFToUnitPos]
+    change ProbabilityTheory.cdf (chiSqMeasureR d) 0 = 0
+    rw [chiSqMeasureR]
+    rw [ProbabilityTheory.cdf_gammaMeasure_eq_lintegral (chiSqShape_pos d hDim1) chiSqRate_pos (0 : ℝ)]
+    rw [ENNReal.toReal_eq_zero_iff]
+    left
+    calc
+      ∫⁻ x in Set.Iic (0 : ℝ), ProbabilityTheory.gammaPDF (chiSqShape d) chiSqRate x
+          = (∫⁻ x in Set.Iio (0 : ℝ), ProbabilityTheory.gammaPDF (chiSqShape d) chiSqRate x) +
+              (∫⁻ x in Set.Icc (0 : ℝ) 0, ProbabilityTheory.gammaPDF (chiSqShape d) chiSqRate x) := by
+                simpa using
+                  (lintegral_Iic_eq_lintegral_Iio_add_Icc
+                    (f := ProbabilityTheory.gammaPDF (chiSqShape d) chiSqRate)
+                    (hzy := (le_rfl : (0 : ℝ) ≤ 0)))
+      _ = 0 + (∫⁻ x in Set.Icc (0 : ℝ) 0, ProbabilityTheory.gammaPDF (chiSqShape d) chiSqRate x) := by
+            rw [ProbabilityTheory.lintegral_gammaPDF_of_nonpos
+              (a := chiSqShape d)
+              (r := chiSqRate)
+              (x := (0 : ℝ))
+              (hx := le_rfl)]
+      _ = 0 + 0 := by
+            congr
+            exact MeasureTheory.setLIntegral_measure_zero
+              (s := Set.Icc (0 : ℝ) 0)
+              (f := ProbabilityTheory.gammaPDF (chiSqShape d) chiSqRate)
+              (hs' := by simp)
+      _ = 0 := by simp
+
+  have hPIT :
+      pushforward (chiSqCDFToUnit d) (chiSqRadiusLaw d) hCDFMeas = uniform01 :=
+    probabilityIntegralTransform
+      (chiSqRadiusLaw d)
+      (chiSqCDFToUnit d)
+      hCDFMeas
+      (chiSqCDFToUnit_isContinuousCDF d hDim1)
+      hZero
+
+  calc
+    wristbandLaw d (gaussianNZ d)
+        = pushforward (Prod.map id (chiSqCDFToUnit d))
+            (pushforward (fun z : VecNZ d => (direction (d := d) z, radiusSq (d := d) z))
+              (gaussianNZ d) hPairMeas)
+            hProdMapMeas := hWristbandAsMap
+    _ = pushforward (Prod.map id (chiSqCDFToUnit d))
+          (productLaw
+            (pushforward (direction (d := d)) (gaussianNZ d) hDirMeas)
+            (pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas))
+          hProdMapMeas := hMapJoint
+    _ = productLaw
+          (pushforward (direction (d := d)) (gaussianNZ d) hDirMeas)
+          (pushforward (chiSqCDFToUnit d)
+            (pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas)
+            hCDFMeas) := hMapProd
+    _ = productLaw (sphereUniform d) (pushforward (chiSqCDFToUnit d) (chiSqRadiusLaw d) hCDFMeas) := by
+          simp [hDir, hRad]
+    _ = productLaw (sphereUniform d) uniform01 := by
+          simp [hPIT]
+    _ = wristbandUniform d := by
+          rfl
 
 /--
 **Theorem (Wristband equivalence, backward direction: `P_Q = μ₀ → Q = γ`).**
