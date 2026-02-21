@@ -460,31 +460,50 @@ Math: if $Q = \mathcal{N}(0, I_d)$ and $d \geq 2$, then
 
 $$\Phi_\# Q = \sigma_{d-1} \otimes \mathrm{Unif}[0,1].$$
 
-**Partial match, with direct code comparison.** Lean requires `hDim : 2 ≤ d`,
-while the Python implementation accepts any `d ≥ 1`:
+**Code correspondence.**
 
-- `d = int(x.shape[-1])` (`ml-tidbits/python/embed_models/EmbedModels.py:693`)
-- early return only for `d < 1` (`ml-tidbits/python/embed_models/EmbedModels.py:696`)
-- wristband map is computed for any remaining `d` via
-  `s = ...` (`ml-tidbits/python/embed_models/EmbedModels.py:749`),
-  `u = ...` (`ml-tidbits/python/embed_models/EmbedModels.py:750`),
-  `t = gammainc(...)` (`ml-tidbits/python/embed_models/EmbedModels.py:752`)
+- **Same wristband variables.**
+  The Lean map $\Phi(z) = \bigl(z/\|z\|,\; F_{\chi^2_d}(\|z\|^2)\bigr)$ matches
+  the Python computation in `_Compute`:
+  `s = xw.square().sum(...)` (`ml-tidbits/python/embed_models/EmbedModels.py:749`),
+  `u = xw * rsqrt(s)` (`ml-tidbits/python/embed_models/EmbedModels.py:750`),
+  `t = gammainc(d/2, s/2)` (`ml-tidbits/python/embed_models/EmbedModels.py:752`).
 
-So `d = 1` is executable in code. However, the mathematically interesting and
-practically relevant regime is `d ≥ 2`:
+- **Same Gaussian reference mechanism.**
+  The theorem is about the Gaussian case (`Q = γ`), and the code calibrates the
+  wristband loss by repeatedly sampling Gaussian batches
+  (`x_gauss = torch.randn(...)` in `ml-tidbits/python/embed_models/EmbedModels.py:642`).
 
-- For `d = 1`, the sphere is `S^0 = {-1, +1}` (two points), so directional
-  geometry is discrete and the angular part of the wristband construction is
-  degenerate.
-- For `d ≥ 2`, `S^{d-1}` is a genuine continuous sphere; this is where the
-  uniform-direction and rotation-based structure used in the proof carries real
-  geometric content.
-- The project’s own training example uses higher-dimensional embeddings
-  (`embed_dim = 8` in `ml-tidbits/python/tests/DeterministicGAE.py:123`).
+- **Same target factorization idea.**
+  The theorem target is `sphereUniform × uniform01`. In code, this is reflected
+  by the separate radial-uniform term (`rad_loss`, lines 755–759) and the
+  directional/joint repulsion built on `(u, t)` (lines 761–805), both in
+  `ml-tidbits/python/embed_models/EmbedModels.py`.
 
-Bottom line: Lean’s `d ≥ 2` guard is best read as an intentional scope choice
-matching the target use case (continuous latent geometry), not as a conflict
-with the Python implementation.
+**Scope difference on dimension (`d`).**
+
+- Lean requires `hDim : 2 ≤ d` in this theorem.
+- Python accepts any `d ≥ 1`:
+  `d = int(x.shape[-1])` (`ml-tidbits/python/embed_models/EmbedModels.py:693`),
+  with early return only for `d < 1`
+  (`ml-tidbits/python/embed_models/EmbedModels.py:696`).
+- So `d = 1` is executable in Python, but `d = 1` gives `S^0 = {-1,+1}`, a
+  discrete directional space. The continuous sphere geometry that drives the
+  main argument appears for `d ≥ 2`.
+- The practical usage in this repo is also high-dimensional (`embed_dim = 8` in
+  `ml-tidbits/python/tests/DeterministicGAE.py:123`).
+
+**Ideal theorem vs implementation details.**
+
+- The Lean theorem is an exact pushforward-law identity.
+- The Python code uses finite-batch empirical objectives and numerical
+  stabilizers (`clamp_min(eps)` at line 749 and endpoint clamping for `t` at
+  line 752), so it is an approximation/optimization surrogate of that ideal
+  statement.
+
+Bottom line: the theorem and code align on the core transformation and target
+structure; the `d ≥ 2` guard is an intentional formal scope choice, not a
+conceptual mismatch.
 
 Status: **fully proven**.
 
