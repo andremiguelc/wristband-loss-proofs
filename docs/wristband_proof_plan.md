@@ -21,7 +21,7 @@ The document marks **imported results** (classical theorems we take as given, en
 
 | Proof step | Status | Files |
 |------------|--------|-------|
-| 1. **Wristband equivalence** (Section 2) | In progress — theorems stated, proofs contain `sorry`; imported theorem debt isolated | `Foundations.lean`, `ImportedFacts.lean`, `Equivalence.lean` |
+| 1. **Wristband equivalence** (Section 2) | Completed — forward/backward directions and biconditional are proven; imported theorem debt remains isolated | `Foundations.lean`, `ImportedFacts.lean`, `Equivalence.lean` |
 | 2. **Kernel energy identifies uniformity** (Sections 3–4) | Not started | — |
 | 3. **Main correctness theorem** (Section 5) | Not started | — |
 | 4. **Extra terms and calibration** (Section 6) | Not started | — |

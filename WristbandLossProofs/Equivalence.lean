@@ -198,6 +198,309 @@ theorem sphericalLaw_determinedByRadius
     _ = sphericalLaw d (pushforward S μ hS) := by
             rfl
 
+lemma rect_eq_of_iic_eq {α : Type} [MeasurableSpace α]
+    (μ ν : Measure (α × NNReal)) [IsFiniteMeasure μ]
+    (s : Set α)
+    (hIic : ∀ x : NNReal, μ (s ×ˢ Set.Iic x) = ν (s ×ˢ Set.Iic x)) :
+    ∀ t : Set NNReal, MeasurableSet t → μ (s ×ˢ t) = ν (s ×ˢ t) := by
+  intro t ht
+  let μs : Measure NNReal := Measure.map Prod.snd (μ.restrict (Prod.fst ⁻¹' s))
+  let νs : Measure NNReal := Measure.map Prod.snd (ν.restrict (Prod.fst ⁻¹' s))
+  have hIicMeasures : ∀ x : NNReal, μs (Set.Iic x) = νs (Set.Iic x) := by
+    intro x
+    have hμx : μs (Set.Iic x) = μ (s ×ˢ Set.Iic x) := by
+      unfold μs
+      rw [Measure.map_apply measurable_snd measurableSet_Iic]
+      rw [Measure.restrict_apply]
+      · have hSetEq :
+          Prod.snd ⁻¹' Set.Iic x ∩ Prod.fst ⁻¹' s = s ×ˢ Set.Iic x := by
+          ext p
+          constructor
+          · intro hp
+            exact ⟨hp.2, hp.1⟩
+          · intro hp
+            exact ⟨hp.2, hp.1⟩
+        rw [hSetEq]
+      · exact measurable_snd measurableSet_Iic
+    have hνx : νs (Set.Iic x) = ν (s ×ˢ Set.Iic x) := by
+      unfold νs
+      rw [Measure.map_apply measurable_snd measurableSet_Iic]
+      rw [Measure.restrict_apply]
+      · have hSetEq :
+          Prod.snd ⁻¹' Set.Iic x ∩ Prod.fst ⁻¹' s = s ×ˢ Set.Iic x := by
+          ext p
+          constructor
+          · intro hp
+            exact ⟨hp.2, hp.1⟩
+          · intro hp
+            exact ⟨hp.2, hp.1⟩
+        rw [hSetEq]
+      · exact measurable_snd measurableSet_Iic
+    calc
+      μs (Set.Iic x) = μ (s ×ˢ Set.Iic x) := hμx
+      _ = ν (s ×ˢ Set.Iic x) := hIic x
+      _ = νs (Set.Iic x) := hνx.symm
+  have hMeasuresEq : μs = νs := Measure.ext_of_Iic μs νs hIicMeasures
+  have hμt : μs t = μ (s ×ˢ t) := by
+    unfold μs
+    rw [Measure.map_apply measurable_snd ht]
+    rw [Measure.restrict_apply]
+    · have hSetEq :
+        Prod.snd ⁻¹' t ∩ Prod.fst ⁻¹' s = s ×ˢ t := by
+        ext p
+        constructor
+        · intro hp
+          exact ⟨hp.2, hp.1⟩
+        · intro hp
+          exact ⟨hp.2, hp.1⟩
+      rw [hSetEq]
+    · exact measurable_snd ht
+  have hνt : νs t = ν (s ×ˢ t) := by
+    unfold νs
+    rw [Measure.map_apply measurable_snd ht]
+    rw [Measure.restrict_apply]
+    · have hSetEq :
+        Prod.snd ⁻¹' t ∩ Prod.fst ⁻¹' s = s ×ˢ t := by
+        ext p
+        constructor
+        · intro hp
+          exact ⟨hp.2, hp.1⟩
+        · intro hp
+          exact ⟨hp.2, hp.1⟩
+      rw [hSetEq]
+    · exact measurable_snd ht
+  calc
+    μ (s ×ˢ t) = μs t := hμt.symm
+    _ = νs t := by rw [hMeasuresEq]
+    _ = ν (s ×ˢ t) := hνt
+
+lemma indepLaw_direction_radius_of_wristbandUniform
+    (d : ℕ) (hDim : 2 ≤ d) (Q : Distribution (VecNZ d))
+    (hUniform : wristbandLaw d Q = wristbandUniform d) :
+    IndepLaw Q (direction (d := d)) (radiusSq (d := d))
+      (measurable_direction d) (measurable_radiusSq d) := by
+  have hDim1 : 1 ≤ d := le_trans (by decide : 1 ≤ 2) hDim
+  let hDirMeas : Measurable (direction (d := d)) := measurable_direction d
+  let hRadMeas : Measurable (radiusSq (d := d)) := measurable_radiusSq d
+  let hCDFMeas : Measurable (chiSqCDFToUnit d) := chiSqCDFToUnit_measurable d
+  let hPairMeas : Measurable (fun z : VecNZ d => (direction (d := d) z, radiusSq (d := d) z)) :=
+    hDirMeas.prodMk hRadMeas
+  let hTMeas : Measurable (fun z : VecNZ d => chiSqCDFToUnit d (radiusSq (d := d) z)) :=
+    hCDFMeas.comp hRadMeas
+
+  have hDir : pushforward (direction (d := d)) Q hDirMeas = sphereUniform d := by
+    have hDirFromUniform :
+        pushforward Prod.fst (wristbandLaw d Q) measurable_fst = sphereUniform d := by
+      calc
+        pushforward Prod.fst (wristbandLaw d Q) measurable_fst
+            = pushforward Prod.fst (wristbandUniform d) measurable_fst := by
+                rw [hUniform]
+        _ = sphereUniform d := by
+              apply Subtype.ext
+              change
+                Measure.map Prod.fst ((wristbandUniform d : Distribution (Wristband d)) : Measure (Wristband d))
+                  = (sphereUniform d : Measure (Sphere d))
+              simp [wristbandUniform, productLaw, Measure.map_fst_prod]
+    calc
+      pushforward (direction (d := d)) Q hDirMeas
+          = pushforward Prod.fst (wristbandLaw d Q) measurable_fst := by
+              apply Subtype.ext
+              change
+                Measure.map (direction (d := d)) (Q : Measure (VecNZ d))
+                  = Measure.map Prod.fst (Measure.map (wristbandMap d) (Q : Measure (VecNZ d)))
+              rw [Measure.map_map measurable_fst (measurable_wristbandMap d)]
+              rfl
+      _ = sphereUniform d := hDirFromUniform
+
+  have hTUniform :
+      pushforward (fun z : VecNZ d => chiSqCDFToUnit d (radiusSq (d := d) z)) Q hTMeas = uniform01 := by
+    have hTMarginal :
+        pushforward Prod.snd (wristbandLaw d Q) measurable_snd = uniform01 := by
+      calc
+        pushforward Prod.snd (wristbandLaw d Q) measurable_snd
+            = pushforward Prod.snd (wristbandUniform d) measurable_snd := by
+                rw [hUniform]
+        _ = uniform01 := by
+              apply Subtype.ext
+              change
+                Measure.map Prod.snd ((wristbandUniform d : Distribution (Wristband d)) : Measure (Wristband d))
+                  = (uniform01 : Measure UnitInterval)
+              simp [wristbandUniform, productLaw, Measure.map_snd_prod]
+    calc
+      pushforward (fun z : VecNZ d => chiSqCDFToUnit d (radiusSq (d := d) z)) Q hTMeas
+          = pushforward Prod.snd (wristbandLaw d Q) measurable_snd := by
+              apply Subtype.ext
+              change
+                Measure.map (fun z : VecNZ d => chiSqCDFToUnit d (radiusSq (d := d) z)) (Q : Measure (VecNZ d))
+                  = Measure.map Prod.snd (Measure.map (wristbandMap d) (Q : Measure (VecNZ d)))
+              rw [Measure.map_map measurable_snd (measurable_wristbandMap d)]
+              rfl
+      _ = uniform01 := hTMarginal
+
+  have hTUniform' :
+      pushforward (chiSqCDFToUnit d)
+        (pushforward (radiusSq (d := d)) Q hRadMeas)
+        hCDFMeas
+      = uniform01 := by
+    calc
+      pushforward (chiSqCDFToUnit d)
+        (pushforward (radiusSq (d := d)) Q hRadMeas)
+        hCDFMeas
+          = pushforward (fun z : VecNZ d => chiSqCDFToUnit d (radiusSq (d := d) z)) Q hTMeas := by
+              apply Subtype.ext
+              change
+                Measure.map (chiSqCDFToUnit d)
+                  (Measure.map (radiusSq (d := d)) (Q : Measure (VecNZ d)))
+                =
+                Measure.map (fun z : VecNZ d => chiSqCDFToUnit d (radiusSq (d := d) z))
+                  (Q : Measure (VecNZ d))
+              rw [Measure.map_map hCDFMeas hRadMeas]
+              rfl
+      _ = uniform01 := hTUniform
+
+  let jointUS : Distribution (Sphere d × NNReal) :=
+    pushforward (fun z : VecNZ d => (direction (d := d) z, radiusSq (d := d) z)) Q hPairMeas
+  let prodUS : Distribution (Sphere d × NNReal) :=
+    productLaw (pushforward (direction (d := d)) Q hDirMeas)
+      (pushforward (radiusSq (d := d)) Q hRadMeas)
+
+  have hIicRect :
+      ∀ (s : Set (Sphere d)) (hs : MeasurableSet s) (x : NNReal),
+        ((jointUS : Distribution (Sphere d × NNReal)) : Measure (Sphere d × NNReal)) (s ×ˢ Set.Iic x)
+          = ((prodUS : Distribution (Sphere d × NNReal)) : Measure (Sphere d × NNReal)) (s ×ˢ Set.Iic x) := by
+    intro s hs x
+    rcases chiSqCDFToUnit_isStrictlyIncreasingCDF d hDim1 with ⟨_, hStrictMono⟩
+    have hPreimage : (chiSqCDFToUnit d ⁻¹' Set.Iic (chiSqCDFToUnit d x)) = Set.Iic x := by
+      ext t
+      constructor
+      · intro ht
+        change (chiSqCDFToUnit d t : ℝ) ≤ (chiSqCDFToUnit d x : ℝ) at ht
+        change t ≤ x
+        by_contra htx
+        have hxt : x < t := lt_of_not_ge htx
+        have hlt : (chiSqCDFToUnit d x : ℝ) < (chiSqCDFToUnit d t : ℝ) := hStrictMono hxt
+        exact (not_lt_of_ge ht) hlt
+      · intro ht
+        change (chiSqCDFToUnit d t : ℝ) ≤ (chiSqCDFToUnit d x : ℝ)
+        exact (StrictMono.monotone hStrictMono) ht
+
+    have hObsIic :
+        ((pushforward (radiusSq (d := d)) Q hRadMeas : Distribution NNReal) : Measure NNReal) (Set.Iic x)
+          = ((uniform01 : Distribution UnitInterval) : Measure UnitInterval)
+              (Set.Iic (chiSqCDFToUnit d x)) := by
+      calc
+        ((pushforward (radiusSq (d := d)) Q hRadMeas : Distribution NNReal) : Measure NNReal) (Set.Iic x)
+            = ((pushforward (radiusSq (d := d)) Q hRadMeas : Distribution NNReal) : Measure NNReal)
+                ((chiSqCDFToUnit d) ⁻¹' Set.Iic (chiSqCDFToUnit d x)) := by
+                  rw [hPreimage]
+        _ = ((pushforward (chiSqCDFToUnit d)
+              (pushforward (radiusSq (d := d)) Q hRadMeas)
+              hCDFMeas : Distribution UnitInterval) : Measure UnitInterval)
+                (Set.Iic (chiSqCDFToUnit d x)) := by
+                  symm
+                  change
+                    (Measure.map (chiSqCDFToUnit d)
+                      (((pushforward (radiusSq (d := d)) Q hRadMeas : Distribution NNReal) : Measure NNReal)))
+                      (Set.Iic (chiSqCDFToUnit d x))
+                    = _
+                  rw [Measure.map_apply hCDFMeas measurableSet_Iic]
+        _ = ((uniform01 : Distribution UnitInterval) : Measure UnitInterval)
+              (Set.Iic (chiSqCDFToUnit d x)) := by
+                simp [hTUniform']
+
+    have hJointRect :
+        ((jointUS : Distribution (Sphere d × NNReal)) : Measure (Sphere d × NNReal))
+          (s ×ˢ Set.Iic x)
+          = ((wristbandLaw d Q : Distribution (Wristband d)) : Measure (Wristband d))
+              (s ×ˢ Set.Iic (chiSqCDFToUnit d x)) := by
+      unfold jointUS wristbandLaw
+      change
+        (Measure.map (fun z : VecNZ d => (direction (d := d) z, radiusSq (d := d) z)) (Q : Measure (VecNZ d)))
+          (s ×ˢ Set.Iic x)
+          =
+        (Measure.map (wristbandMap d) (Q : Measure (VecNZ d)))
+          (s ×ˢ Set.Iic (chiSqCDFToUnit d x))
+      rw [Measure.map_apply hPairMeas]
+      · rw [Measure.map_apply (measurable_wristbandMap d)]
+        · have hSetEq :
+            (fun z : VecNZ d => (direction (d := d) z, radiusSq (d := d) z)) ⁻¹' (s ×ˢ Set.Iic x)
+              = (wristbandMap d) ⁻¹' (s ×ˢ Set.Iic (chiSqCDFToUnit d x)) := by
+                apply Set.ext
+                intro z
+                constructor
+                · intro hz
+                  refine ⟨hz.1, ?_⟩
+                  exact (StrictMono.monotone hStrictMono) hz.2
+                · intro hz
+                  refine ⟨hz.1, ?_⟩
+                  by_contra hnot
+                  have hlt : x < radiusSq (d := d) z := lt_of_not_ge hnot
+                  have hstrict :
+                      (chiSqCDFToUnit d x : ℝ)
+                        < (chiSqCDFToUnit d (radiusSq (d := d) z) : ℝ) := hStrictMono hlt
+                  exact (not_lt_of_ge hz.2) hstrict
+          rw [hSetEq]
+        · exact (measurableSet_prod.mpr (Or.inl ⟨hs, measurableSet_Iic⟩))
+      · exact measurableSet_prod.mpr (Or.inl ⟨hs, measurableSet_Iic⟩)
+
+    have hSphereFactor :
+        (sphereUniform d : Measure (Sphere d)) s
+          = ((pushforward (direction (d := d)) Q hDirMeas : Distribution (Sphere d)) : Measure (Sphere d)) s := by
+      simpa [hDir] using congrArg (fun ν : Distribution (Sphere d) => (ν : Measure (Sphere d)) s) hDir
+
+    have hProdRectEval :
+        ((prodUS : Distribution (Sphere d × NNReal)) : Measure (Sphere d × NNReal)) (s ×ˢ Set.Iic x)
+          = ((pushforward (direction (d := d)) Q hDirMeas : Distribution (Sphere d)) : Measure (Sphere d)) s *
+              ((pushforward (radiusSq (d := d)) Q hRadMeas : Distribution NNReal) : Measure NNReal) (Set.Iic x) := by
+      simp [prodUS, productLaw, Measure.prod_prod]
+
+    calc
+      ((jointUS : Distribution (Sphere d × NNReal)) : Measure (Sphere d × NNReal))
+          (s ×ˢ Set.Iic x)
+          = ((wristbandLaw d Q : Distribution (Wristband d)) : Measure (Wristband d))
+              (s ×ˢ Set.Iic (chiSqCDFToUnit d x)) := hJointRect
+      _ = ((wristbandUniform d : Distribution (Wristband d)) : Measure (Wristband d))
+            (s ×ˢ Set.Iic (chiSqCDFToUnit d x)) := by
+              simpa [hUniform]
+      _ = (sphereUniform d : Measure (Sphere d)) s *
+            ((uniform01 : Distribution UnitInterval) : Measure UnitInterval)
+              (Set.Iic (chiSqCDFToUnit d x)) := by
+              simp [wristbandUniform, productLaw, Measure.prod_prod]
+      _ = (sphereUniform d : Measure (Sphere d)) s *
+            ((pushforward (radiusSq (d := d)) Q hRadMeas : Distribution NNReal) : Measure NNReal)
+              (Set.Iic x) := by
+              rw [hObsIic]
+      _ = ((pushforward (direction (d := d)) Q hDirMeas : Distribution (Sphere d)) : Measure (Sphere d)) s *
+            ((pushforward (radiusSq (d := d)) Q hRadMeas : Distribution NNReal) : Measure NNReal)
+              (Set.Iic x) := by
+              rw [hSphereFactor]
+      _ = ((prodUS : Distribution (Sphere d × NNReal)) : Measure (Sphere d × NNReal))
+            (s ×ˢ Set.Iic x) := by
+              rw [hProdRectEval]
+
+  have hRect :
+      ∀ (s : Set (Sphere d)) (t : Set NNReal),
+        MeasurableSet s → MeasurableSet t →
+        ((jointUS : Distribution (Sphere d × NNReal)) : Measure (Sphere d × NNReal)) (s ×ˢ t)
+          = ((prodUS : Distribution (Sphere d × NNReal)) : Measure (Sphere d × NNReal)) (s ×ˢ t) := by
+    intro s t hs ht
+    exact rect_eq_of_iic_eq
+      (((jointUS : Distribution (Sphere d × NNReal)) : Measure (Sphere d × NNReal)))
+      (((prodUS : Distribution (Sphere d × NNReal)) : Measure (Sphere d × NNReal)))
+      s
+      (fun x => hIicRect s hs x)
+      t ht
+
+  unfold IndepLaw
+  unfold jointUS prodUS at hRect
+  apply Subtype.ext
+  change
+    Measure.map (fun ω : VecNZ d => (direction (d := d) ω, radiusSq (d := d) ω)) (Q : Measure (VecNZ d))
+      =
+    ((Measure.map (direction (d := d)) (Q : Measure (VecNZ d))).prod
+      (Measure.map (radiusSq (d := d)) (Q : Measure (VecNZ d))))
+  exact Measure.ext_prod (fun {s t hs ht} => hRect s t hs ht)
+
 /-! ## Wristband Equivalence Skeleton -/
 
 /--
@@ -395,8 +698,298 @@ theorem wristbandEquivalence_backward
     (Q : Distribution (VecNZ d))
     (hUniform : wristbandLaw d Q = wristbandUniform d) :
     Q = gaussianNZ d := by
-  -- Deferred until PIT reverse direction is implemented concretely.
-  sorry
+  have hDim1 : 1 ≤ d := le_trans (by decide : 1 ≤ 2) hDim
+  let hDirMeas : Measurable (direction (d := d)) := measurable_direction d
+  let hRadMeas : Measurable (radiusSq (d := d)) := measurable_radiusSq d
+  let hCDFMeas : Measurable (chiSqCDFToUnit d) := chiSqCDFToUnit_measurable d
+  let hTMeas : Measurable (fun z : VecNZ d => chiSqCDFToUnit d (radiusSq (d := d) z)) :=
+    hCDFMeas.comp hRadMeas
+
+  have hDirQ : pushforward (direction (d := d)) Q hDirMeas = sphereUniform d := by
+    have hDirFromUniform :
+        pushforward Prod.fst (wristbandLaw d Q) measurable_fst = sphereUniform d := by
+      calc
+        pushforward Prod.fst (wristbandLaw d Q) measurable_fst
+            = pushforward Prod.fst (wristbandUniform d) measurable_fst := by
+                rw [hUniform]
+        _ = sphereUniform d := by
+              apply Subtype.ext
+              change
+                Measure.map Prod.fst ((wristbandUniform d : Distribution (Wristband d)) : Measure (Wristband d))
+                  = (sphereUniform d : Measure (Sphere d))
+              simp [wristbandUniform, productLaw, Measure.map_fst_prod]
+    calc
+      pushforward (direction (d := d)) Q hDirMeas
+          = pushforward Prod.fst (wristbandLaw d Q) measurable_fst := by
+              apply Subtype.ext
+              change
+                Measure.map (direction (d := d)) (Q : Measure (VecNZ d))
+                  = Measure.map Prod.fst (Measure.map (wristbandMap d) (Q : Measure (VecNZ d)))
+              rw [Measure.map_map measurable_fst (measurable_wristbandMap d)]
+              rfl
+      _ = sphereUniform d := hDirFromUniform
+
+  have hTUniform :
+      pushforward (fun z : VecNZ d => chiSqCDFToUnit d (radiusSq (d := d) z)) Q hTMeas = uniform01 := by
+    have hTMarginal :
+        pushforward Prod.snd (wristbandLaw d Q) measurable_snd = uniform01 := by
+      calc
+        pushforward Prod.snd (wristbandLaw d Q) measurable_snd
+            = pushforward Prod.snd (wristbandUniform d) measurable_snd := by
+                rw [hUniform]
+        _ = uniform01 := by
+              apply Subtype.ext
+              change
+                Measure.map Prod.snd ((wristbandUniform d : Distribution (Wristband d)) : Measure (Wristband d))
+                  = (uniform01 : Measure UnitInterval)
+              simp [wristbandUniform, productLaw, Measure.map_snd_prod]
+    calc
+      pushforward (fun z : VecNZ d => chiSqCDFToUnit d (radiusSq (d := d) z)) Q hTMeas
+          = pushforward Prod.snd (wristbandLaw d Q) measurable_snd := by
+              apply Subtype.ext
+              change
+                Measure.map (fun z : VecNZ d => chiSqCDFToUnit d (radiusSq (d := d) z)) (Q : Measure (VecNZ d))
+                  = Measure.map Prod.snd (Measure.map (wristbandMap d) (Q : Measure (VecNZ d)))
+              rw [Measure.map_map measurable_snd (measurable_wristbandMap d)]
+              rfl
+      _ = uniform01 := hTMarginal
+
+  have hTUniform' :
+      pushforward (chiSqCDFToUnit d)
+        (pushforward (radiusSq (d := d)) Q hRadMeas)
+        hCDFMeas
+      = uniform01 := by
+    calc
+      pushforward (chiSqCDFToUnit d)
+        (pushforward (radiusSq (d := d)) Q hRadMeas)
+        hCDFMeas
+          = pushforward (fun z : VecNZ d => chiSqCDFToUnit d (radiusSq (d := d) z)) Q hTMeas := by
+              apply Subtype.ext
+              change
+                Measure.map (chiSqCDFToUnit d)
+                  (Measure.map (radiusSq (d := d)) (Q : Measure (VecNZ d)))
+                =
+                Measure.map (fun z : VecNZ d => chiSqCDFToUnit d (radiusSq (d := d) z))
+                  (Q : Measure (VecNZ d))
+              rw [Measure.map_map hCDFMeas hRadMeas]
+              rfl
+      _ = uniform01 := hTUniform
+
+  have hRadQ : pushforward (radiusSq (d := d)) Q hRadMeas = chiSqRadiusLaw d := by
+    exact probabilityIntegralTransform_reverse
+      (chiSqRadiusLaw d)
+      (pushforward (radiusSq (d := d)) Q hRadMeas)
+      (chiSqCDFToUnit d)
+      hCDFMeas
+      (chiSqCDFToUnit_isContinuousCDF d hDim1)
+      (chiSqCDFToUnit_isStrictlyIncreasingCDF d hDim1)
+      hTUniform'
+
+  have hIndepQ :
+      IndepLaw Q (direction (d := d)) (radiusSq (d := d)) hDirMeas hRadMeas := by
+    exact indepLaw_direction_radius_of_wristbandUniform d hDim Q hUniform
+
+  have hDirG : pushforward (direction (d := d)) (gaussianNZ d) hDirMeas = sphereUniform d := by
+    simpa [hDirMeas] using gaussianPolar_direction_uniform d
+  have hRadG : pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas = chiSqRadiusLaw d := by
+    simpa [hRadMeas] using gaussianPolar_radius_chiSq d
+  have hIndepG :
+      IndepLaw (gaussianNZ d) (direction (d := d)) (radiusSq (d := d)) hDirMeas hRadMeas := by
+    simpa [hDirMeas, hRadMeas] using gaussianPolar_independent d
+
+  have hIndepQSwap :
+      IndepLaw Q (radiusSq (d := d)) (direction (d := d)) hRadMeas hDirMeas := by
+    unfold IndepLaw at hIndepQ ⊢
+    calc
+      pushforward (fun ω : VecNZ d => (radiusSq (d := d) ω, direction (d := d) ω)) Q (hRadMeas.prodMk hDirMeas)
+          = pushforward Prod.swap
+              (pushforward (fun ω : VecNZ d => (direction (d := d) ω, radiusSq (d := d) ω))
+                Q (hDirMeas.prodMk hRadMeas))
+              measurable_swap := by
+                apply Subtype.ext
+                change
+                  Measure.map (fun ω : VecNZ d => (radiusSq (d := d) ω, direction (d := d) ω)) (Q : Measure (VecNZ d))
+                    = Measure.map Prod.swap
+                        (Measure.map (fun ω : VecNZ d => (direction (d := d) ω, radiusSq (d := d) ω))
+                          (Q : Measure (VecNZ d)))
+                rw [Measure.map_map measurable_swap (hDirMeas.prodMk hRadMeas)]
+                rfl
+      _ = pushforward Prod.swap
+            (productLaw (pushforward (direction (d := d)) Q hDirMeas)
+              (pushforward (radiusSq (d := d)) Q hRadMeas))
+            measurable_swap := by
+              rw [hIndepQ]
+      _ = productLaw (pushforward (radiusSq (d := d)) Q hRadMeas)
+            (pushforward (direction (d := d)) Q hDirMeas) := by
+              apply Subtype.ext
+              change
+                Measure.map Prod.swap
+                  (((pushforward (direction (d := d)) Q hDirMeas : Distribution (Sphere d)) : Measure (Sphere d)).prod
+                    ((pushforward (radiusSq (d := d)) Q hRadMeas : Distribution NNReal) : Measure NNReal))
+                =
+                (((pushforward (radiusSq (d := d)) Q hRadMeas : Distribution NNReal) : Measure NNReal).prod
+                  ((pushforward (direction (d := d)) Q hDirMeas : Distribution (Sphere d)) : Measure (Sphere d)))
+              simpa using
+                (Measure.prod_swap
+                  (μ := (((pushforward (direction (d := d)) Q hDirMeas : Distribution (Sphere d)) : Measure (Sphere d))))
+                  (ν := (((pushforward (radiusSq (d := d)) Q hRadMeas : Distribution NNReal) : Measure NNReal))))
+
+  have hIndepGSwap :
+      IndepLaw (gaussianNZ d) (radiusSq (d := d)) (direction (d := d)) hRadMeas hDirMeas := by
+    unfold IndepLaw at hIndepG ⊢
+    calc
+      pushforward (fun ω : VecNZ d => (radiusSq (d := d) ω, direction (d := d) ω))
+          (gaussianNZ d) (hRadMeas.prodMk hDirMeas)
+          = pushforward Prod.swap
+              (pushforward (fun ω : VecNZ d => (direction (d := d) ω, radiusSq (d := d) ω))
+                (gaussianNZ d) (hDirMeas.prodMk hRadMeas))
+              measurable_swap := by
+                apply Subtype.ext
+                change
+                  Measure.map (fun ω : VecNZ d => (radiusSq (d := d) ω, direction (d := d) ω))
+                    (gaussianNZ d : Measure (VecNZ d))
+                    = Measure.map Prod.swap
+                        (Measure.map (fun ω : VecNZ d => (direction (d := d) ω, radiusSq (d := d) ω))
+                          (gaussianNZ d : Measure (VecNZ d)))
+                rw [Measure.map_map measurable_swap (hDirMeas.prodMk hRadMeas)]
+                rfl
+      _ = pushforward Prod.swap
+            (productLaw (pushforward (direction (d := d)) (gaussianNZ d) hDirMeas)
+              (pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas))
+            measurable_swap := by
+              rw [hIndepG]
+      _ = productLaw (pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas)
+            (pushforward (direction (d := d)) (gaussianNZ d) hDirMeas) := by
+              apply Subtype.ext
+              change
+                Measure.map Prod.swap
+                  (((pushforward (direction (d := d)) (gaussianNZ d) hDirMeas : Distribution (Sphere d)) :
+                    Measure (Sphere d)).prod
+                    ((pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas : Distribution NNReal) :
+                      Measure NNReal))
+                =
+                (((pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas : Distribution NNReal) :
+                  Measure NNReal).prod
+                  ((pushforward (direction (d := d)) (gaussianNZ d) hDirMeas : Distribution (Sphere d)) :
+                    Measure (Sphere d)))
+              simpa using
+                (Measure.prod_swap
+                  (μ := (((pushforward (direction (d := d)) (gaussianNZ d) hDirMeas : Distribution (Sphere d)) :
+                    Measure (Sphere d))))
+                  (ν := (((pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas : Distribution NNReal) :
+                    Measure NNReal))))
+
+  have hReconstructMeas :
+      Measurable (fun z : VecNZ d => (Real.sqrt (radiusSq (d := d) z : ℝ)) • (direction (d := d) z).1) := by
+    exact (Real.continuous_sqrt.measurable.comp
+      (measurable_coe_nnreal_real.comp hRadMeas)).smul
+      (measurable_subtype_coe.comp hDirMeas)
+
+  have hReconstructEq :
+      (fun z : VecNZ d => (Real.sqrt (radiusSq (d := d) z : ℝ)) • (direction (d := d) z).1)
+        = (Subtype.val : VecNZ d → Vec d) := by
+    funext z
+    have hz : ‖z.1‖ ≠ 0 := norm_ne_zero_iff.mpr z.2
+    calc
+      (Real.sqrt (radiusSq (d := d) z : ℝ)) • (direction (d := d) z).1
+          = Real.sqrt (‖z.1‖ ^ 2) • ((‖z.1‖)⁻¹ • z.1) := by
+              simp [radiusSq, direction]
+      _ = ‖z.1‖ • ((‖z.1‖)⁻¹ • z.1) := by
+            simp
+      _ = (‖z.1‖ * (‖z.1‖)⁻¹) • z.1 := by
+            simp [smul_smul]
+      _ = z.1 := by
+            simp [hz]
+
+  have hPushQ :
+      pushforward (Subtype.val : VecNZ d → Vec d) Q measurable_subtype_coe
+        = sphericalLaw d (pushforward (radiusSq (d := d)) Q hRadMeas) := by
+    calc
+      pushforward (Subtype.val : VecNZ d → Vec d) Q measurable_subtype_coe
+          = pushforward (fun z : VecNZ d => (Real.sqrt (radiusSq (d := d) z : ℝ)) • (direction (d := d) z).1)
+              Q hReconstructMeas := by
+                apply Subtype.ext
+                change
+                  Measure.map (Subtype.val : VecNZ d → Vec d) (Q : Measure (VecNZ d))
+                    = Measure.map
+                        (fun z : VecNZ d => (Real.sqrt (radiusSq (d := d) z : ℝ)) • (direction (d := d) z).1)
+                        (Q : Measure (VecNZ d))
+                rw [hReconstructEq]
+      _ = sphericalLaw d (pushforward (radiusSq (d := d)) Q hRadMeas) := by
+            exact sphericalLaw_determinedByRadius d hDim Q
+              (radiusSq (d := d))
+              (direction (d := d))
+              hRadMeas
+              hDirMeas
+              hReconstructMeas
+              hDirQ
+              hIndepQSwap
+
+  have hPushG :
+      pushforward (Subtype.val : VecNZ d → Vec d) (gaussianNZ d) measurable_subtype_coe
+        = sphericalLaw d (chiSqRadiusLaw d) := by
+    calc
+      pushforward (Subtype.val : VecNZ d → Vec d) (gaussianNZ d) measurable_subtype_coe
+          = pushforward (fun z : VecNZ d => (Real.sqrt (radiusSq (d := d) z : ℝ)) • (direction (d := d) z).1)
+              (gaussianNZ d) hReconstructMeas := by
+                apply Subtype.ext
+                change
+                  Measure.map (Subtype.val : VecNZ d → Vec d) (gaussianNZ d : Measure (VecNZ d))
+                    = Measure.map
+                        (fun z : VecNZ d => (Real.sqrt (radiusSq (d := d) z : ℝ)) • (direction (d := d) z).1)
+                        (gaussianNZ d : Measure (VecNZ d))
+                rw [hReconstructEq]
+      _ = sphericalLaw d (pushforward (radiusSq (d := d)) (gaussianNZ d) hRadMeas) := by
+            exact sphericalLaw_determinedByRadius d hDim (gaussianNZ d)
+              (radiusSq (d := d))
+              (direction (d := d))
+              hRadMeas
+              hDirMeas
+              hReconstructMeas
+              hDirG
+              hIndepGSwap
+      _ = sphericalLaw d (chiSqRadiusLaw d) := by
+            simp [hRadG]
+
+  have hMapEq :
+      pushforward (Subtype.val : VecNZ d → Vec d) Q measurable_subtype_coe
+        = pushforward (Subtype.val : VecNZ d → Vec d) (gaussianNZ d) measurable_subtype_coe := by
+    calc
+      pushforward (Subtype.val : VecNZ d → Vec d) Q measurable_subtype_coe
+          = sphericalLaw d (pushforward (radiusSq (d := d)) Q hRadMeas) := hPushQ
+      _ = sphericalLaw d (chiSqRadiusLaw d) := by
+            simp [hRadQ]
+      _ = pushforward (Subtype.val : VecNZ d → Vec d) (gaussianNZ d) measurable_subtype_coe := by
+            symm
+            exact hPushG
+
+  have hEmb : MeasurableEmbedding (Subtype.val : VecNZ d → Vec d) := by
+    let sNZ : Set (Vec d) := ({(0 : Vec d)} : Set (Vec d))ᶜ
+    have hsNZ : MeasurableSet sNZ := by
+      unfold sNZ
+      exact MeasurableSet.compl
+        ((isClosed_singleton : IsClosed ({(0 : Vec d)} : Set (Vec d))).measurableSet)
+    have hEmbSet : MeasurableEmbedding (Subtype.val : sNZ → Vec d) :=
+      MeasurableEmbedding.subtype_coe hsNZ
+    simpa [VecNZ, sNZ] using hEmbSet
+
+  apply Subtype.ext
+  change (Q : Measure (VecNZ d)) = (gaussianNZ d : Measure (VecNZ d))
+  have hMapMeasure :
+      Measure.map (Subtype.val : VecNZ d → Vec d) (Q : Measure (VecNZ d))
+        = Measure.map (Subtype.val : VecNZ d → Vec d) (gaussianNZ d : Measure (VecNZ d)) := by
+    simpa using congrArg (fun ν : Distribution (Vec d) => (ν : Measure (Vec d))) hMapEq
+  calc
+    (Q : Measure (VecNZ d))
+        = Measure.comap (Subtype.val : VecNZ d → Vec d)
+            (Measure.map (Subtype.val : VecNZ d → Vec d) (Q : Measure (VecNZ d))) := by
+              symm
+              exact hEmb.comap_map (Q : Measure (VecNZ d))
+    _ = Measure.comap (Subtype.val : VecNZ d → Vec d)
+          (Measure.map (Subtype.val : VecNZ d → Vec d) (gaussianNZ d : Measure (VecNZ d))) := by
+            rw [hMapMeasure]
+    _ = (gaussianNZ d : Measure (VecNZ d)) := by
+          exact hEmb.comap_map (gaussianNZ d : Measure (VecNZ d))
 
 /--
 **Theorem (full equivalence).**
