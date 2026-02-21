@@ -451,7 +451,7 @@ Status: **statement only** (`sorry`).
 
 ```lean
 theorem wristbandEquivalence_forward (d : ℕ) (hDim : 2 ≤ d) :
-    wristbandLaw d (gaussianNZ d) = wristbandUniform d := by sorry
+    wristbandLaw d (gaussianNZ d) = wristbandUniform d := by ...
 ```
 
 (`Equivalence.lean:185`)
@@ -460,16 +460,33 @@ Math: if $Q = \mathcal{N}(0, I_d)$ and $d \geq 2$, then
 
 $$\Phi_\# Q = \sigma_{d-1} \otimes \mathrm{Unif}[0,1].$$
 
-**Partial match.** The Lean guard `hDim : 2 ≤ d` excludes $d = 1$. The Python
-code imposes no dimension lower bound — it will run for any $d \geq 1$.
-Mathematically, for $d = 1$ the "sphere" $S^0 = \{-1, +1\}$ is discrete, so
-the uniform sphere measure is $\frac{1}{2}\delta_{-1} + \frac{1}{2}\delta_{+1}$
-and the forward direction still holds. The backward direction (uniqueness) also
-holds for $d = 1$ but requires a separate argument since the sphere is not
-connected. The $d \geq 2$ guard is a simplification, not a fundamental
-limitation.
+**Partial match, with direct code comparison.** Lean requires `hDim : 2 ≤ d`,
+while the Python implementation accepts any `d ≥ 1`:
 
-Status: **statement only** (`sorry`).
+- `d = int(x.shape[-1])` (`ml-tidbits/python/embed_models/EmbedModels.py:693`)
+- early return only for `d < 1` (`ml-tidbits/python/embed_models/EmbedModels.py:696`)
+- wristband map is computed for any remaining `d` via
+  `s = ...` (`ml-tidbits/python/embed_models/EmbedModels.py:749`),
+  `u = ...` (`ml-tidbits/python/embed_models/EmbedModels.py:750`),
+  `t = gammainc(...)` (`ml-tidbits/python/embed_models/EmbedModels.py:752`)
+
+So `d = 1` is executable in code. However, the mathematically interesting and
+practically relevant regime is `d ≥ 2`:
+
+- For `d = 1`, the sphere is `S^0 = {-1, +1}` (two points), so directional
+  geometry is discrete and the angular part of the wristband construction is
+  degenerate.
+- For `d ≥ 2`, `S^{d-1}` is a genuine continuous sphere; this is where the
+  uniform-direction and rotation-based structure used in the proof carries real
+  geometric content.
+- The project’s own training example uses higher-dimensional embeddings
+  (`embed_dim = 8` in `ml-tidbits/python/tests/DeterministicGAE.py:123`).
+
+Bottom line: Lean’s `d ≥ 2` guard is best read as an intentional scope choice
+matching the target use case (continuous latent geometry), not as a conflict
+with the Python implementation.
+
+Status: **fully proven**.
 
 ### 7.2 Backward direction
 
@@ -480,7 +497,7 @@ theorem wristbandEquivalence_backward (d : ℕ) (hDim : 2 ≤ d)
     Q = gaussianNZ d := by sorry
 ```
 
-(`Equivalence.lean:201`)
+(`Equivalence.lean:365`)
 
 Math: if $\Phi_\# Q = \sigma_{d-1} \otimes \mathrm{Unif}[0,1]$ and $d \geq 2$,
 then $Q = \mathcal{N}(0, I_d)$.
@@ -495,7 +512,7 @@ theorem wristbandEquivalence (d : ℕ) (hDim : 2 ≤ d)
     wristbandLaw d Q = wristbandUniform d ↔ Q = gaussianNZ d := ...
 ```
 
-(`Equivalence.lean:215`)
+(`Equivalence.lean:379`)
 
 Math:
 
@@ -710,13 +727,12 @@ Gaussian measure on `Vec d` to the nonzero subtype yields `gaussianNZ d`.
 
 ### 9.7 Deferred proofs (`sorry`)
 
-Four theorem statements have no proof:
+Three theorem statements have no proof:
 
 1. `probabilityIntegralTransform_reverse` (`Foundations.lean:662`) — reverse CDF-to-law theorem
 2. `sphericalLaw_determinedByRadius` (`Equivalence.lean:156`) — identification
-3. `wristbandEquivalence_forward` (`Equivalence.lean:185`) — forward equivalence
-4. `wristbandEquivalence_backward` (`Equivalence.lean:201`) — backward equivalence
+3. `wristbandEquivalence_backward` (`Equivalence.lean:365`) — backward equivalence
 
-The last two depend on the first two. With the forward CDF-to-uniform theorem
-now proven, the reverse CDF-to-law theorem (item 1) plus the identification
-lemma (item 2) are the main blockers.
+With `wristbandEquivalence_forward` now proven, the reverse CDF-to-law theorem
+(item 1) plus the identification lemma (item 2) are the main blockers for
+closing the backward direction.
