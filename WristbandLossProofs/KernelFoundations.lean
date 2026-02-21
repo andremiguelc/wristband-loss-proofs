@@ -1,4 +1,5 @@
 import WristbandLossProofs.Equivalence
+import Mathlib.NumberTheory.ModularForms.JacobiTheta.TwoVariable
 
 set_option autoImplicit false
 
@@ -105,6 +106,72 @@ noncomputable def kernelRadNeumann
   ∑' (n : ℤ),
     (Real.exp (-β * (s - s' - 2 * n) ^ 2) +
      Real.exp (-β * (s + s' - 2 * n) ^ 2))
+
+/-- The summand in the Neumann kernel is summable over `ℤ` for `β > 0`.
+
+    This ensures `kernelRadNeumann` (defined via `tsum`) computes the
+    intended infinite series rather than returning 0 by convention.
+
+    Proof sketch: for `|n| ≥ 1` and `t, t' ∈ [0,1]`, each exponent
+    satisfies `(t - t' - 2n)² ≥ (2|n| - 2)²`, so
+    `exp(-β(t-t'-2n)²) ≤ exp(-β(2|n|-2)²)`. The tails are dominated
+    by `exp(-4β(|n|-1)²) ≤ exp(-4β(|n|-1))` for `|n| ≥ 2`, a geometric
+    series that converges for `β > 0`.
+
+    Mathlib route used below: dominate each shifted Gaussian term by
+    the standard Jacobi-theta bound
+    `exp(-π (T·n² - 2·S·|n|))` with `T = 4β/π > 0`, then apply
+    `summable_pow_mul_jacobiTheta₂_term_bound` (with `k = 0`). -/
+lemma kernelRadNeumann_summable
+    (β : ℝ) (hβ : 0 < β) (t t' : UnitInterval) :
+    Summable (fun n : ℤ =>
+      Real.exp (-β * ((t : ℝ) - (t' : ℝ) - 2 * n) ^ 2) +
+      Real.exp (-β * ((t : ℝ) + (t' : ℝ) - 2 * n) ^ 2)) := by
+  let a : ℝ := (t : ℝ) - (t' : ℝ)
+  let b : ℝ := (t : ℝ) + (t' : ℝ)
+
+  have hT : 0 < 4 * β / Real.pi := by positivity
+
+  have hboundSummable (c : ℝ) :
+      Summable (fun n : ℤ =>
+        Real.exp (-Real.pi *
+          ((4 * β / Real.pi) * n ^ 2 - 2 * (2 * β * |c| / Real.pi) * |n|))) := by
+    simpa [pow_zero, one_mul] using
+      (summable_pow_mul_jacobiTheta₂_term_bound
+        (S := 2 * β * |c| / Real.pi) (T := 4 * β / Real.pi) (k := 0) hT)
+
+  have hshiftSummable (c : ℝ) :
+      Summable (fun n : ℤ => Real.exp (-β * (c - 2 * n) ^ 2)) := by
+    refine (hboundSummable c).of_nonneg_of_le (fun n => Real.exp_nonneg _) ?_
+    intro n
+    refine (Real.exp_le_exp).2 ?_
+    have hconst : -β * c ^ 2 ≤ 0 := by nlinarith [hβ, sq_nonneg c]
+    have hcross : 4 * β * c * (n : ℝ) ≤ 4 * β * |c| * |(n : ℝ)| := by
+      have hcn : c * (n : ℝ) ≤ |c| * |(n : ℝ)| := by
+        simpa [abs_mul] using (le_abs_self (c * (n : ℝ)))
+      have h4β : 0 ≤ 4 * β := by nlinarith [hβ]
+      nlinarith [hcn, h4β]
+    have hmain :
+        -β * (c - 2 * n) ^ 2 ≤
+          -4 * β * (n : ℝ) ^ 2 + 4 * β * |c| * |(n : ℝ)| := by
+      have hexpand :
+          -β * (c - 2 * n) ^ 2 =
+            -β * c ^ 2 + 4 * β * c * (n : ℝ) - 4 * β * (n : ℝ) ^ 2 := by
+        ring
+      nlinarith [hexpand, hconst, hcross]
+    have hrewrite :
+        -Real.pi *
+            ((4 * β / Real.pi) * n ^ 2 - 2 * (2 * β * |c| / Real.pi) * |n|) =
+          -4 * β * (n : ℝ) ^ 2 + 4 * β * |c| * |(n : ℝ)| := by
+      rw [Int.cast_abs]
+      have hpi : (Real.pi : ℝ) ≠ 0 := Real.pi_ne_zero
+      field_simp [hpi]
+      ring
+    exact hmain.trans_eq hrewrite.symm
+
+  have ha : Summable (fun n : ℤ => Real.exp (-β * (a - 2 * n) ^ 2)) := hshiftSummable a
+  have hb : Summable (fun n : ℤ => Real.exp (-β * (b - 2 * n) ^ 2)) := hshiftSummable b
+  exact ha.add hb
 
 /-! ### Joint wristband kernels
 
