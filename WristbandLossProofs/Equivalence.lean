@@ -150,8 +150,6 @@ theorem sphericalLaw_rotationInvariant
 
 If `U` is uniform on the sphere, independent of nonnegative squared-radius variable `S`,
 then the law of `Z = √S • U` is exactly the spherical law built from `S`'s law.
-
-This is the theorem-shape needed in the proof plan; proof is deferred for now.
 -/
 theorem sphericalLaw_determinedByRadius
     (d : ℕ)
@@ -168,8 +166,37 @@ theorem sphericalLaw_determinedByRadius
     (hIndep : IndepLaw μ S U hS hUmeas) :
     pushforward (fun ω => (Real.sqrt (S ω : ℝ)) • (U ω).1) μ hReconstruct =
       sphericalLaw d (pushforward S μ hS) := by
-  -- Deferred: this is the identification theorem required by the proof plan.
-  sorry
+  have _ : 2 ≤ d := hDim
+  have hPairMeas : Measurable (fun ω : Ω => (S ω, U ω)) := hS.prodMk hUmeas
+  calc
+    pushforward (fun ω => (Real.sqrt (S ω : ℝ)) • (U ω).1) μ hReconstruct
+        = pushforward (radialReconstruct d)
+            (pushforward (fun ω : Ω => (S ω, U ω)) μ hPairMeas)
+            (measurable_radialReconstruct d) := by
+              apply Subtype.ext
+              change
+                Measure.map (fun ω => (Real.sqrt (S ω : ℝ)) • (U ω).1) (μ : Measure Ω)
+                =
+                Measure.map
+                  (radialReconstruct d)
+                  (Measure.map (fun ω : Ω => (S ω, U ω)) (μ : Measure Ω))
+              change
+                Measure.map ((radialReconstruct d) ∘ (fun ω : Ω => (S ω, U ω))) (μ : Measure Ω)
+                =
+                Measure.map
+                  (radialReconstruct d)
+                  (Measure.map (fun ω : Ω => (S ω, U ω)) (μ : Measure Ω))
+              rw [← Measure.map_map (measurable_radialReconstruct d) hPairMeas]
+    _ = pushforward (radialReconstruct d)
+          (productLaw (pushforward S μ hS) (pushforward U μ hUmeas))
+          (measurable_radialReconstruct d) := by
+            rw [hIndep]
+    _ = pushforward (radialReconstruct d)
+          (productLaw (pushforward S μ hS) (sphereUniform d))
+          (measurable_radialReconstruct d) := by
+            simp [hU]
+    _ = sphericalLaw d (pushforward S μ hS) := by
+            rfl
 
 /-! ## Wristband Equivalence Skeleton -/
 

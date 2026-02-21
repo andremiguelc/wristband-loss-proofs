@@ -462,7 +462,7 @@ theorem wristbandEquivalence_forward (d : ℕ) (hDim : 2 ≤ d) :
     wristbandLaw d (gaussianNZ d) = wristbandUniform d := by ...
 ```
 
-(`Equivalence.lean:185`)
+(`Equivalence.lean:212`)
 
 Math: if $Q = \mathcal{N}(0, I_d)$ and $d \geq 2$, then
 
@@ -524,7 +524,7 @@ theorem wristbandEquivalence_backward (d : ℕ) (hDim : 2 ≤ d)
     Q = gaussianNZ d := by sorry
 ```
 
-(`Equivalence.lean:365`)
+(`Equivalence.lean:392`)
 
 Math: if $\Phi_\# Q = \sigma_{d-1} \otimes \mathrm{Unif}[0,1]$ and $d \geq 2$,
 then $Q = \mathcal{N}(0, I_d)$.
@@ -539,7 +539,7 @@ theorem wristbandEquivalence (d : ℕ) (hDim : 2 ≤ d)
     wristbandLaw d Q = wristbandUniform d ↔ Q = gaussianNZ d := ...
 ```
 
-(`Equivalence.lean:379`)
+(`Equivalence.lean:406`)
 
 Math:
 
@@ -586,15 +586,27 @@ Status: **fully proven**.
 ```lean
 theorem sphericalLaw_determinedByRadius (d : ℕ) (hDim : 2 ≤ d) ... :
     pushforward (...) μ hReconstruct = sphericalLaw d (pushforward S μ hS)
-    := by sorry
+    := by ...
 ```
 
-(`Equivalence.lean:156`)
+(`Equivalence.lean:154`)
 
 Math: if direction is uniform and independent of squared radius, then the
 full vector law equals the spherical law built from that radius law.
 
-Status: **statement only** (`sorry`).
+Code correspondence: there is no direct Python function that reconstructs
+`z` from `(u, s)` in the training loop, but this theorem is the formal
+identification principle behind the same factorization used by the wristband
+pipeline (`u = x/‖x‖`, `s = ‖x‖²`, and CDF-transformed radial coordinate `t`):
+once directional law and radial law are fixed under independence, the ambient
+vector law is fixed.
+
+Status: **fully proven**.
+
+Proof shape (Lean): rewrite the reconstruction pushforward as
+`map radialReconstruct` of the joint pushforward of `(S,U)`, replace that
+joint law by a product law via `hIndep`, substitute `hU` for the directional
+marginal, and unfold `sphericalLaw`.
 
 ### 8.4 Sphere measure is a probability measure
 
@@ -754,11 +766,12 @@ Gaussian measure on `Vec d` to the nonzero subtype yields `gaussianNZ d`.
 
 ### 9.7 Deferred proofs (`sorry`)
 
-Two theorem statements have no proof:
+One theorem statement has no proof:
 
-1. `sphericalLaw_determinedByRadius` (`Equivalence.lean:156`) — identification
-2. `wristbandEquivalence_backward` (`Equivalence.lean:365`) — backward equivalence
+1. `wristbandEquivalence_backward` (`Equivalence.lean:392`) — backward equivalence
 
 With `wristbandEquivalence_forward` and
-`probabilityIntegralTransform_reverse` now proven, the identification lemma
-(item 1) is the main blocker for closing the backward direction.
+`probabilityIntegralTransform_reverse` now proven, and with
+`sphericalLaw_determinedByRadius` now proved, the remaining blocker is closing
+the backward direction by assembling these pieces in
+`wristbandEquivalence_backward`.
