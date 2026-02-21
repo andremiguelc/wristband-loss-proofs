@@ -656,9 +656,7 @@ theorem probabilityIntegralTransform
     `targetLaw`, then `X ~ targetLaw`.
 
     Application to wristband (backward direction): if the radial percentile is
-    uniform, the squared-radius must follow the chi-square law.
-
-    Proof status: deferred (`sorry`). Needs generalized inverse / quantile function. -/
+    uniform, the squared-radius must follow the chi-square law. -/
 theorem probabilityIntegralTransform_reverse
     (targetLaw observedLaw : Distribution NNReal)
     (F : NNReal → UnitInterval)
@@ -667,7 +665,60 @@ theorem probabilityIntegralTransform_reverse
     (hStrict : IsStrictlyIncreasingCDFFor targetLaw F)
     (hUniform : pushforward F observedLaw hFMeas = uniform01) :
     observedLaw = targetLaw := by
-  -- Deferred for the same reason as `probabilityIntegralTransform`.
-  sorry
+  rcases hCDF with ⟨hCDF_eq, _hCont⟩
+  rcases hStrict with ⟨_hStrict_eq, hStrictMono⟩
+  apply Subtype.ext
+  change (observedLaw : Measure NNReal) = (targetLaw : Measure NNReal)
+  refine Measure.ext_of_Iic (μ := (observedLaw : Measure NNReal))
+    (ν := (targetLaw : Measure NNReal)) ?_
+  intro x
+  have hPreimage : F ⁻¹' (Set.Iic (F x)) = Set.Iic x := by
+    ext t
+    constructor
+    · intro ht
+      change (F t : ℝ) ≤ (F x : ℝ) at ht
+      change t ≤ x
+      by_contra htx
+      have hxt : x < t := lt_of_not_ge htx
+      have hlt : (F x : ℝ) < (F t : ℝ) := hStrictMono hxt
+      exact (not_lt_of_ge ht) hlt
+    · intro ht
+      change (F t : ℝ) ≤ (F x : ℝ)
+      exact (StrictMono.monotone hStrictMono) ht
+  have hObsPreimage : (observedLaw : Measure NNReal) (Set.Iic x) =
+      ((pushforward F observedLaw hFMeas : Distribution UnitInterval) : Measure UnitInterval)
+        (Set.Iic (F x)) := by
+    calc
+      (observedLaw : Measure NNReal) (Set.Iic x)
+          = (observedLaw : Measure NNReal) (F ⁻¹' (Set.Iic (F x))) := by
+              rw [hPreimage]
+      _ = ((pushforward F observedLaw hFMeas : Distribution UnitInterval) : Measure UnitInterval)
+            (Set.Iic (F x)) := by
+              change (observedLaw : Measure NNReal) (F ⁻¹' Set.Iic (F x)) =
+                ((observedLaw : Measure NNReal).map F) (Set.Iic (F x))
+              rw [Measure.map_apply hFMeas measurableSet_Iic]
+  have hObsIic : (observedLaw : Measure NNReal) (Set.Iic x) =
+      ENNReal.ofReal ((F x : UnitInterval) : ℝ) := by
+    calc
+      (observedLaw : Measure NNReal) (Set.Iic x)
+          = ((pushforward F observedLaw hFMeas : Distribution UnitInterval) : Measure UnitInterval)
+              (Set.Iic (F x)) := hObsPreimage
+      _ = ((uniform01 : Distribution UnitInterval) : Measure UnitInterval) (Set.Iic (F x)) := by
+            simp [hUniform]
+      _ = ENNReal.ofReal ((F x : UnitInterval) : ℝ) := by
+            simpa [uniform01] using (unitInterval.volume_Iic (F x))
+  have hTarIic : (targetLaw : Measure NNReal) (Set.Iic x) =
+      ENNReal.ofReal ((F x : UnitInterval) : ℝ) := by
+    calc
+      (targetLaw : Measure NNReal) (Set.Iic x)
+          = ENNReal.ofReal (((targetLaw : Measure NNReal) (Set.Iic x)).toReal) := by
+              symm
+              exact ENNReal.ofReal_toReal
+                (measure_ne_top (targetLaw : Measure NNReal) (Set.Iic x))
+      _ = ENNReal.ofReal ((F x : UnitInterval) : ℝ) := by
+            congr 1
+            symm
+            exact hCDF_eq x
+  rw [hObsIic, hTarIic]
 
 end WristbandLossProofs

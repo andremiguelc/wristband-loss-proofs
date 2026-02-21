@@ -433,15 +433,23 @@ theorem probabilityIntegralTransform_reverse
     (hCDF : IsContinuousCDFFor targetLaw F)
     (hStrict : IsStrictlyIncreasingCDFFor targetLaw F)
     (hUniform : pushforward F observedLaw hFMeas = uniform01) :
-    observedLaw = targetLaw := by sorry
+    observedLaw = targetLaw := by ...
 ```
 
-(`Foundations.lean:662`)
+(`Foundations.lean:660`)
 
 Math: if $F$ is a continuous, strictly increasing CDF for $\mu$, and
 $F(X) \sim \mathrm{Unif}(0,1)$, then $X \sim \mu$.
 
-Status: **statement only** (`sorry`).
+Python correspondence: the code path computes
+`t = torch.special.gammainc(a_df, .5 * s).clamp(eps, 1. - eps)`
+(`EmbedModels.py:751–752`) and then penalizes radial non-uniformity via
+`rad_loss` (`EmbedModels.py:755–759`). The theorem is the exact converse of
+Section 6.1 in the idealized setting: if this CDF-transformed radial variable
+is uniform (and the CDF is strictly increasing), then the original radial law
+is uniquely identified.
+
+Status: **fully proven**.
 
 ---
 
@@ -746,12 +754,11 @@ Gaussian measure on `Vec d` to the nonzero subtype yields `gaussianNZ d`.
 
 ### 9.7 Deferred proofs (`sorry`)
 
-Three theorem statements have no proof:
+Two theorem statements have no proof:
 
-1. `probabilityIntegralTransform_reverse` (`Foundations.lean:662`) — reverse CDF-to-law theorem
-2. `sphericalLaw_determinedByRadius` (`Equivalence.lean:156`) — identification
-3. `wristbandEquivalence_backward` (`Equivalence.lean:365`) — backward equivalence
+1. `sphericalLaw_determinedByRadius` (`Equivalence.lean:156`) — identification
+2. `wristbandEquivalence_backward` (`Equivalence.lean:365`) — backward equivalence
 
-With `wristbandEquivalence_forward` now proven, the reverse CDF-to-law theorem
-(item 1) plus the identification lemma (item 2) are the main blockers for
-closing the backward direction.
+With `wristbandEquivalence_forward` and
+`probabilityIntegralTransform_reverse` now proven, the identification lemma
+(item 1) is the main blocker for closing the backward direction.
