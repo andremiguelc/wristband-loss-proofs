@@ -462,7 +462,7 @@ theorem wristbandEquivalence_forward (d : ℕ) (hDim : 2 ≤ d) :
     wristbandLaw d (gaussianNZ d) = wristbandUniform d := by ...
 ```
 
-(`Equivalence.lean:212`)
+(`Equivalence.lean:515`)
 
 Math: if $Q = \mathcal{N}(0, I_d)$ and $d \geq 2$, then
 
@@ -521,15 +521,34 @@ Status: **fully proven**.
 theorem wristbandEquivalence_backward (d : ℕ) (hDim : 2 ≤ d)
     (Q : Distribution (VecNZ d))
     (hUniform : wristbandLaw d Q = wristbandUniform d) :
-    Q = gaussianNZ d := by sorry
+    Q = gaussianNZ d := by ...
 ```
 
-(`Equivalence.lean:392`)
+(`Equivalence.lean:695`)
 
 Math: if $\Phi_\# Q = \sigma_{d-1} \otimes \mathrm{Unif}[0,1]$ and $d \geq 2$,
 then $Q = \mathcal{N}(0, I_d)$.
 
-Status: **statement only** (`sorry`).
+**Code correspondence.**
+
+- **Same backward target as training objective.**
+  The hypothesis `wristbandLaw d Q = wristbandUniform d` is the idealized
+  population form of the code goal that wristband features `(u, t)` match the
+  uniform wristband target (computed from `u = x/‖x‖`, `t = gammainc(d/2, s/2)`
+  at `ml-tidbits/python/embed_models/EmbedModels.py:749–752`).
+
+- **Same radial-identification mechanism.**
+  Lean uses reverse PIT (`probabilityIntegralTransform_reverse`) to conclude the
+  squared-radius law is `χ²_d` from uniformity of `t`; this is the exact
+  population converse of the radial-uniform enforcement used by `rad_loss`
+  (`EmbedModels.py:755–759`).
+
+- **Same Gaussian bridge.**
+  Lean matches recovered polar data against imported Gaussian polar laws and
+  concludes `Q = γ`; in code this corresponds to using Gaussian reference
+  samples for calibration (`x_gauss = torch.randn(...)`, `EmbedModels.py:642`).
+
+Status: **fully proven**.
 
 ### 7.3 Biconditional
 
@@ -539,7 +558,7 @@ theorem wristbandEquivalence (d : ℕ) (hDim : 2 ≤ d)
     wristbandLaw d Q = wristbandUniform d ↔ Q = gaussianNZ d := ...
 ```
 
-(`Equivalence.lean:406`)
+(`Equivalence.lean:999`)
 
 Math:
 
@@ -766,12 +785,6 @@ Gaussian measure on `Vec d` to the nonzero subtype yields `gaussianNZ d`.
 
 ### 9.7 Deferred proofs (`sorry`)
 
-One theorem statement has no proof:
+No deferred proofs remain in `Equivalence.lean` for Section 2. In particular:
 
-1. `wristbandEquivalence_backward` (`Equivalence.lean:392`) — backward equivalence
-
-With `wristbandEquivalence_forward` and
-`probabilityIntegralTransform_reverse` now proven, and with
-`sphericalLaw_determinedByRadius` now proved, the remaining blocker is closing
-the backward direction by assembling these pieces in
-`wristbandEquivalence_backward`.
+1. `wristbandEquivalence_backward` is now fully proved (`Equivalence.lean:695`).
