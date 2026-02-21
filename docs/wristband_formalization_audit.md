@@ -388,11 +388,20 @@ Math: for any orthogonal $O$, $O_\# \sigma_{d-1} = \sigma_{d-1}$.
 
 ## 6. CDF-to-Uniform Transform
 
-The wristband map uses the CDF $F_{\chi^2_d}$ to turn a chi-square random
-variable into a uniform one. This is the forward CDF-to-uniform transform used
-in the wristband argument.
-
 ### 6.1 Forward CDF-to-uniform theorem
+
+Python (`EmbedModels.py:751–752`):
+
+```python
+a_df = s.new_tensor(.5 * d_f)
+t = torch.special.gammainc(a_df, .5 * s).clamp(eps, 1. - eps)
+```
+
+This applies $F_{\chi^2_d}$ to the batch of squared norms `s`. The result `t`
+is expected to be approximately uniform on $[0,1]$ when the input is Gaussian.
+The Lean theorem formalizes exactly this expectation at the distributional level.
+
+Lean (`Foundations.lean:535`):
 
 ```lean
 theorem probabilityIntegralTransform
@@ -404,23 +413,15 @@ theorem probabilityIntegralTransform
     pushforward F μ hFMeas = uniform01 := by ...
 ```
 
-(`Foundations.lean:535`)
+Math: if $X \sim \mu$ and $F = F_\mu$ is continuous with $F(0)=0$, then
 
-Math: if $X \sim \mu$, $F = F_\mu$ is continuous, and $F(0)=0$, then
-$F(X) \sim \mathrm{Unif}(0,1)$.
+$$F(X) \sim \mathrm{Unif}(0,1).$$
 
-**Match** The Lean statement
-is on `Distribution NNReal`, matching the nonnegative squared-radius coordinate
-used by the code. The endpoint hypothesis `hFZero : F 0 = 0` is satisfied in the
-intended regime (`d \geq 1`, chi-square CDF), so it does not add an extra
-constraint beyond the pipeline assumptions.
+The guard `hFZero` is needed because the domain is $\mathbb{R}_{\geq 0}$
+(half-line, not all of $\mathbb{R}$); it is satisfied by `chiSqCDFToUnit d`
+for all $d \geq 1$.
 
-Scope note: this remains a deliberately scoped theorem rather than the most
-general textbook statement.
-
-Status: **fully proven** (`Foundations.lean:535`). The endpoint guard
-`hFZero : F 0 = 0` is essential on `ℝ≥0` to exclude degenerate-at-zero
-counterexamples.
+Status: **fully proven**.
 
 ### 6.2 Reverse CDF-to-law theorem
 
