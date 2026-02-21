@@ -1,4 +1,4 @@
-import WristbandLossProofs.Foundations
+import WristbandLossProofs.EquivalenceFoundations
 
 set_option autoImplicit false
 
