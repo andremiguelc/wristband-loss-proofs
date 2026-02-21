@@ -8,7 +8,8 @@ faithfully capture what the Python code computes.
 Sources:
 
 - Python: `ml-tidbits/python/embed_models/EmbedModels.py`
-- Lean: `WristbandLossProofs/Foundations.lean`, `WristbandLossProofs/ImportedFacts.lean`, `WristbandLossProofs/Equivalence.lean`
+- Lean (equivalence core): `WristbandLossProofs/EquivalenceFoundations.lean`, `WristbandLossProofs/EquivalenceImportedFacts.lean`, `WristbandLossProofs/Equivalence.lean`
+- Lean (kernel step): `WristbandLossProofs/KernelFoundations.lean`, `WristbandLossProofs/KernelImportedFacts.lean`, `WristbandLossProofs/KernelMinimization.lean`
 
 ---
 
@@ -24,7 +25,7 @@ Lean:
 abbrev Vec (d : ℕ) : Type := EuclideanSpace ℝ (Fin d)
 ```
 
-(`Foundations.lean:24`)
+(`EquivalenceFoundations.lean:24`)
 
 Math: $\mathbb{R}^d$.
 
@@ -37,7 +38,7 @@ all vectors are nonzero. Lean encodes this as a subtype.
 def VecNZ (d : ℕ) : Type := {z : Vec d // z ≠ 0}
 ```
 
-(`Foundations.lean:32`)
+(`EquivalenceFoundations.lean:32`)
 
 Math: $\mathbb{R}^d \setminus \{0\}$.
 
@@ -50,7 +51,7 @@ The set of all such unit vectors is the sphere.
 abbrev Sphere (d : ℕ) : Type := Metric.sphere (0 : Vec d) (1 : ℝ)
 ```
 
-(`Foundations.lean:28`)
+(`EquivalenceFoundations.lean:28`)
 
 Math: $S^{d-1} = \{x \in \mathbb{R}^d : \|x\| = 1\}$.
 
@@ -62,7 +63,7 @@ Python clamps the CDF output to `(eps, 1 - eps)`, approximating $[0,1]$.
 abbrev UnitInterval : Type := Set.Icc (0 : ℝ) 1
 ```
 
-(`Foundations.lean:36`)
+(`EquivalenceFoundations.lean:36`)
 
 Math: $[0,1]$.
 
@@ -74,7 +75,7 @@ The output of the wristband map is a pair (direction, radial CDF value).
 abbrev Wristband (d : ℕ) : Type := Sphere d × UnitInterval
 ```
 
-(`Foundations.lean:40`)
+(`EquivalenceFoundations.lean:40`)
 
 Math: $\mathcal{W}_d = S^{d-1} \times [0,1]$.
 
@@ -90,7 +91,7 @@ Python (`EmbedModels.py:749`):
 s = xw.square().sum(dim=-1).clamp_min(eps)
 ```
 
-Lean (`Foundations.lean:103`):
+Lean (`EquivalenceFoundations.lean:103`):
 
 ```lean
 def radiusSq {d : ℕ} (z : VecNZ d) : NNReal := ⟨‖z.1‖ ^ 2, by positivity⟩
@@ -111,7 +112,7 @@ Python (`EmbedModels.py:750`):
 u = xw * torch.rsqrt(s)[..., :, None]
 ```
 
-Lean (`Foundations.lean:114`):
+Lean (`EquivalenceFoundations.lean:114`):
 
 ```lean
 noncomputable def direction {d : ℕ} (z : VecNZ d) : Sphere d := ...
@@ -133,7 +134,7 @@ a_df = s.new_tensor(.5 * d_f)
 t = torch.special.gammainc(a_df, .5 * s).clamp(eps, 1. - eps)
 ```
 
-Lean (`Foundations.lean:451`):
+Lean (`EquivalenceFoundations.lean:451`):
 
 ```lean
 noncomputable def chiSqCDFToUnit (d : ℕ) : NNReal → UnitInterval := ...
@@ -180,15 +181,15 @@ Lean builds that.
 
 ### 3.1 Chi-square as a gamma distribution
 
-Lean (`Foundations.lean:258`):
+Lean (`EquivalenceFoundations.lean:258`):
 
 ```lean
 noncomputable def chiSqMeasureR (d : ℕ) : Measure ℝ :=
   ProbabilityTheory.gammaMeasure (chiSqShape d) chiSqRate
 ```
 
-where `chiSqShape d = d / 2` (`Foundations.lean:239`) and `chiSqRate = 1 / 2`
-(`Foundations.lean:243`).
+where `chiSqShape d = d / 2` (`EquivalenceFoundations.lean:239`) and `chiSqRate = 1 / 2`
+(`EquivalenceFoundations.lean:243`).
 
 Math:
 
@@ -199,7 +200,7 @@ $$\chi^2_d = \mathrm{Gamma}(d/2,\; 1/2).$$
 The squared norm $\|z\|^2$ takes values in $\mathbb{R}_{\geq 0}$, so Lean pushes
 the real-valued gamma measure forward to `NNReal`.
 
-Lean (`Foundations.lean:282`):
+Lean (`EquivalenceFoundations.lean:282`):
 
 ```lean
 noncomputable def chiSqRadiusLaw (d : ℕ) : Distribution NNReal := ...
@@ -213,14 +214,14 @@ probability measure on $\mathbb{R}_{\geq 0}$.
 Two proven theorems establish that `chiSqCDFToUnit` is a valid CDF for the
 chi-square radius law.
 
-Lean (`Foundations.lean:482`):
+Lean (`EquivalenceFoundations.lean:482`):
 
 ```lean
 theorem chiSqCDFToUnit_isContinuousCDF (d : ℕ) (hDim : 1 ≤ d) :
     IsContinuousCDFFor (chiSqRadiusLaw d) (chiSqCDFToUnit d) := ...
 ```
 
-Lean (`Foundations.lean:495`):
+Lean (`EquivalenceFoundations.lean:495`):
 
 ```lean
 theorem chiSqCDFToUnit_isStrictlyIncreasingCDF (d : ℕ) (hDim : 1 ≤ d) :
@@ -231,7 +232,7 @@ Math: for $d \geq 1$, the function $F_{\chi^2_d}$ is continuous and strictly
 increasing on $\mathbb{R}_{\geq 0}$. Both are fully proven in Lean using
 Mathlib's `gammaMeasure` infrastructure.
 
-Measurability is also proven (`Foundations.lean:464`):
+Measurability is also proven (`EquivalenceFoundations.lean:464`):
 
 ```lean
 lemma chiSqCDFToUnit_measurable (d : ℕ) : Measurable (chiSqCDFToUnit d) := ...
@@ -250,7 +251,7 @@ abbrev Distribution (α : Type u) [MeasurableSpace α] : Type u :=
   ProbabilityMeasure α
 ```
 
-(`Foundations.lean:68`)
+(`EquivalenceFoundations.lean:68`)
 
 This guarantees total mass 1 by construction.
 
@@ -266,7 +267,7 @@ abbrev pushforward {α : Type u} {β : Type v}
     : Distribution α → Measurable f → Distribution β := ...
 ```
 
-(`Foundations.lean:73`)
+(`EquivalenceFoundations.lean:73`)
 
 Math: given a measure $Q$ on $\alpha$ and a measurable function $f : \alpha \to \beta$,
 
@@ -295,14 +296,14 @@ def wristbandUniform (d : ℕ) : Distribution (Wristband d) :=
   productLaw (sphereUniform d) uniform01
 ```
 
-(`Foundations.lean:162`)
+(`EquivalenceFoundations.lean:162`)
 
 This uses:
 
 - `sphereUniform d`: normalized surface measure on $S^{d-1}$
-  (`Foundations.lean:155`)
+  (`EquivalenceFoundations.lean:155`)
 - `uniform01`: Lebesgue measure restricted to $[0,1]$
-  (`Foundations.lean:98`)
+  (`EquivalenceFoundations.lean:98`)
 
 Math:
 
@@ -323,7 +324,7 @@ and these two are independent. In Lean, these are stated as axioms
 axiom gaussianNZ (d : ℕ) : Distribution (VecNZ d)
 ```
 
-(`ImportedFacts.lean:34`)
+(`EquivalenceImportedFacts.lean:34`)
 
 Math: the standard Gaussian $\mathcal{N}(0, I_d)$ restricted to
 $\mathbb{R}^d \setminus \{0\}$ (which has full measure).
@@ -332,7 +333,7 @@ $\mathbb{R}^d \setminus \{0\}$ (which has full measure).
 with no connection to an ambient Gaussian on `Vec d`. In Python (and in
 standard probability), the Gaussian lives on all of $\mathbb{R}^d$ and the
 restriction to nonzero vectors is a derived fact ($\gamma_d(\{0\}) = 0$).
-Lean is missing the bridge between the two. See section 9.5.
+Lean is missing the bridge between the two. See Section 10 (Axiom-level gaps).
 
 ### 5.2 Direction is uniform on the sphere
 
@@ -342,7 +343,7 @@ axiom gaussianPolar_direction_uniform (d : ℕ) :
     = sphereUniform d
 ```
 
-(`ImportedFacts.lean:37`)
+(`EquivalenceImportedFacts.lean:37`)
 
 Math: $Z \sim \mathcal{N}(0, I_d) \Rightarrow Z / \|Z\| \sim \sigma_{d-1}$.
 
@@ -354,7 +355,7 @@ axiom gaussianPolar_radius_chiSq (d : ℕ) :
     = chiSqRadiusLaw d
 ```
 
-(`ImportedFacts.lean:41`)
+(`EquivalenceImportedFacts.lean:41`)
 
 Math: $Z \sim \mathcal{N}(0, I_d) \Rightarrow \|Z\|^2 \sim \chi^2_d$.
 
@@ -367,7 +368,7 @@ axiom gaussianPolar_independent (d : ℕ) :
       (measurable_direction d) (measurable_radiusSq d)
 ```
 
-(`ImportedFacts.lean:45`)
+(`EquivalenceImportedFacts.lean:45`)
 
 Math: $Z / \|Z\| \perp \|Z\|^2$.
 
@@ -380,7 +381,7 @@ axiom sphereUniform_rotationInvariant (d : ℕ)
       (measurable_rotateSphere O) = sphereUniform d
 ```
 
-(`ImportedFacts.lean:60`)
+(`EquivalenceImportedFacts.lean:60`)
 
 Math: for any orthogonal $O$, $O_\# \sigma_{d-1} = \sigma_{d-1}$.
 
@@ -401,7 +402,7 @@ This applies $F_{\chi^2_d}$ to the batch of squared norms `s`. The result `t`
 is expected to be approximately uniform on $[0,1]$ when the input is Gaussian.
 The Lean theorem formalizes exactly this expectation at the distributional level.
 
-Lean (`Foundations.lean:535`):
+Lean (`EquivalenceFoundations.lean:535`):
 
 ```lean
 theorem probabilityIntegralTransform
@@ -436,7 +437,7 @@ theorem probabilityIntegralTransform_reverse
     observedLaw = targetLaw := by ...
 ```
 
-(`Foundations.lean:660`)
+(`EquivalenceFoundations.lean:660`)
 
 Math: if $F$ is a continuous, strictly increasing CDF for $\mu$, and
 $F(X) \sim \mathrm{Unif}(0,1)$, then $X \sim \mu$.
@@ -634,7 +635,7 @@ axiom sphereUniform_isProbability (d : ℕ) :
     IsProbabilityMeasure (((sphereSurface d) Set.univ)⁻¹ • sphereSurface d)
 ```
 
-(`Foundations.lean:149`)
+(`EquivalenceFoundations.lean:149`)
 
 Math: the sphere $S^{d-1}$ has finite nonzero surface area, so the normalized
 surface measure has total mass 1.
@@ -644,28 +645,175 @@ which is not yet available in Mathlib.
 
 ---
 
-## 9. What is not yet formalized
+## 9. Kernel Energy Minimization (Step 2)
 
-The following Python computations have no Lean counterpart. The formalization
-strategy for each is described in
-[wristband_proof_plan.md](wristband_proof_plan.md) (Steps 2–4).
+This section audits the new kernel formalization against the Python repulsion
+code and checks whether it states the exact mathematical claim needed for the
+big objective: energy minimized at the uniform wristband law.
 
-| Python feature | Code ref | Proof plan step |
-|---------------|----------|----------------|
-| Joint repulsion kernel (angular × reflected radial) | `EmbedModels.py:762–789` | Step 2 |
-| Angular-only uniformity loss | `EmbedModels.py:772–782` | Step 4 |
-| Radial quantile penalty (Cramér–von Mises) | `EmbedModels.py:755–759` | Step 4 |
-| Moment penalty (Bures–Wasserstein W2) | `EmbedModels.py:711` | Step 4 |
-| Z-score calibration and loss aggregation | `EmbedModels.py:827–833` | Step 4 |
+### 9.1 Python kernel computation being formalized
+
+Python (`ml-tidbits/python/embed_models/EmbedModels.py:762–804`):
+
+```python
+g = (u @ u.transpose(-1, -2)).clamp(-1., 1.)
+e_ang = (2. * self.beta_alpha2) * (g - 1.)
+
+diff0 = tc - tr
+diff1 = tc + tr
+diff2 = diff1 - 2.
+
+total  = torch.exp(torch.addcmul(e_ang, diff0, diff0, value=-beta)).sum(dim=(-2, -1))
+total += torch.exp(torch.addcmul(e_ang, diff1, diff1, value=-beta)).sum(dim=(-2, -1))
+total += torch.exp(torch.addcmul(e_ang, diff2, diff2, value=-beta)).sum(dim=(-2, -1))
+total -= n_f
+mean_k = total / (3. * n_f * n_f - n_f)
+rep_loss = torch.log(mean_k + eps) / beta
+```
+
+### 9.2 Kernel definitions in Lean
+
+Lean mirrors the chordal branch exactly at the kernel-formula level:
+
+```lean
+def sphereInner {d : ℕ} (u u' : Sphere d) : ℝ := ...
+def kernelAngChordal {d : ℕ} (β α : ℝ) (u u' : Sphere d) : ℝ :=
+  Real.exp (2 * β * α ^ 2 * (sphereInner u u' - 1))
+
+def kernelRad3Image (β : ℝ) (t t' : UnitInterval) : ℝ :=
+  exp (-β * (t - t')^2) + exp (-β * (t + t')^2) + exp (-β * (t + t' - 2)^2)
+
+def wristbandKernel {d : ℕ} (β α : ℝ) (w w' : Wristband d) : ℝ :=
+  kernelAngChordal β α w.1 w'.1 * kernelRad3Image β w.2 w'.2
+```
+
+(`KernelFoundations.lean:33`, `KernelFoundations.lean:51`, `KernelFoundations.lean:74`, `KernelFoundations.lean:119`)
+
+Validation:
+
+- **Exact match (chordal mode).**
+  `kernelAngChordal` is algebraically identical to
+  `exp((2*beta_alpha2)*(g-1))` when `beta_alpha2 = β·α²`.
+- **Exact match (3-image radial).**
+  `kernelRad3Image` matches `diff0`, `diff1`, `diff2` exactly.
+- **Exact match (joint kernel).**
+  Python adds exponents before `exp`; Lean multiplies factors afterward.
+  These are equivalent.
+
+### 9.3 Repulsion loss vs population energy in Lean
+
+Lean defines population kernel energy:
+
+```lean
+def kernelEnergy (K : X → X → ℝ) (P : Distribution X) : ℝ :=
+  ∫ w, ∫ w', K w w' ∂P ∂P
+```
+
+(`KernelFoundations.lean:145`)
+
+This is the idealized limit of `mean_k` in Python. The following differences are
+intentional implementation details in Python, not conceptual mismatches:
+
+- self-pair removal (`total -= n_f` or `row_sum -= 1`)
+- finite-batch normalization (`3n^2-n` or `3n-1`)
+- `eps` stabilization in `log(mean_k + eps)`
+
+Crucially, the Python loss `rep_loss = (1/β) · log(mean_k + eps)` is a strictly
+monotone transformation of `mean_k`, so it has the same minimizers over
+distributions as the Lean population energy `E(P) = E_{W,W'~P}[K(W,W')]`.
+
+So the Lean objective is **population-equivalent**, not bitwise-identical to a
+finite-batch implementation.
+
+### 9.4 Neumann idealization and truncation bridge
+
+Lean also defines an infinite-series Neumann radial kernel:
+
+```lean
+def kernelRadNeumann (β : ℝ) (t t' : UnitInterval) : ℝ := ∑' n : ℤ, ...
+def wristbandKernelNeumann {d : ℕ} (β α : ℝ) : Wristband d → Wristband d → ℝ := ...
+```
+
+(`KernelFoundations.lean:101`, `KernelFoundations.lean:125`)
+
+Main Step-2 theorems are stated for this Neumann kernel because constant
+potential is exact there. Python computes only the 3-image truncation.
+
+Lean includes explicit truncation-bridge theorem statements:
+
+```lean
+theorem threeImage_approx_neumann ... := by sorry
+theorem threeImage_energy_approx ... := by sorry
+```
+
+(`KernelMinimization.lean:163`, `KernelMinimization.lean:173`)
+
+Meaning: the formalization target is correct for the big proof architecture,
+but exact transfer from Neumann to 3-image is still a deferred proof.
+
+### 9.5 Imported kernel facts (axiomatic boundary)
+
+Kernel theory assumptions are explicitly isolated as axioms:
+
+- PSD: `kernelAngChordal_posSemiDef`, `kernelRadNeumann_posSemiDef`
+- Characteristicness: `kernelAngChordal_characteristic`, `kernelRadNeumann_characteristic`
+- Constant potential: `neumannPotential_constant`
+
+(`KernelImportedFacts.lean:48`, `KernelImportedFacts.lean:61`, `KernelImportedFacts.lean:86`, `KernelImportedFacts.lean:100`, `KernelImportedFacts.lean:125`)
+
+These match standard RKHS/MMD literature claims and are the trust boundary for
+Step 2.
+
+### 9.6 Main Step-2 theorems (energy minimized at uniform)
+
+The exact theorem statements you asked about are present:
+
+```lean
+theorem kernelEnergy_minimized_at_uniform ... :
+  kernelEnergy (wristbandKernelNeumann β α) P ≥
+    kernelEnergy (wristbandKernelNeumann β α) (wristbandUniform d)
+
+theorem kernelEnergy_minimizer_unique ... :
+  kernelEnergy (...) P = kernelEnergy (...) (wristbandUniform d) →
+  P = wristbandUniform d
+```
+
+(`KernelMinimization.lean:136`, `KernelMinimization.lean:146`)
+
+This is exactly the right mathematical Step-2 claim for
+"energy is minimized at uniform distribution." Current status is **statement
+complete, proof deferred** (`sorry`).
+
+---
+
+## 10. What Is Not Yet Formalized/Proven
+
+| Python feature / proof need | Code ref | Lean status |
+|----------------------------|----------|-------------|
+| Joint repulsion kernel (chordal + 3-image) | `EmbedModels.py:762–804` | **Formalized** in `KernelFoundations.lean` (exact formulas) |
+| Energy minimization at uniform | population claim | **Stated** in `KernelMinimization.lean`, proofs currently `sorry` |
+| 3-image to Neumann transfer bound | `EmbedModels.py:784–804` vs ideal Neumann | **Stated** (`threeImage_approx_neumann`, `threeImage_energy_approx`), proofs `sorry` |
+| Angular-only auxiliary loss | `EmbedModels.py:772–782` | Not formalized yet |
+| Radial quantile penalty (Cramér–von Mises) | `EmbedModels.py:755–759` | Not formalized yet |
+| Moment penalties (`w2`, `kl`, `jeff`) | `EmbedModels.py:711–746` | Not formalized yet |
+| Z-score calibration + weighted aggregation | `EmbedModels.py:827–833` | Not formalized yet |
+| Geodesic angular branch | `EmbedModels.py:767–770` | Not formalized yet (chordal branch only) |
 
 ### Axiom-level gaps
 
-**Ambient Gaussian bridge.** `gaussianNZ` is declared as a direct axiom on
-nonzero vectors (`ImportedFacts.lean:34`). There is no explicit connection to
-the ambient Gaussian $\mathcal{N}(0, I_d)$ on all of $\mathbb{R}^d$. A bridge
-lemma (restriction to the nonzero subtype) would close this gap.
+- **Ambient Gaussian bridge.** `gaussianNZ` is axiomatic on nonzero vectors
+  (`EquivalenceImportedFacts.lean:34`) without an explicit derived bridge from
+  ambient Gaussian on all of $\mathbb{R}^d$.
+- **Kernel imported facts.** Step-2 PSD/characteristic/constant-potential
+  results are axioms in `KernelImportedFacts.lean`.
 
-### Deferred proofs
+### Deferred proofs (`sorry`)
 
-No deferred proofs (`sorry`) remain. All theorems in Sections 1–8 are fully
-proven.
+- `WristbandLossProofs/KernelFoundations.lean`: scaffold theorems and basic
+  measurability/energy lemmas are declared with `sorry`.
+- `WristbandLossProofs/KernelMinimization.lean`: Step-2 minimization,
+  uniqueness, product-kernel lemmas, and truncation bounds are declared with
+  `sorry`.
+
+Sections 1–8 (equivalence pipeline) remain fully proven; deferred work is now
+concentrated in the new kernel files.

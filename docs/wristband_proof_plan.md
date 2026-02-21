@@ -8,7 +8,7 @@ Wristband Gaussian Loss (`C_WristbandGaussianLoss` in `EmbedModels.py`).
 > In the idealized (population) setting, the wristband loss has a **unique
 > minimizer**: the standard Gaussian distribution.
 
-The proof has four steps. Step 1 is complete; Steps 2–4 remain.
+The proof has four steps. Step 1 is complete; Step 2 is in progress; Steps 3–4 remain.
 
 For the detailed Python-to-Lean mapping of completed work, see
 [wristband_formalization_audit.md](wristband_formalization_audit.md).
@@ -20,8 +20,8 @@ For the detailed Python-to-Lean mapping of completed work, see
 | Step | What it says | Status |
 |------|-------------|--------|
 | 1. Wristband equivalence | Uniform wristband output iff Gaussian input | **Complete** |
-| 2. Kernel energy identifies uniformity | The repulsion kernel is uniquely minimized at uniform | Not started |
-| 3. Main correctness theorem | Repulsion loss uniquely identifies the Gaussian | Not started (immediate from 1+2) |
+| 2. Kernel energy identifies uniformity | The repulsion kernel is uniquely minimized at uniform | **In progress** (definitions + theorem statements done; proofs pending) |
+| 3. Main correctness theorem | Repulsion loss uniquely identifies the Gaussian | Not started (depends on completing Step 2 proofs) |
 | 4. Extra terms preserve minimizer | Radial, moment, angular penalties and calibration don't change the minimizer | Not started (straightforward) |
 
 The logical dependency is: **Step 1** and **Step 2** are independent of each other.
@@ -49,7 +49,12 @@ full details.
 
 ---
 
-## Step 2: Kernel energy identifies uniformity (not started)
+## Step 2: Kernel energy identifies uniformity (in progress)
+
+Current formalization snapshot:
+
+- Implemented in Lean: kernel definitions (`KernelFoundations.lean`), imported kernel facts (`KernelImportedFacts.lean`), and Step-2 theorem statements (`KernelMinimization.lean`).
+- Remaining for completion: discharge `sorry` proofs (including Neumann-to-3-image approximation bridge).
 
 This is the **hardest remaining step**. It connects the loss function to the
 equivalence theorem by showing the repulsion kernel used in the code is
