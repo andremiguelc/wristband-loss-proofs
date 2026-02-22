@@ -460,7 +460,8 @@ lemma kernelAngChordal_rotationInvariant
     (u u' : Sphere d) :
     kernelAngChordal (d := d) β α (rotateSphere O u) (rotateSphere O u') =
       kernelAngChordal (d := d) β α u u' := by
-  sorry
+  unfold kernelAngChordal sphereInner rotateSphere
+  simp [LinearIsometryEquiv.inner_map_map]
 
 /-- Characteristicness of angular kernel (deferred local theorem). -/
 theorem kernelAngChordal_characteristic
