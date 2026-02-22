@@ -79,7 +79,13 @@ theorem productPotential_factors
       (fun (p q : X × Y) => Kx p.1 q.1 * Ky p.2 q.2)
       (productLaw μ ν) w =
     kernelPotential Kx μ w.1 * kernelPotential Ky ν w.2 := by
-  sorry
+  unfold kernelPotential productLaw
+  simpa using
+    (integral_prod_mul
+      (μ := (μ : Measure X))
+      (ν := (ν : Measure Y))
+      (f := fun x : X => Kx w.1 x)
+      (g := fun y : Y => Ky w.2 y))
 
 /-- The joint Neumann kernel has constant potential under `μ₀`.
     Combines: angular constant potential + Neumann constant potential +
