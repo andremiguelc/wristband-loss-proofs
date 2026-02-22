@@ -200,7 +200,12 @@ lemma kernelRadNeumannSummand_summable
 lemma kernelRadNeumannSummand_nonneg
     (β : ℝ) (t t' : UnitInterval) (n : ℤ) :
     0 ≤ kernelRadNeumannSummand β t t' n := by
-  positivity
+  unfold kernelRadNeumannSummand
+  have h1 : 0 ≤ Real.exp (-β * (((t : ℝ) - (t' : ℝ) - 2 * n) ^ 2)) :=
+    Real.exp_nonneg _
+  have h2 : 0 ≤ Real.exp (-β * (((t : ℝ) + (t' : ℝ) - 2 * n) ^ 2)) :=
+    Real.exp_nonneg _
+  linarith
 
 /-- Absolute value of a reflection summand simplifies by nonnegativity. -/
 lemma abs_kernelRadNeumannSummand
