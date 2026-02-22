@@ -40,11 +40,7 @@ theorem productKernel_posSemiDef
     (hKy : IsPosSemiDefKernel Ky) :
     IsPosSemiDefKernel
       (fun (p q : X × Y) => Kx p.1 q.1 * Ky p.2 q.2) := by
-  /- Roadmap:
-  1. Preferred: use matrix Schur/Hadamard PSD closure and translate back to kernel form.
-  2. Alternative: RKHS/feature-map tensorization argument (heavier in current setup).
-  3. If direct formalization stays expensive, import as an external theorem-sized fact. -/
-  sorry
+  exact productKernel_posSemiDef_imported Kx Ky hKx hKy
 
 /-- The joint Neumann wristband kernel is PSD.
     Follows from: angular is PSD + Neumann radial is PSD + product is PSD. -/

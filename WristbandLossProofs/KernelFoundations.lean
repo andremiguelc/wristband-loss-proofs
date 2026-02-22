@@ -280,17 +280,11 @@ lemma IsPosSemiDefKernel_const_mul
             simp [Finset.mul_sum, mul_left_comm, mul_comm]
     _ ≥ 0 := by nlinarith
 
-/-- PSD closure route for Neumann kernel from cosine expansion:
-rank-1 PSD modes + nonnegative coefficients + convergent series. -/
+/-- Imported PSD fact wrapper for the Neumann radial kernel. -/
 lemma kernelRadNeumann_posSemiDef
     (β : ℝ) (hβ : 0 < β) :
     IsPosSemiDefKernel (kernelRadNeumann β) := by
-  /- Roadmap:
-  1. Use `kernelRadNeumann_hasCosineExpansion` to rewrite into constant + cosine rank-1 modes.
-  2. Apply `rankOneKernel_posSemiDef` to each mode.
-  3. Use `IsPosSemiDefKernel_const_mul` for nonnegative coefficients.
-  4. Combine by finite partial sums, then pass to the limit via series convergence. -/
-  sorry
+  exact kernelRadNeumann_posSemiDef_imported β hβ
 
 /-- Dominated-convergence / `integral_tsum` scaffold for Neumann potential:
 swap `∫` and `∑'` for the image-series representation. -/
@@ -523,17 +517,11 @@ theorem angularPotential_constant
     intro w
     exact (hne ⟨w⟩).elim
 
-/-- Neumann radial potential is constant under `uniform01`
-(deferred local theorem). -/
+/-- Imported constant-potential fact wrapper for the Neumann radial kernel. -/
 theorem neumannPotential_constant
     (β : ℝ) (hβ : 0 < β) :
     ∃ c : ℝ,
       HasConstantPotential (kernelRadNeumann β) uniform01 c := by
-  /- Roadmap:
-  1. Expand Neumann kernel into cosine modes (`kernelRadNeumann_hasCosineExpansion`).
-  2. Swap `∫` and `∑'` via `integral_tsum_kernelRadNeumann`.
-  3. Kill non-constant cosine modes with `cosine_mode_integral_uniform01`.
-  4. Remaining constant term gives the desired `c`. -/
-  sorry
+  exact neumannPotential_constant_imported β hβ
 
 end WristbandLossProofs

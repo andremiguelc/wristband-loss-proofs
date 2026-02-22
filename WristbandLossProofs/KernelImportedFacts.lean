@@ -48,6 +48,50 @@ axiom kernelRadNeumann_hasCosineExpansion
                 Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
                 Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ)))
 
+/-- Product closure for PSD kernels (kernel-level Schur/Hadamard route).
+
+If `Kx` and `Ky` are PSD kernels, then their product kernel on `X × Y` is PSD.
+
+Source direction:
+- Kernel closure properties for positive definite kernels (product closure).
+- Schur product theorem on Gram matrices.
+
+URLs:
+- https://www.ism.ac.jp/~fukumizu/Kyushu2008/Kernel_elements_2.pdf
+- https://tropp.caltech.edu/notes/Tro22-Matrix-Analysis-LN.pdf -/
+axiom productKernel_posSemiDef_imported
+    {X : Type*} {Y : Type*}
+    (Kx : X → X → ℝ) (Ky : Y → Y → ℝ)
+    (hKx : IsPosSemiDefKernel Kx)
+    (hKy : IsPosSemiDefKernel Ky) :
+    IsPosSemiDefKernel (fun (p q : X × Y) => Kx p.1 q.1 * Ky p.2 q.2)
+
+/-- Neumann radial kernel on `[0,1]` is PSD for `β > 0`.
+
+Source direction:
+- Heat-kernel eigenfunction expansion with nonnegative weights.
+- Neumann interval cosine-eigenbasis specialization.
+
+URLs:
+- https://arxiv.org/abs/1703.10541
+- https://arxiv.org/pdf/1703.10541 -/
+axiom kernelRadNeumann_posSemiDef_imported
+    (β : ℝ) (hβ : 0 < β) :
+    IsPosSemiDefKernel (kernelRadNeumann β)
+
+/-- Neumann radial kernel has constant potential under `uniform01`.
+
+Source direction:
+- Markov/heat-kernel mass conservation under Neumann boundary conditions.
+- Equivalent spectral view: only the constant mode survives integration.
+
+URLs:
+- https://arxiv.org/abs/1703.10541
+- https://arxiv.org/pdf/1703.10541 -/
+axiom neumannPotential_constant_imported
+    (β : ℝ) (hβ : 0 < β) :
+    ∃ c : ℝ, HasConstantPotential (kernelRadNeumann β) uniform01 c
+
 /-! ### Universality / characteristic building blocks -/
 
 /-- Angular Gaussian kernel is universal on sphere (`d ≥ 2` guard kept to
