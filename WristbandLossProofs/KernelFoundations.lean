@@ -8,6 +8,7 @@ noncomputable section
 namespace WristbandLossProofs
 
 open MeasureTheory
+open scoped BigOperators
 
 /-! ## Kernel Definitions
 
@@ -257,6 +258,27 @@ def HasConstantPotential
     (K : X → X → ℝ) (μ : Distribution X) (c : ℝ) : Prop :=
   ∀ w : X, kernelPotential K μ w = c
 
+/-! ### Universality Scaffold
+
+These definitions are local foundations for expressing imported universality
+results and for deriving characteristicness statements.
+-/
+
+/-- A finite linear combination of kernel sections `K(x_i, ·)`. -/
+def IsKernelSectionLinearCombination
+    {X : Type*} (K : X → X → ℝ) (f : X → ℝ) : Prop :=
+  ∃ (n : ℕ) (coeff : Fin n → ℝ) (center : Fin n → X),
+    ∀ x : X, f x = ∑ i, coeff i * K (center i) x
+
+/-- Universality scaffold on compact spaces: kernel sections are uniformly dense
+in continuous real-valued functions. -/
+def IsUniversalKernel
+    {X : Type*} [TopologicalSpace X] (K : X → X → ℝ) : Prop :=
+  ∀ f : C(X, ℝ), ∀ ε : ℝ, 0 < ε →
+    ∃ g : C(X, ℝ),
+      IsKernelSectionLinearCombination K g ∧
+      (∀ x : X, |f x - g x| < ε)
+
 /-! ## Basic Properties (scaffold — proofs deferred)
 
 These are straightforward consequences of the definitions.
@@ -323,6 +345,97 @@ theorem energy_eq_mmdSq_of_constantPotential
     (hConst : HasConstantPotential K μ₀ c)
     (P : Distribution X) :
     kernelEnergy K P - kernelEnergy K μ₀ = mmdSq K P μ₀ := by
+  sorry
+
+/-! ## Kernel-Theory Scaffolding (local/deferred proofs)
+
+These are project-level targets intended to be proven in-repo. They are not
+imported axioms.
+-/
+
+/-- PSD closure route for Neumann kernel from cosine expansion:
+rank-1 PSD modes + nonnegative coefficients + convergent series. -/
+lemma kernelRadNeumann_posSemiDef
+    (β : ℝ) (hβ : 0 < β) :
+    IsPosSemiDefKernel (kernelRadNeumann β) := by
+  sorry
+
+/-- Dominated-convergence / `integral_tsum` scaffold for Neumann potential:
+swap `∫` and `∑'` for the image-series representation. -/
+lemma integral_tsum_kernelRadNeumann
+    (β : ℝ) (hβ : 0 < β) (t : UnitInterval) :
+    (∫ t' : UnitInterval,
+      kernelRadNeumann β t t' ∂(uniform01 : Measure UnitInterval))
+      =
+    ∑' n : ℤ,
+      ∫ t' : UnitInterval,
+        (Real.exp (-β * (((t : ℝ) - (t' : ℝ) - 2 * n) ^ 2)) +
+         Real.exp (-β * (((t : ℝ) + (t' : ℝ) - 2 * n) ^ 2)))
+          ∂(uniform01 : Measure UnitInterval) := by
+  sorry
+
+/-- Cosine mode orthogonality on `[0,1]` under uniform law:
+`k ≥ 1` mode integrates to `0`. -/
+lemma cosine_mode_integral_uniform01
+    (k : ℕ) (hk : 0 < k) :
+    ∫ t : UnitInterval,
+      Real.cos ((k : ℝ) * Real.pi * (t : ℝ))
+      ∂(uniform01 : Measure UnitInterval) = 0 := by
+  sorry
+
+/-- Stone-Weierstrass / Fourier-density draft:
+finite cosine sums approximate any continuous function on `[0,1]`. -/
+lemma cosine_span_uniformly_dense_on_unitInterval
+    (f : C(UnitInterval, ℝ)) (ε : ℝ) (hε : 0 < ε) :
+    ∃ n : ℕ, ∃ coeff : Fin n → ℝ, ∃ freq : Fin n → ℕ,
+      ∀ t : UnitInterval,
+        |f t - ∑ i, coeff i * Real.cos ((freq i : ℝ) * Real.pi * (t : ℝ))| < ε := by
+  sorry
+
+/-- Rotational invariance of angular kernel under orthogonal actions on
+sphere arguments. -/
+lemma kernelAngChordal_rotationInvariant
+    (d : ℕ) (β α : ℝ)
+    (O : (Vec d) ≃ₗᵢ[ℝ] Vec d)
+    (u u' : Sphere d) :
+    kernelAngChordal (d := d) β α (rotateSphere O u) (rotateSphere O u') =
+      kernelAngChordal (d := d) β α u u' := by
+  sorry
+
+/-- Characteristicness of angular kernel (deferred local theorem). -/
+theorem kernelAngChordal_characteristic
+    (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α) :
+    IsCharacteristicKernel (kernelAngChordal (d := d) β α) := by
+  sorry
+
+/-- Characteristicness of Neumann radial kernel (deferred local theorem). -/
+theorem kernelRadNeumann_characteristic
+    (β : ℝ) (hβ : 0 < β) :
+    IsCharacteristicKernel (kernelRadNeumann β) := by
+  sorry
+
+/-- Characteristicness of the wristband Neumann product kernel
+(deferred local theorem). -/
+theorem wristbandKernelNeumann_characteristic
+    (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α) :
+    IsCharacteristicKernel (wristbandKernelNeumann (d := d) β α) := by
+  sorry
+
+/-- Angular potential is constant under spherical uniform law
+(deferred local theorem). -/
+theorem angularPotential_constant
+    (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α) :
+    ∃ c : ℝ,
+      HasConstantPotential
+        (kernelAngChordal (d := d) β α) (sphereUniform d) c := by
+  sorry
+
+/-- Neumann radial potential is constant under `uniform01`
+(deferred local theorem). -/
+theorem neumannPotential_constant
+    (β : ℝ) (hβ : 0 < β) :
+    ∃ c : ℝ,
+      HasConstantPotential (kernelRadNeumann β) uniform01 c := by
   sorry
 
 end WristbandLossProofs
