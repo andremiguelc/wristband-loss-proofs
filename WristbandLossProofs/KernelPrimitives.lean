@@ -89,8 +89,10 @@ Neumann (reflecting) boundary conditions.
 
 `k_rad^Neum(t, t') = Σ_{n ∈ ℤ} [exp(-β(t-t'-2n)²) + exp(-β(t+t'-2n)²)]`
 
-The 3-image kernel keeps only the `n = 0` terms (plus `n = -1` for the
-third term). The omitted terms contribute `O(exp(-4β))`.
+The 3-image kernel keeps only `exp(-β(t-t')²)`, `exp(-β(t+t')²)`,
+and `exp(-β(t+t'-2)²)` (that is: `D₀`, `S₀`, `S₁` in image notation).
+The omitted terms are exponentially small; the leading scale is `O(exp(-β))`
+because the omitted `D_{±1}` terms can have distance as small as `1`.
 
 The key property: this kernel has **exactly constant potential** under
 the uniform measure, because uniform is the stationary distribution
