@@ -1,4 +1,4 @@
-import WristbandLossProofs.KernelFoundations
+import WristbandLossProofs.KernelPrimitives
 
 set_option autoImplicit false
 
