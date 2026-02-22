@@ -645,35 +645,42 @@ which is not yet available in Mathlib.
 
 ---
 
-## 9. Kernel Energy Minimization (Step 2)
+## 9. Kernel Energy Minimization Theorems
 
-This section audits the new kernel formalization against the Python repulsion
-code and checks whether it states the exact mathematical claim needed for the
-big objective: energy minimized at the uniform wristband law.
+This section audits the kernel formalization against the Python implementation
+and checks whether it targets the big theorem we want:
 
-### 9.1 Python kernel computation being formalized
+- `kernelEnergy_minimized_at_uniform`
+- `kernelEnergy_minimizer_unique`
 
-Python (`ml-tidbits/python/embed_models/EmbedModels.py:762–804`):
+Primary sources for this section:
+
+- Python implementation: `ml-tidbits/python/embed_models/EmbedModels.py`
+- Lean formalization: `WristbandLossProofs/KernelFoundations.lean`,
+  `WristbandLossProofs/KernelImportedFacts.lean`,
+  `WristbandLossProofs/KernelMinimization.lean`
+
+### 9.1 Kernel formula correspondence (Python -> Lean)
+
+Python defines the chordal angular exponent and reflected radial differences:
 
 ```python
 g = (u @ u.transpose(-1, -2)).clamp(-1., 1.)
 e_ang = (2. * self.beta_alpha2) * (g - 1.)
-
 diff0 = tc - tr
 diff1 = tc + tr
 diff2 = diff1 - 2.
-
-total  = torch.exp(torch.addcmul(e_ang, diff0, diff0, value=-beta)).sum(dim=(-2, -1))
-total += torch.exp(torch.addcmul(e_ang, diff1, diff1, value=-beta)).sum(dim=(-2, -1))
-total += torch.exp(torch.addcmul(e_ang, diff2, diff2, value=-beta)).sum(dim=(-2, -1))
-total -= n_f
-mean_k = total / (3. * n_f * n_f - n_f)
-rep_loss = torch.log(mean_k + eps) / beta
 ```
 
-### 9.2 Kernel definitions in Lean
+and uses them inside the joint repulsion kernel via:
 
-Lean mirrors the chordal branch exactly at the kernel-formula level:
+```python
+torch.exp(torch.addcmul(e_ang, diff0, diff0, value=-beta))
+torch.exp(torch.addcmul(e_ang, diff1, diff1, value=-beta))
+torch.exp(torch.addcmul(e_ang, diff2, diff2, value=-beta))
+```
+
+Lean mirrors this as:
 
 ```lean
 def sphereInner {d : ℕ} (u u' : Sphere d) : ℝ := ...
@@ -687,8 +694,6 @@ def wristbandKernel {d : ℕ} (β α : ℝ) (w w' : Wristband d) : ℝ :=
   kernelAngChordal β α w.1 w'.1 * kernelRad3Image β w.2 w'.2
 ```
 
-(`KernelFoundations.lean:33`, `KernelFoundations.lean:51`, `KernelFoundations.lean:74`, `KernelFoundations.lean:119`)
-
 Validation:
 
 - **Exact match (chordal mode).**
@@ -699,8 +704,20 @@ Validation:
 - **Exact match (joint kernel).**
   Python adds exponents before `exp`; Lean multiplies factors afterward.
   These are equivalent.
+- **Numerical-stability vs analytic-domain split is intentional.**
+  Python uses `clamp` and `eps` for finite-precision robustness; Lean works on
+  exact mathematical domains (`Sphere d`, `UnitInterval`) and states the ideal
+  population formulas.
 
-### 9.3 Repulsion loss vs population energy in Lean
+### 9.2 Repulsion objective vs population energy
+
+Python global repulsion loss is:
+
+```python
+total -= n_f
+mean_k = total / (3. * n_f * n_f - n_f)
+rep_loss = torch.log(mean_k + eps) / beta
+```
 
 Lean defines population kernel energy:
 
@@ -708,8 +725,6 @@ Lean defines population kernel energy:
 def kernelEnergy (K : X → X → ℝ) (P : Distribution X) : ℝ :=
   ∫ w, ∫ w', K w w' ∂P ∂P
 ```
-
-(`KernelFoundations.lean:145`)
 
 This is the idealized limit of `mean_k` in Python. The following differences are
 intentional implementation details in Python, not conceptual mismatches:
@@ -725,7 +740,11 @@ distributions as the Lean population energy `E(P) = E_{W,W'~P}[K(W,W')]`.
 So the Lean objective is **population-equivalent**, not bitwise-identical to a
 finite-batch implementation.
 
-### 9.4 Neumann idealization and truncation bridge
+Scope note vs full production loss: `EmbedModels.py` combines repulsion with
+radial, angular, and moment terms plus z-score calibration. This theorem track
+formalizes the repulsion kernel pathway.
+
+### 9.3 Neumann idealization and truncation bridge
 
 Lean also defines an infinite-series Neumann radial kernel:
 
@@ -734,9 +753,7 @@ def kernelRadNeumann (β : ℝ) (t t' : UnitInterval) : ℝ := ∑' n : ℤ, ...
 def wristbandKernelNeumann {d : ℕ} (β α : ℝ) : Wristband d → Wristband d → ℝ := ...
 ```
 
-(`KernelFoundations.lean:101`, `KernelFoundations.lean:125`)
-
-Main Step-2 theorems are stated for this Neumann kernel because constant
+Main theorems are stated for this Neumann kernel because constant
 potential is exact there. Python computes only the 3-image truncation.
 
 Lean includes explicit truncation-bridge theorem statements:
@@ -746,27 +763,27 @@ theorem threeImage_approx_neumann ... := by sorry
 theorem threeImage_energy_approx ... := by sorry
 ```
 
-(`KernelMinimization.lean:163`, `KernelMinimization.lean:173`)
-
 Meaning: the formalization target is correct for the big proof architecture,
 but exact transfer from Neumann to 3-image is still a deferred proof.
 
-### 9.5 Imported kernel facts (axiomatic boundary)
+### 9.4 Imported facts boundary
 
-Kernel theory assumptions are explicitly isolated as axioms:
+`KernelImportedFacts.lean` is now **external-only** by construction. It imports
+theorem-sized literature facts and no local theorem scaffolding.
 
-- PSD: `kernelAngChordal_posSemiDef`, `kernelRadNeumann_posSemiDef`
-- Characteristicness: `kernelAngChordal_characteristic`, `kernelRadNeumann_characteristic`
-- Constant potential: `neumannPotential_constant`
+Imported axioms:
 
-(`KernelImportedFacts.lean:48`, `KernelImportedFacts.lean:61`, `KernelImportedFacts.lean:86`, `KernelImportedFacts.lean:100`, `KernelImportedFacts.lean:125`)
+- PSD block: `kernelAngChordal_posSemiDef`,
+  `kernelRadNeumann_hasCosineExpansion`
+- Universality/characteristic bridge block:
+  `kernelAngChordal_universal`, `kernelRadNeumann_universal`,
+  `productKernel_universal`, `universal_implies_characteristic`
+- Symmetry/transitivity block:
+  `orthogonal_group_transitive_on_sphere`
+- MMD block:
+  `mmdSq_nonneg`
 
-These match standard RKHS/MMD literature claims and are the trust boundary for
-Step 2.
-
-### 9.6 Main Step-2 theorems (energy minimized at uniform)
-
-The exact theorem statements you asked about are present:
+### 9.5 Main theorem statements and status
 
 ```lean
 theorem kernelEnergy_minimized_at_uniform ... :
@@ -778,11 +795,18 @@ theorem kernelEnergy_minimizer_unique ... :
   P = wristbandUniform d
 ```
 
-(`KernelMinimization.lean:136`, `KernelMinimization.lean:146`)
-
-This is exactly the right mathematical Step-2 claim for
+This is exactly the right mathematical claim for
 "energy is minimized at uniform distribution." Current status is **statement
 complete, proof deferred** (`sorry`).
+
+Alignment verdict:
+
+- **Python alignment:** yes, for the kernel repulsion term being formalized and
+  for the Neumann/3-image proof architecture.
+- **Theorem alignment:** yes, the Lean development is aimed at the two target
+  theorems above (minimization and uniqueness at uniform).
+- **Formal framework strength:** improved by the explicit external/local split;
+  remaining risk is proof debt (`sorry`), not ambiguity in formal targets.
 
 ---
 
@@ -790,28 +814,31 @@ complete, proof deferred** (`sorry`).
 
 | Python feature / proof need | Code ref | Lean status |
 |----------------------------|----------|-------------|
-| Joint repulsion kernel (chordal + 3-image) | `EmbedModels.py:762–804` | **Formalized** in `KernelFoundations.lean` (exact formulas) |
+| Joint repulsion kernel (chordal + 3-image) | `EmbedModels.py` (joint repulsion kernel block) | **Formalized** in `KernelFoundations.lean` (exact formulas) |
 | Energy minimization at uniform | population claim | **Stated** in `KernelMinimization.lean`, proofs currently `sorry` |
-| 3-image to Neumann transfer bound | `EmbedModels.py:784–804` vs ideal Neumann | **Stated** (`threeImage_approx_neumann`, `threeImage_energy_approx`), proofs `sorry` |
-| Angular-only auxiliary loss | `EmbedModels.py:772–782` | Not formalized yet |
-| Radial quantile penalty (Cramér–von Mises) | `EmbedModels.py:755–759` | Not formalized yet |
-| Moment penalties (`w2`, `kl`, `jeff`) | `EmbedModels.py:711–746` | Not formalized yet |
-| Z-score calibration + weighted aggregation | `EmbedModels.py:827–833` | Not formalized yet |
-| Geodesic angular branch | `EmbedModels.py:767–770` | Not formalized yet (chordal branch only) |
+| 3-image to Neumann transfer bound | `EmbedModels.py` reflected-kernel block vs ideal Neumann | **Stated** (`threeImage_approx_neumann`, `threeImage_energy_approx`), proofs `sorry` |
+| Angular-only auxiliary loss | `EmbedModels.py` angular-only loss block | Not formalized yet |
+| Radial quantile penalty (Cramér–von Mises) | `EmbedModels.py` radial quantile block | Not formalized yet |
+| Moment penalties (`w2`, `kl`, `jeff`) | `EmbedModels.py` moment-penalty block | Not formalized yet |
+| Z-score calibration + weighted aggregation | `EmbedModels.py` final aggregation/calibration block | Not formalized yet |
+| Geodesic angular branch | `EmbedModels.py` geodesic angular option | Not formalized yet (chordal branch only) |
 
 ### Axiom-level gaps
 
 - **Ambient Gaussian bridge.** `gaussianNZ` is axiomatic on nonzero vectors
-  (`EquivalenceImportedFacts.lean:34`) without an explicit derived bridge from
+  (`EquivalenceImportedFacts.lean`) without an explicit derived bridge from
   ambient Gaussian on all of $\mathbb{R}^d$.
-- **Kernel imported facts.** Step-2 PSD/characteristic/constant-potential
-  results are axioms in `KernelImportedFacts.lean`.
+- **Kernel external facts.** `KernelImportedFacts.lean` is intentionally
+  external-only (literature building blocks as axioms). The project-specific
+  kernel consequences are now local theorem targets in
+  `KernelFoundations.lean` (currently deferred with `sorry`).
 
 ### Deferred proofs (`sorry`)
 
-- `WristbandLossProofs/KernelFoundations.lean`: scaffold theorems and basic
-  measurability/energy lemmas are declared with `sorry`.
-- `WristbandLossProofs/KernelMinimization.lean`: Step-2 minimization,
+- `WristbandLossProofs/KernelFoundations.lean`: scaffold theorems and local
+  kernel-theory pipeline lemmas (PSD closure, universality consequences,
+  constant-potential route, etc.) are declared with `sorry`.
+- `WristbandLossProofs/KernelMinimization.lean`: kernel-energy minimization,
   uniqueness, product-kernel lemmas, and truncation bounds are declared with
   `sorry`.
 
