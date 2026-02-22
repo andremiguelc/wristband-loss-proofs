@@ -1,5 +1,7 @@
 # Deterministic Gaussian Latents Without Sampling (Wristband Loss + Attention + Flows)
 
+*By [Mikhail Parakhin](https://x.com/MParakhin) — originally posted on [X](https://x.com/MParakhin/status/2022814674899865771)*
+
 *(after 7 years… + a collaboration with GPT‑5.2 Pro, Extended Thinking)*
 
 I’ve been stuck on the same representation-learning problem for ~7 years:  

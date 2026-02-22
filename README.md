@@ -1,56 +1,32 @@
-# wristband-loss-proofs
+# Wristband Loss — Lean 4 Proofs
 
-Machine-checked Lean 4 proofs for the mathematical foundations of the
+Machine-checked proofs for the mathematical foundations of the
 [Wristband Gaussian Loss](https://github.com/mvparakhin/ml-tidbits)
 (`C_WristbandGaussianLoss` in `EmbedModels.py`).
 
-## What is proven
+## The Central Theorem
 
-The **Wristband Equivalence Theorem**: for any distribution Q on
-nonzero vectors in R^d (d >= 2), the wristband-transformed law equals the
-uniform product measure on S^{d-1} x [0,1] **if and only if** Q is the
-standard Gaussian.
+For any distribution $Q$ on $\mathbb{R}^d \setminus \{0\}$ with $d \ge 2$:
 
-In other words, the wristband map is a *lossless characterization* of
-Gaussianity — no distribution can "fake" being Gaussian through the wristband
-lens.
+$$\Phi_\# Q \;=\; \sigma_{d-1} \otimes \mathrm{Unif}[0,1] \quad\iff\quad Q = \mathcal{N}(0, I_d)$$
 
-The formalization is **sorry-free** (zero deferred proofs). All results
-type-check against Mathlib. The only axioms are classical facts about the
-Gaussian (polar decomposition, rotation invariance of sphere measure) that are
-not yet in Mathlib, isolated in a single file.
+where $\Phi(z) = \bigl(z/\|z\|,\; F_{\chi^2_d}(\|z\|^2)\bigr)$ is the wristband map.
 
-### Proven results
+**In plain terms:** the wristband map produces uniform output *if and only if*
+the input is standard Gaussian. No distribution can fake Gaussianity through
+the wristband lens.
 
-| Result | File | Line |
-|--------|------|------|
-| Forward: Gaussian implies uniform wristband | `Equivalence.lean` | 515 |
-| Backward: uniform wristband implies Gaussian | `Equivalence.lean` | 695 |
-| Biconditional (iff) | `Equivalence.lean` | 999 |
-| Probability integral transform (forward) | `EquivalenceFoundations.lean` | 535 |
-| Probability integral transform (reverse) | `EquivalenceFoundations.lean` | 660 |
-| Chi-square CDF continuity and strict monotonicity | `EquivalenceFoundations.lean` | 482, 495 |
-| Spherical law determined by radius | `Equivalence.lean` | 154 |
+## Proof Status
 
-## Proof status
+| Step | What it proves | Status |
+|------|---------------|--------|
+| 1. Wristband equivalence | Uniform wristband output $\iff$ Gaussian input | **Complete** (sorry-free) |
+| 2. Kernel energy minimization | Repulsion kernel uniquely minimized at uniform | **Complete** for Neumann kernel |
+| 3. Main correctness | Repulsion loss uniquely identifies the Gaussian | Planned (combines Steps 1+2) |
+| 4. Auxiliary terms | Radial, moment, angular penalties preserve the minimizer | Planned |
 
-This covers Step 1 (wristband equivalence) of a 4-step correctness argument
-for the full loss function. See [docs/wristband_proof_plan.md](docs/wristband_proof_plan.md)
-for the complete roadmap.
-
-| Step | Status |
-|------|--------|
-| 1. Wristband equivalence | **Complete** |
-| 2. Kernel energy identifies uniformity | Not started |
-| 3. Main correctness theorem | Not started |
-| 4. Extra terms preserve minimizer | Not started |
-
-## Documentation
-
-- [docs/wristband_proof_plan.md](docs/wristband_proof_plan.md) — Proof roadmap
-  covering all four steps, written for readers without Lean background.
-- [docs/wristband_formalization_audit.md](docs/wristband_formalization_audit.md) —
-  Line-by-line mapping between `EmbedModels.py` and the Lean definitions.
+See [docs/proof_guide.md](docs/proof_guide.md) for the full Python-to-Lean
+correspondence, axiom inventory, and remaining work.
 
 ## Build
 
@@ -61,17 +37,20 @@ lake exe cache get
 lake build
 ```
 
-## Layout
+## Lean Files
 
 | File | Contents |
 |------|----------|
-| `WristbandLossProofs/EquivalenceFoundations.lean` | Core types (Vec, Sphere, Wristband), distributions, chi-square CDF, probability integral transform |
-| `WristbandLossProofs/EquivalenceImportedFacts.lean` | Classical axioms (Gaussian polar decomposition, sphere measure properties) |
-| `WristbandLossProofs/Equivalence.lean` | Wristband map, spherical-law lemmas, equivalence theorem |
-| `WristbandLossProofs/KernelFoundations.lean` | Kernel definitions, energy, MMD, PSD/characteristic/constant-potential predicates |
-| `WristbandLossProofs/KernelImportedFacts.lean` | Imported kernel theory axioms (PSD, characteristic, constant potential) |
-| `WristbandLossProofs/KernelMinimization.lean` | Step-2 theorem statements (energy minimized at uniform) |
-| `WristbandLossProofs.lean` | Library root |
+| `EquivalenceFoundations.lean` | Types, chi-square CDF, probability integral transform |
+| `EquivalenceImportedFacts.lean` | Gaussian polar decomposition axioms |
+| `Equivalence.lean` | Wristband map and equivalence theorem |
+| `KernelPrimitives.lean` | Kernel definitions, energy, MMD, PSD/characteristic predicates |
+| `KernelImportedFacts.lean` | Kernel theory axioms (PSD, universality, constant potential) |
+| `KernelFoundations.lean` | Kernel properties, symmetry, characteristic and constant-potential proofs |
+| `KernelMinimization.lean` | Energy minimization and uniqueness; Neumann-to-3-image bridge |
 
-`ml-tidbits/` is an optional local reference clone and is not part of this
-repository.
+## Further Reading
+
+- [Proof guide](docs/proof_guide.md) — Python-to-Lean mapping, theorem status, axiom list
+- [Wristband loss explained](docs/posts/wristband_loss.md) — What the loss does and why, by [Mikhail Parakhin](https://x.com/MParakhin)
+- [Conditional sampling](docs/posts/conditional_sampling.md) — Dependent-factor extension (MNIST inpainting), by [Mikhail Parakhin](https://x.com/MParakhin)
