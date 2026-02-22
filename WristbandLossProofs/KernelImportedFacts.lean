@@ -13,29 +13,6 @@ open MeasureTheory
 All declarations here are `axiom`s — external mathematical results from
 the kernel methods and RKHS literature, assumed without Lean proof.
 
-**Trust boundary.**
-- All axioms are **relational** (equations/inequalities/existentials over
-  already-defined terms). They cannot introduce new objects or types.
-- A validator should check per axiom: does the Lean statement faithfully
-  encode the cited result at the indicated source?
-
-**Axiom inventory.**
-1. `kernelAngChordal_posSemiDef` — angular Gaussian RBF is PSD.
-2. `kernelRadNeumann_posSemiDef` — Neumann radial kernel is PSD.
-3. `kernelAngChordal_characteristic` — angular kernel is characteristic.
-4. `kernelRadNeumann_characteristic` — Neumann kernel is characteristic.
-5. `wristbandKernelNeumann_characteristic` — characteristicness of the
-   specific wristband product kernel.
-6. `angularPotential_constant` — angular potential under sphere uniform is constant.
-7. `neumannPotential_constant` — Neumann potential under Lebesgue is constant.
-8. `mmdSq_nonneg` — nonnegativity of MMD² for PSD kernels.
-
-
-**Proof architecture.**
-These axioms, together with definitions in `KernelFoundations.lean` and the
-equivalence axioms (`sphereUniform_rotationInvariant`), are sufficient
-to prove that the wristband kernel energy is uniquely minimized at the
-uniform measure `μ₀ = σ_{d-1} ⊗ Unif[0,1]`.
 -/
 
 /-! ### Positive Semi-Definiteness
@@ -47,8 +24,6 @@ This matches the definition `IsPosSemiDefKernel` in `KernelFoundations.lean`.
 
 /-- The angular kernel `exp(-β·α²·‖u-u'‖²)` is positive semi-definite
     on the unit sphere for any `β > 0, α > 0`.
-
-    **Validation chain (2 steps).**
 
     Step 1 — Bochner's theorem: a continuous function `φ : ℝⁿ → ℝ` is
     positive definite iff it is the Fourier transform of a finite nonneg
@@ -66,7 +41,6 @@ This matches the definition `IsPosSemiDefKernel` in `KernelFoundations.lean`.
     restricted to any subset `S ⊆ ℝⁿ` is PSD (the Gram matrix condition
     is tested on finitely many points, all in `S`).
 
-    **Lean-to-math alignment.**
     `kernelAngChordal β α u u' = exp(2βα²(⟨u,u'⟩ - 1))`. For unit vectors
     `‖u-u'‖² = 2 - 2⟨u,u'⟩`, so this equals `exp(-βα²‖u-u'‖²)`, a
     Gaussian RBF with `c = βα²`. Since `β > 0, α > 0`, we have `c > 0`. ✓
@@ -77,8 +51,6 @@ axiom kernelAngChordal_posSemiDef
 
 /-- The Neumann radial kernel is positive semi-definite on `[0,1]`
     for any `β > 0`.
-
-    **Validation chain (2 steps).**
 
     Step 1 — Spectral expansion: the Neumann heat kernel on `[0,1]` has
     the eigenfunction expansion (Foondun 2015, ALEA, §2):
@@ -97,7 +69,6 @@ axiom kernelAngChordal_posSemiDef
     https://www.ism.ac.jp/~fukumizu/TITECH2010/Kernel_elements_2.pdf
     Book: Berlinet & Thomas-Agnan (2004), §3.
 
-    **Lean-to-math alignment.**
     `kernelRadNeumann β` is the image-sum representation of the same kernel:
     `∑' n : ℤ, [exp(-β(t-t'-2n)²) + exp(-β(t+t'-2n)²)]`.
     The image-sum and eigenfunction representations are equivalent via
@@ -128,8 +99,6 @@ The standard proof chain for both axioms below is:
 /-- The angular kernel (Gaussian RBF in chordal distance) is
     characteristic on `S^{d-1}` for `d ≥ 2`.
 
-    **Validation chain (2 steps).**
-
     Step 1 — Gaussian kernel is universal on compact subsets of `ℝⁿ`:
     the RKHS of `exp(-c‖x-y‖²)` for `c > 0` is dense in `C(X)` for
     any compact `X ⊂ ℝⁿ`. The sphere `S^{d-1}` is compact.
@@ -146,7 +115,6 @@ The standard proof chain for both axioms below is:
     §3.1 + Thm 7 (integrally strictly PD ⟹ characteristic).
     https://www.jmlr.org/papers/volume11/sriperumbudur10a/sriperumbudur10a.pdf
 
-    **Lean-to-math alignment.**
     `IsCharacteristicKernel K` = `∀ P Q, mmdSq K P Q = 0 → P = Q`.
     This matches the Sriperumbudur definition (injectivity of embedding). ✓
     The `d ≥ 2` guard: `S⁰ = {-1,1}` is discrete (2 points). For `d ≥ 2`,
@@ -159,8 +127,6 @@ axiom kernelAngChordal_characteristic
     IsCharacteristicKernel (kernelAngChordal (d := d) β α)
 
 /-- The Neumann radial kernel is characteristic on `[0,1]` for `β > 0`.
-
-    **Validation chain (3 steps).**
 
     Step 1 — Single Gaussian RBF `exp(-β(t-t')²)` is universal on
     `[0,1]` (compact subset of `ℝ`). Same reference as step 1 of
@@ -177,7 +143,6 @@ axiom kernelAngChordal_characteristic
     This is immediate: a strictly larger function space still separates
     all measures that the smaller one did.
 
-    **Lean-to-math alignment.**
     Same `IsCharacteristicKernel` definition. ✓
     The Neumann kernel is bounded and continuous on `[0,1]²` (compact),
     so integrals in `mmdSq` converge. ✓
@@ -197,8 +162,6 @@ import only the statement needed by the wristband proof.
 
     This replaces the overgeneral product statement in `KernelMinimization`:
     we only assume what Step-2 actually needs.
-
-    **Validation chain (4 steps).**
 
     Step 1 — `kernelAngChordal` (Gaussian RBF on `S^{d-1}`) is universal on
     the compact sphere, hence characteristic (`kernelAngChordal_characteristic`).
@@ -232,8 +195,6 @@ This is the key property that enables the energy-MMD identity:
 /-- The angular potential is constant under uniform measure on the sphere:
     `∫ k_ang(u,u') dσ(u') = c` for all `u`.
 
-    **Validation chain (3 steps).**
-
     Step 1 — Rotational invariance of the kernel:
     `k_ang(Ou, Ou') = k_ang(u, u')` for every orthogonal map `O`.
 
@@ -247,7 +208,6 @@ This is the key property that enables the energy-MMD identity:
     Brockett (1973), *Lie Theory and Control Systems* (sphere orbit argument);
     Eschenburg lecture notes on Lie groups/orthogonal actions.
 
-    **Lean-to-math alignment.**
     `HasConstantPotential K μ c` is exactly `∀ w, kernelPotential K μ w = c`. -/
 axiom angularPotential_constant
     (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α) :
@@ -257,8 +217,6 @@ axiom angularPotential_constant
 
 /-- The Neumann radial kernel has constant potential under `Unif[0,1]`:
     `∫₀¹ k_rad^Neum(t, t') dt' = c` for all `t ∈ [0,1]`.
-
-    **Validation chain (3 steps).**
 
     Step 1 — Eigenfunction expansion of the Neumann heat kernel on `[0,L]`:
     `K(t,t') = (1/L) + (2/L) Σ_{k≥1} exp(-μₖτ) cos(kπt/L) cos(kπt'/L)`.
@@ -280,7 +238,6 @@ axiom angularPotential_constant
     `∫₀¹ K(t,t') dt' = 1` for all `t` (up to the normalization constant
     from the image-sum vs eigenfunction representations).
 
-    **Lean-to-math alignment.**
     `HasConstantPotential K μ c` = `∀ w, kernelPotential K μ w = c`. ✓
     `uniform01` = Lebesgue measure on `[0,1]`. ✓
     The axiom asserts `∃ c` (not a specific value). This is sufficient for
@@ -306,10 +263,7 @@ it is the squared RKHS norm of the difference of mean embeddings.
 
     Source direction used in this project:
     Sriperumbudur et al. (2010), JMLR 11, §3.1 (MMD / embedding view);
-    Berlinet & Thomas-Agnan (2004), RKHS text (quadratic-form view).
-
-    Exact theorem/proposition numbers are tracked in
-    `docs/kernel_import_source_requests.md`. -/
+    Berlinet & Thomas-Agnan (2004), RKHS text (quadratic-form view). -/
 axiom mmdSq_nonneg
     {X : Type*} [MeasurableSpace X]
     (K : X → X → ℝ) (hK : IsPosSemiDefKernel K)
