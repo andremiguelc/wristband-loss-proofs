@@ -1,5 +1,8 @@
-# Deterministic counterfactuals when factors aren’t independent  
-Sampling MNIST top halves from the right conditional distribution, given the bottom half (no stochastic encoder)  
+# Deterministic counterfactuals when factors aren’t independent
+
+*By [Mikhail Parakhin](https://x.com/MParakhin) — originally posted on [X](https://x.com/twitter/status/2025262748540846327)*
+
+Sampling MNIST top halves from the right conditional distribution, given the bottom half (no stochastic encoder)
 https://github.com/mvparakhin/ml-tidbits/blob/main/python/tests/GAECondSample.py
 
 If you haven’t seen my first writeup: I spent years chasing a very specific goal — a deterministic encoder that maps data into a latent space that actually behaves like N(0, I), so you can do “swap a factor / resample a factor” counterfactuals by literally appending fresh Gaussian noise. The first post was mostly about the loss that makes this practical (Wristband). This one is about the architecture you need when the world isn’t neatly factorized.
