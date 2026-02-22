@@ -318,11 +318,78 @@ lemma cosine_mode_integral_uniform01
     ∫ t : UnitInterval,
       Real.cos ((k : ℝ) * Real.pi * (t : ℝ))
       ∂(uniform01 : Measure UnitInterval) = 0 := by
-  /- Roadmap:
-  1. Convert subtype integral to an interval integral on `[0,1]`.
-  2. Evaluate with `integral_cos`.
-  3. Use `Real.sin_nat_mul_pi` and `hk` to show the endpoint terms vanish. -/
-  sorry
+  let f : ℝ → ℝ := fun x => Real.cos ((k : ℝ) * Real.pi * x)
+  have hSubtype :
+      (∫ t : UnitInterval,
+        Real.cos ((k : ℝ) * Real.pi * (t : ℝ))
+        ∂(uniform01 : Measure UnitInterval))
+        = ∫ x in Set.Icc (0 : ℝ) 1, f x ∂(volume : Measure ℝ) := by
+    simpa [uniform01, UnitInterval, f] using
+      (MeasureTheory.integral_subtype
+        (s := Set.Icc (0 : ℝ) 1)
+        (hs := measurableSet_Icc)
+        (f := f))
+  have hIccToInterval :
+      (∫ x in Set.Icc (0 : ℝ) 1, f x ∂(volume : Measure ℝ)) =
+        ∫ x in (0 : ℝ)..1, f x := by
+    have hIccIoc :
+        (∫ x in Set.Icc (0 : ℝ) 1, f x ∂(volume : Measure ℝ)) =
+          ∫ x in Set.Ioc (0 : ℝ) 1, f x ∂(volume : Measure ℝ) := by
+      simpa using
+        (MeasureTheory.integral_Icc_eq_integral_Ioc
+          (μ := (volume : Measure ℝ))
+          (f := f)
+          (x := (0 : ℝ))
+          (y := (1 : ℝ)))
+    have hIntervalIoc :
+        (∫ x in (0 : ℝ)..1, f x) =
+          ∫ x in Set.Ioc (0 : ℝ) 1, f x ∂(volume : Measure ℝ) := by
+      simpa using
+        (intervalIntegral.integral_of_le
+          (μ := (volume : Measure ℝ))
+          (a := (0 : ℝ))
+          (b := (1 : ℝ))
+          (f := f)
+          (by norm_num : (0 : ℝ) ≤ 1))
+    exact hIccIoc.trans hIntervalIoc.symm
+  have hkReal : (k : ℝ) ≠ 0 := by exact_mod_cast (Nat.ne_of_gt hk)
+  have hc : (k : ℝ) * Real.pi ≠ 0 := mul_ne_zero hkReal Real.pi_ne_zero
+  have hComp :
+      (∫ x in (0 : ℝ)..1, f x)
+        = ((k : ℝ) * Real.pi)⁻¹ •
+          (∫ x in ((k : ℝ) * Real.pi * (0 : ℝ))..((k : ℝ) * Real.pi * (1 : ℝ)),
+            Real.cos x) := by
+    simpa [f, mul_assoc] using
+      (intervalIntegral.integral_comp_mul_left
+        (f := fun x : ℝ => Real.cos x)
+        (a := (0 : ℝ))
+        (b := (1 : ℝ))
+        (c := (k : ℝ) * Real.pi)
+        hc)
+  have hCos :
+      (∫ x in ((k : ℝ) * Real.pi * (0 : ℝ))..((k : ℝ) * Real.pi * (1 : ℝ)),
+        Real.cos x) = 0 := by
+    calc
+      (∫ x in ((k : ℝ) * Real.pi * (0 : ℝ))..((k : ℝ) * Real.pi * (1 : ℝ)),
+          Real.cos x)
+          = Real.sin (((k : ℝ) * Real.pi) * (1 : ℝ)) -
+              Real.sin (((k : ℝ) * Real.pi) * (0 : ℝ)) := by
+              simpa using
+                (integral_cos
+                  (a := ((k : ℝ) * Real.pi * (0 : ℝ)))
+                  (b := ((k : ℝ) * Real.pi * (1 : ℝ))))
+      _ = 0 := by
+            simp [Real.sin_nat_mul_pi]
+  calc
+    (∫ t : UnitInterval,
+      Real.cos ((k : ℝ) * Real.pi * (t : ℝ))
+      ∂(uniform01 : Measure UnitInterval))
+        = ∫ x in Set.Icc (0 : ℝ) 1, f x ∂(volume : Measure ℝ) := hSubtype
+    _ = ∫ x in (0 : ℝ)..1, f x := hIccToInterval
+    _ = ((k : ℝ) * Real.pi)⁻¹ •
+          (∫ x in ((k : ℝ) * Real.pi * (0 : ℝ))..((k : ℝ) * Real.pi * (1 : ℝ)),
+            Real.cos x) := hComp
+    _ = 0 := by simpa [hCos]
 
 /-- Stone-Weierstrass / Fourier-density draft:
 finite cosine sums approximate any continuous function on `[0,1]`. -/
@@ -391,12 +458,70 @@ theorem angularPotential_constant
     ∃ c : ℝ,
       HasConstantPotential
         (kernelAngChordal (d := d) β α) (sphereUniform d) c := by
-  /- Roadmap:
-  1. Show potential is invariant under sphere rotations using
-     `kernelAngChordal_rotationInvariant` and `sphereUniform_rotationInvariant`.
-  2. Use `orthogonal_group_transitive_on_sphere` to transfer any point to any point.
-  3. Define `c` as potential at a fixed base point and conclude global constancy. -/
-  sorry
+  have _hβ : 0 < β := hβ
+  have _hα : 0 < α := hα
+  have hRotatePotential :
+      ∀ (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) (u : Sphere d),
+        kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) (rotateSphere O u)
+          = kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) u := by
+    intro O u
+    have hMapDistDist :
+        pushforward (rotateSphere O) (sphereUniform d) (measurable_rotateSphere O) = sphereUniform d :=
+      sphereUniform_rotationInvariant d O
+    have hMapDist :
+        Measure.map (rotateSphere O) (sphereUniform d : Measure (Sphere d))
+          = (sphereUniform d : Measure (Sphere d)) := by
+      simpa [pushforward] using
+        congrArg (fun ν : Distribution (Sphere d) => (ν : Measure (Sphere d))) hMapDistDist
+    let g : Sphere d → ℝ := fun v => kernelAngChordal (d := d) β α (rotateSphere O u) v
+    have hgAEStrong :
+        MeasureTheory.AEStronglyMeasurable g
+          (Measure.map (rotateSphere O) (sphereUniform d : Measure (Sphere d))) := by
+      have hgMeas : Measurable g := by
+        have hPair : Measurable (fun v : Sphere d => (rotateSphere O u, v)) :=
+          measurable_const.prodMk measurable_id
+        simpa [g] using (measurable_kernelAngChordal (d := d) β α).comp hPair
+      exact hgMeas.aestronglyMeasurable
+    unfold kernelPotential
+    calc
+      (∫ v, kernelAngChordal (d := d) β α (rotateSphere O u) v ∂(sphereUniform d : Measure (Sphere d)))
+          = ∫ v, g v ∂(Measure.map (rotateSphere O) (sphereUniform d : Measure (Sphere d))) := by
+              simp [g, hMapDist]
+      _ = ∫ v, g (rotateSphere O v) ∂(sphereUniform d : Measure (Sphere d)) := by
+            simpa [g] using
+              (MeasureTheory.integral_map
+                (μ := (sphereUniform d : Measure (Sphere d)))
+                (φ := rotateSphere O)
+                (f := g)
+                (hφ := (measurable_rotateSphere O).aemeasurable)
+                (hfm := hgAEStrong))
+      _ = ∫ v, kernelAngChordal (d := d) β α u v ∂(sphereUniform d : Measure (Sphere d)) := by
+            refine integral_congr_ae ?_
+            filter_upwards with v
+            simpa [g] using kernelAngChordal_rotationInvariant d β α O u v
+      _ = kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) u := by
+            rfl
+  have hAllEq :
+      ∀ u v : Sphere d,
+        kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) u
+          = kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) v := by
+    intro u v
+    rcases orthogonal_group_transitive_on_sphere d hDim u v with ⟨O, hO⟩
+    have hRot := hRotatePotential O u
+    have hEqVU :
+        kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) v
+          = kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) u := by
+      simpa [hO] using hRot
+    exact hEqVU.symm
+  classical
+  by_cases hne : Nonempty (Sphere d)
+  · rcases hne with ⟨u0⟩
+    refine ⟨kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) u0, ?_⟩
+    intro w
+    exact hAllEq w u0
+  · refine ⟨0, ?_⟩
+    intro w
+    exact (hne ⟨w⟩).elim
 
 /-- Neumann radial potential is constant under `uniform01`
 (deferred local theorem). -/
