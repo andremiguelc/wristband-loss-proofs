@@ -40,6 +40,10 @@ theorem productKernel_posSemiDef
     (hKy : IsPosSemiDefKernel Ky) :
     IsPosSemiDefKernel
       (fun (p q : X × Y) => Kx p.1 q.1 * Ky p.2 q.2) := by
+  /- Roadmap:
+  1. Preferred: use matrix Schur/Hadamard PSD closure and translate back to kernel form.
+  2. Alternative: RKHS/feature-map tensorization argument (heavier in current setup).
+  3. If direct formalization stays expensive, import as an external theorem-sized fact. -/
   sorry
 
 /-- The joint Neumann wristband kernel is PSD.
@@ -186,6 +190,12 @@ theorem threeImage_approx_neumann
       -- Each pair of terms contributes ≤ 2·exp(-4β), summed over
       -- all n ≠ 0 (geometric series)
       2 * Real.exp (-4 * β) / (1 - Real.exp (-4 * β)) := by
+  /- Roadmap / caveat:
+  1. Rewrite `kernelRad3Image` as selected Neumann terms (`n = 0` pair plus one reflected term).
+  2. Express the gap as a nonnegative omitted tail and bound termwise.
+  3. Important: this current bound is likely too optimistic; omitted terms include
+     distances as small as `1`, so an `exp(-β)`-scale leading term is expected.
+  4. Adjust the theorem statement to a corrected bound before final proof. -/
   sorry
 
 /-- The 3-image kernel energy is close to the Neumann kernel energy. -/
@@ -195,6 +205,12 @@ theorem threeImage_energy_approx
     |kernelEnergy (wristbandKernel β α) P -
      kernelEnergy (wristbandKernelNeumann β α) P| ≤
       2 * Real.exp (-4 * β) / (1 - Real.exp (-4 * β)) := by
+  /- Roadmap:
+  1. Bound pointwise kernel error by radial error using `abs_kernelAngChordal_le_one`.
+  2. Lift pointwise bound through double integral (`kernelEnergy`) by
+     `norm_integral_le_integral_norm` / monotonicity.
+  3. Plug in the pointwise bound from `threeImage_approx_neumann`
+     (after correcting that statement). -/
   sorry
 
 end WristbandLossProofs
