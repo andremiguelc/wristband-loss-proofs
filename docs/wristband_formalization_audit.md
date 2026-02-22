@@ -774,7 +774,11 @@ theorem-sized literature facts and no local theorem scaffolding.
 Imported axioms:
 
 - PSD block: `kernelAngChordal_posSemiDef`,
-  `kernelRadNeumann_hasCosineExpansion`
+  `kernelRadNeumann_hasCosineExpansion`,
+  `productKernel_posSemiDef_imported`,
+  `kernelRadNeumann_posSemiDef_imported`
+- Constant-potential block:
+  `neumannPotential_constant_imported`
 - Universality/characteristic bridge block:
   `kernelAngChordal_universal`, `kernelRadNeumann_universal`,
   `productKernel_universal`, `universal_implies_characteristic`
@@ -830,17 +834,18 @@ Alignment verdict:
   ambient Gaussian on all of $\mathbb{R}^d$.
 - **Kernel external facts.** `KernelImportedFacts.lean` is intentionally
   external-only (literature building blocks as axioms). The project-specific
-  kernel consequences are now local theorem targets in
-  `KernelFoundations.lean` (currently deferred with `sorry`).
+  kernel consequences that were costly but standard (PSD product closure,
+  Neumann PSD, Neumann constant potential) are imported as explicit
+  theorem-sized axioms with source links.
 
 ### Deferred proofs (`sorry`)
 
-- `WristbandLossProofs/KernelFoundations.lean`: scaffold theorems and local
-  kernel-theory pipeline lemmas (PSD closure, universality consequences,
-  constant-potential route, etc.) are declared with `sorry`.
-- `WristbandLossProofs/KernelMinimization.lean`: kernel-energy minimization,
-  uniqueness, product-kernel lemmas, and truncation bounds are declared with
-  `sorry`.
+- `WristbandLossProofs/KernelFoundations.lean`: remaining deferred results are
+  measurability of `wristbandKernelNeumann`, `integral_tsum_kernelRadNeumann`,
+  and cosine-span density on `[0,1]`.
+- `WristbandLossProofs/KernelMinimization.lean`: remaining deferred results are
+  the two truncation-bridge bounds (`threeImage_approx_neumann`,
+  `threeImage_energy_approx`).
 
 Sections 1–8 (equivalence pipeline) remain fully proven; deferred work is now
 concentrated in the new kernel files.
