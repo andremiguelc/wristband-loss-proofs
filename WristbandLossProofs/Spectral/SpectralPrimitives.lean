@@ -93,10 +93,10 @@ noncomputable def modeProj
 noncomputable def spectralEnergy
     {d : ℕ}
     (φ : ℕ → Sphere d → ℝ)
-    (λv : ℕ → ℝ)
+    (lambdaV : ℕ → ℝ)
     (a0 : ℝ) (a : ℕ → ℝ)
     (P : Distribution (Wristband d)) : ℝ :=
   ∑' j : ℕ, ∑' k : ℕ,
-    λv j * radialCoeff a0 a k * (modeProj φ j k P) ^ 2
+    lambdaV j * radialCoeff a0 a k * (modeProj φ j k P) ^ 2
 
 end WristbandLossProofs
