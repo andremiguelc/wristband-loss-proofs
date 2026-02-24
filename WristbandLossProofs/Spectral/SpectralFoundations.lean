@@ -110,12 +110,12 @@ lemma angularEigenfun_integral_zero
   --   ∫ φ_j · φ_0 dσ = 0  (since j ≠ 0)
   -- Then substitute φ_0 = 1.
   have hOrtho := mercerEigenfun_orthonormal d β α hDim hβ hα j 0
-  simp [Nat.not_eq_zero_of_lt hj] at hOrtho
+  simp [Nat.ne_of_gt hj] at hOrtho
   -- hOrtho : ∫ u, φ_j(u) * φ_0(u) dσ = 0
   -- Substitute φ_0(u) = 1:
   have hPhi0 : ∀ u : Sphere d, mercerEigenfun d β α hDim hβ hα 0 u = 1 :=
     mercerEigenfun_zero_eq_one d β α hDim hβ hα
-  sorry
+  simpa [hPhi0] using hOrtho
 
 /-- **B2 (reuse)**: Cosine features integrate to zero under `uniform01`.
 
@@ -129,8 +129,8 @@ lemma radialFeature_cosine_integral_zero (k : ℕ) :
       radialFeature (k + 1) t
     ∂(uniform01 : Measure UnitInterval) = 0 := by
   -- Direct application of `cosine_mode_integral_uniform01` from KernelFoundations.
-  simp [radialFeature]
-  exact cosine_mode_integral_uniform01 k
+  simpa [radialFeature] using
+    (cosine_mode_integral_uniform01 (k + 1) (Nat.succ_pos k))
 
 /-- **Constant radial feature integrates to 1** under `uniform01`.
     `∫ 1 dt = 1` since `uniform01` is a probability measure. -/
@@ -153,7 +153,6 @@ lemma modeProj_zero_zero_eq_one
   -- φ 0 w.1 = 1 and radialFeature 0 w.2 = 1, so integrand = 1 * 1 = 1.
   -- ∫ 1 dP = 1 since P is a probability measure.
   simp [modeProj, radialFeature, mercerEigenfun_zero_eq_one d β α hDim hβ hα]
-  sorry
 
 /-- **All non-(0,0) mode projections vanish at `wristbandUniform d`**.
 
@@ -172,7 +171,97 @@ lemma modeProj_vanishes_at_uniform
   -- Apply D1 (integral_prod_mul) to factor into angular × radial integrals.
   -- For k = 0 and j > 0: angular factor = ∫ φ_j dσ = 0 (B1 above).
   -- For k ≥ 1: radial factor = ∫ radialFeature k dt = 0 (B2 above).
-  sorry
+  cases k with
+  | zero =>
+      have hj : j ≠ 0 := by
+        cases hjk with
+        | inl hj' => exact hj'
+        | inr hk0 => cases hk0 rfl
+      have hjPos : 0 < j := Nat.pos_of_ne_zero hj
+      have hFactor :
+          modeProj (mercerEigenfun d β α hDim hβ hα) j 0 (wristbandUniform d) =
+            (∫ u, mercerEigenfun d β α hDim hβ hα j u
+              ∂(sphereUniform d : Measure (Sphere d))) *
+            (∫ t : UnitInterval, radialFeature 0 t
+              ∂(uniform01 : Measure UnitInterval)) := by
+        unfold modeProj wristbandUniform productLaw
+        simpa using
+          (integral_prod_mul
+            (μ := (sphereUniform d : Measure (Sphere d)))
+            (ν := (uniform01 : Measure UnitInterval))
+            (f := fun u : Sphere d => mercerEigenfun d β α hDim hβ hα j u)
+            (g := fun t : UnitInterval => radialFeature 0 t))
+      have hAng :
+          ∫ u, mercerEigenfun d β α hDim hβ hα j u
+            ∂(sphereUniform d : Measure (Sphere d)) = 0 :=
+        angularEigenfun_integral_zero β α hDim hβ hα j hjPos
+      calc
+        modeProj (mercerEigenfun d β α hDim hβ hα) j 0 (wristbandUniform d)
+            =
+          (∫ u, mercerEigenfun d β α hDim hβ hα j u
+            ∂(sphereUniform d : Measure (Sphere d))) *
+          (∫ t : UnitInterval, radialFeature 0 t
+            ∂(uniform01 : Measure UnitInterval)) := hFactor
+        _ = 0 := by simp [hAng, radialFeature_constant_integral_one]
+  | succ k =>
+      have hFactor :
+          modeProj (mercerEigenfun d β α hDim hβ hα) j (k + 1) (wristbandUniform d) =
+            (∫ u, mercerEigenfun d β α hDim hβ hα j u
+              ∂(sphereUniform d : Measure (Sphere d))) *
+            (∫ t : UnitInterval, radialFeature (k + 1) t
+              ∂(uniform01 : Measure UnitInterval)) := by
+        unfold modeProj wristbandUniform productLaw
+        simpa using
+          (integral_prod_mul
+            (μ := (sphereUniform d : Measure (Sphere d)))
+            (ν := (uniform01 : Measure UnitInterval))
+            (f := fun u : Sphere d => mercerEigenfun d β α hDim hβ hα j u)
+            (g := fun t : UnitInterval => radialFeature (k + 1) t))
+      have hRad :
+          ∫ t : UnitInterval, radialFeature (k + 1) t
+            ∂(uniform01 : Measure UnitInterval) = 0 :=
+        radialFeature_cosine_integral_zero k
+      calc
+        modeProj (mercerEigenfun d β α hDim hβ hα) j (k + 1) (wristbandUniform d)
+            =
+          (∫ u, mercerEigenfun d β α hDim hβ hα j u
+            ∂(sphereUniform d : Measure (Sphere d))) *
+          (∫ t : UnitInterval, radialFeature (k + 1) t
+            ∂(uniform01 : Measure UnitInterval)) := hFactor
+        _ = 0 := by simp [hRad]
+
+/-! ### Interchange helper for double `tsum` -/
+
+/-- Commute a double `tsum` with an integral under explicit summability assumptions.
+
+This is the core technical pattern needed in S4 (the `∫∫ Σ = Σ ∫∫` step), factored
+as a reusable lemma so S4 can focus on instantiating hypotheses for the specific
+spectral kernel term family. -/
+lemma integral_tsum_tsum_of_summable_integral_norm
+    {α : Type*} [MeasurableSpace α]
+    (μ : Measure α)
+    (F : ℕ → ℕ → α → ℝ)
+    (hInt : ∀ j k, Integrable (F j k) μ)
+    (hRowNorm : ∀ j, Summable (fun k => ∫ a, ‖F j k a‖ ∂μ))
+    (hOuterInt : ∀ j, Integrable (fun a => ∑' k, F j k a) μ)
+    (hOuterNorm : Summable (fun j => ∫ a, ‖∑' k, F j k a‖ ∂μ)) :
+    ∫ a, ∑' j, ∑' k, F j k a ∂μ = ∑' j, ∑' k, ∫ a, F j k a ∂μ := by
+  have hRowEq :
+      ∀ j, ∫ a, ∑' k, F j k a ∂μ = ∑' k, ∫ a, F j k a ∂μ := by
+    intro j
+    symm
+    exact integral_tsum_of_summable_integral_norm (hInt j) (hRowNorm j)
+  have hOuterEq :
+      ∫ a, ∑' j, ∑' k, F j k a ∂μ = ∑' j, ∫ a, ∑' k, F j k a ∂μ := by
+    symm
+    exact integral_tsum_of_summable_integral_norm hOuterInt hOuterNorm
+  calc
+    ∫ a, ∑' j, ∑' k, F j k a ∂μ
+        = ∑' j, ∫ a, ∑' k, F j k a ∂μ := hOuterEq
+    _ = ∑' j, ∑' k, ∫ a, F j k a ∂μ := by
+      refine tsum_congr ?_
+      intro j
+      exact hRowEq j
 
 /-! ### The main spectral energy identity -/
 

@@ -69,9 +69,9 @@ Those appear as `sorry`-scaffolded lemmas in `SpectralFoundations.lean`.
       *Duke Math. J.*, 9(1), 96–108. -/
 axiom kernelAngChordal_mercerExpansion
     (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) :
-    ∃ (φ : ℕ → Sphere d → ℝ) (λv : ℕ → ℝ),
+    ∃ (φ : ℕ → Sphere d → ℝ) (lambdaV : ℕ → ℝ),
       -- (1) Nonnegativity of eigenvalues
-      (∀ j : ℕ, 0 ≤ λv j) ∧
+      (∀ j : ℕ, 0 ≤ lambdaV j) ∧
       -- (2) Orthonormality in L²(sphereUniform d)
       (∀ j j' : ℕ,
         ∫ u, φ j u * φ j' u ∂(sphereUniform d : Measure (Sphere d)) =
@@ -79,7 +79,7 @@ axiom kernelAngChordal_mercerExpansion
       -- (3) Pointwise kernel expansion as a tsum
       (∀ u v : Sphere d,
         kernelAngChordal β α u v =
-          ∑' j : ℕ, λv j * φ j u * φ j v) ∧
+          ∑' j : ℕ, lambdaV j * φ j u * φ j v) ∧
       -- (4) Constant-mode identification
       (∀ u : Sphere d, φ 0 u = 1)
 
