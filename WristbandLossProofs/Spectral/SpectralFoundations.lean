@@ -12,14 +12,14 @@ open scoped BigOperators
 
 /-! ## Spectral Foundations
 
-Local lemmas for the spectral energy branch.  All non-trivial proofs are
-`sorry`-scaffolded for a future proof round.
+Local lemmas for the spectral energy branch.  Most proofs are complete;
+2 unconditional forms remain as `sorry` (conditional endpoints proved).
 
 ### Proof obligations summary
 
 | Lemma | Route | Mathlib / Source |
 |-------|-------|-----------------|
-| `angularEigenfun_integral_zero` | from orthonormality (A1_bundle clause 2+4) | local 3-liner |
+| `angularEigenfun_integral_zero` | from orthonormality + constant-mode identification | local 3-liner |
 | `sphereMean_zero` | antipodal symmetry of `sphereUniform` | `integral_map` + axiom |
 | `modeProj_zero_zero_eq_one` | A1 clause 4: `φ 0 = 1`, `radialFeature 0 = 1` | trivial |
 | `modeProj_vanishes_at_uniform` | angular/radial zero-mean factors via Fubini | local |
@@ -163,9 +163,8 @@ assumption explicitly. -/
 
 /-- Non-constant angular eigenfunctions integrate to zero under `sphereUniform`.
 
-    Proof sketch: orthonormality (A1_bundle clause 2) gives
-    `∫ φ_j · φ_0 dσ = 0` for `j ≠ 0`.  Since `φ_0 = 1` (clause 4),
-    this is `∫ φ_j dσ = 0`.
+    Proof sketch: orthonormality gives `∫ φ_j · φ_0 dσ = 0` for `j ≠ 0`.
+    Since `φ_0 = 1` (constant-mode identification), this is `∫ φ_j dσ = 0`.
 
     Mathlib route: `MeasureTheory.integral_eq_zero_iff` or direct from
     the inner-product calculation `⟨φ_j, 1⟩_{L²} = 0`. -/
@@ -966,7 +965,7 @@ Likely completion path:
 
     7-step proof sketch:
     1. Unfold `kernelEnergy` and `wristbandKernelNeumann` as a product of factors.
-    2. Substitute the Mercer expansion (A1_bundle clause 3) for the angular factor:
+    2. Substitute the Mercer expansion for the angular factor:
        `k_ang(u,v) = Σ'_j λv_j · φ_j(u) · φ_j(v)`.
     3. Substitute the radial expansion (`kernelRadNeumann_hasCosineExpansion`) for
        the radial factor: `k_rad(t,t') = Σ'_k radialCoeff a0 a k · f_k(t) · f_k(t')`.
