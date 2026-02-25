@@ -13,29 +13,26 @@ open scoped BigOperators
 /-! ## Spectral Imported Facts
 
 **This file contains exactly one axiom**: the Mercer decomposition of the
-angular kernel (A1_bundle).
+angular kernel.
 
-Every other fact used in the spectral branch is either:
-- Already proved elsewhere: B2 (`cosine_mode_integral_uniform01` in `KernelFoundations`).
-- In Mathlib: C1 (`MeasureTheory.integral_tsum`), C2 (`ENNReal.tsum_comm`),
-  C3 (`tsum_mul_left` / `tsum_mul_right`), D1 (`MeasureTheory.integral_prod_mul`).
-- Locally derivable: B1 and B3 (from A1_bundle's orthonormality + sphere symmetry).
-
-Those appear as `sorry`-scaffolded lemmas in `SpectralFoundations.lean`.
+Every other fact used in the spectral branch is either already proved
+elsewhere (`cosine_mode_integral_uniform01` in `KernelFoundations`),
+in Mathlib (`integral_tsum`, `tsum_comm'`, `tsum_mul_left`, `integral_prod_mul`),
+or locally derivable (from orthonormality + sphere symmetry).
 
 ### Reused from existing files (no changes needed)
 
-| Item | File | Used for |
-|------|------|----------|
+| Axiom | File | Used for |
+|-------|------|----------|
 | `kernelRadNeumann_hasCosineExpansion` | `KernelImportedFacts` | radial `a0` and `a k` witnesses |
-| `kernelAngChordal_posSemiDef` | `KernelImportedFacts` | justifies `λv j ≥ 0` in A1_bundle |
+| `kernelAngChordal_posSemiDef` | `KernelImportedFacts` | justifies `λv j ≥ 0` |
 | `kernelEnergy_minimizer_unique` | `KernelMinimization` | uniqueness conclusion |
 | `wristbandEquivalence` | `Equivalence` | Gaussian ↔ uniform bridge |
 -/
 
-/-! ### A1_bundle — Mercer decomposition of the angular kernel (sole axiom) -/
+/-! ### Mercer decomposition of the angular kernel (sole axiom) -/
 
-/-- **Axiom A1_bundle (Mercer decomposition of `kernelAngChordal`).**
+/-- **Mercer decomposition of `kernelAngChordal`.**
 
     For any `d ≥ 2`, `β > 0`, `α > 0`, there exist angular eigenfunctions
     `φ : ℕ → Sphere d → ℝ` and eigenvalues `λv : ℕ → ℝ` satisfying:

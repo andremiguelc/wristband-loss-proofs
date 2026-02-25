@@ -14,7 +14,8 @@ open scoped BigOperators
 
 Main theorems of the spectral kernel branch.
 
-All three theorems are sorry-scaffolded; their proofs reduce to:
+All three theorem bodies are complete.  They are transitively blocked by
+the 2 open sorry's in `SpectralFoundations.lean`:
 1. `spectralEnergy_nonneg_excess` (minimization).
 2. `spectralEnergy_eq_kernelEnergy` + `kernelEnergy_minimizer_unique` (uniqueness).
 3. `wristbandEquivalence` (Gaussian characterization).
