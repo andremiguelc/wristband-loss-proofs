@@ -274,8 +274,8 @@ not yet in Mathlib — hence the axiom.
 | `radialFeature_constant_integral_one` | $\int_0^1 f_0\,dt = 1$ | **Proved** | `simp` |
 | `angularEigenfun_integral_zero` | $\int_{S^{d-1}}\varphi_j\,d\sigma = 0$ for $j > 0$ | `sorry` | Orthonormality with $j'=0$ + $\varphi_0=1$ |
 | `modeProj_zero_zero_eq_one` | $\hat{c}_{00}(P) = 1$ for any $P$ | `sorry` | $\varphi_0 = f_0 = 1$, probability mass 1 |
-| `modeProj_vanishes_at_uniform` | $\hat{c}_{jk}(\mu_0) = 0$ for $(j,k)\neq(0,0)$ | `sorry` | Fubini (D1) + B1/B2 |
-| `spectralEnergy_eq_kernelEnergy` | $\sum'_{jk}\lambda_j\tilde{a}_k\hat{c}_{jk}^2 = \mathcal{E}(P)$ | `sorry` | 7-step algebra (A1 + cosine axiom + C1/C2/C3 + D1) |
+| `modeProj_vanishes_at_uniform` | $\hat{c}_{jk}(\mu_0) = 0$ for $(j,k)\neq(0,0)$ | `sorry` | `integral_prod_mul` + angular/radial zero-mean lemmas |
+| `spectralEnergy_eq_kernelEnergy` | $\sum'_{jk}\lambda_j\tilde{a}_k\hat{c}_{jk}^2 = \mathcal{E}(P)$ | `sorry` | 7-step algebra (Mercer axiom + cosine axiom + integral/series interchange + `tsum` algebra + `integral_prod_mul`) |
 | `spectralEnergy_nonneg_excess` | $\mathcal{E}_\text{sp}(\mu_0) \leq \mathcal{E}_\text{sp}(P)$ | `sorry` | `tsum_nonneg` + mode projections |
 
 ### 7.2 Main theorems (`SpectralMinimization.lean`)
@@ -323,7 +323,7 @@ Verified against the current Lean files:
 | `modeProj_zero_zero_eq_one` | `SpectralFoundations.lean` | ★☆☆ | C1 | nonneg-excess proof simplification and canonical `(0,0)` term normalization | **5th** |
 
 The spectral critical path is:
-`angularEigenfun_integral_zero` + B2 + D1
+`angularEigenfun_integral_zero` + `radialFeature_cosine_integral_zero` + `MeasureTheory.integral_prod_mul`
 → `modeProj_vanishes_at_uniform`
 → `spectralEnergy_eq_kernelEnergy`
 → (`spectralEnergy_nonneg_excess`, `spectralEnergy_minimizer_unique`)
@@ -354,11 +354,11 @@ The spectral critical path is:
 
 | Fact | Lean name | Group | Status |
 |------|-----------|-------|--------|
-| Swap $\int$ and $\sum'$ | `MeasureTheory.integral_tsum` | C1 | In Mathlib; needs measurability + nonnegativity |
-| Swap $\sum'\sum'$ | `ENNReal.tsum_comm` or `tsum_comm'` | C2 | In Mathlib |
-| Factor $\sum f\cdot\sum f = (\sum f)^2$ | `tsum_mul_left`, `tsum_mul_right` | C3 | In Mathlib |
-| Factor $\int_{X\times Y}f(x)g(y) = \int f\cdot\int g$ | `MeasureTheory.integral_prod_mul` | D1 | In Mathlib (Fubini) |
-| Mercer pointwise convergence | Not in Mathlib | A1 | **Axiom required** |
+| Swap $\int$ and $\sum'$ | `MeasureTheory.integral_tsum` | Series/integral interchange | In Mathlib; needs measurability + nonnegativity |
+| Swap $\sum'\sum'$ | `ENNReal.tsum_comm` or `tsum_comm'` | Double-series commutation | In Mathlib |
+| Factor $\sum f\cdot\sum f = (\sum f)^2$ | `tsum_mul_left`, `tsum_mul_right` | Series product algebra | In Mathlib |
+| Factor $\int_{X\times Y}f(x)g(y) = \int f\cdot\int g$ | `MeasureTheory.integral_prod_mul` | Product-measure factorization | In Mathlib (Fubini) |
+| Mercer pointwise convergence | Not in Mathlib | Mercer expansion axiom | **Axiom required** |
 | Spherical harmonics in $d>2$ | Not in Mathlib | — | Not needed (abstracted by axiom) |
 
 ---
