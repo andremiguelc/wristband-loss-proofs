@@ -9,3 +9,8 @@ ml-tidbits/
 .DS_Store
 
 docs/working/
+
+# Python virtual environment
+.venv/
+__pycache__/
+*.pyc
