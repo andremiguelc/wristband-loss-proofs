@@ -594,6 +594,99 @@ lemma integral_tsum_tsum_of_summable_integral_norm
       intro j
       exact hRowEq j
 
+/-- If each row element is integrable and the row of integral norms is summable,
+then the row `tsum` is integrable. -/
+lemma integrable_tsum_of_summable_integral_norm_real
+    {α : Type*} [MeasurableSpace α]
+    (μ : Measure α)
+    (F : ℕ → α → ℝ)
+    (hInt : ∀ k : ℕ, Integrable (F k) μ)
+    (hSumm : Summable (fun k : ℕ => ∫ a, ‖F k a‖ ∂μ)) :
+    Integrable (fun a => ∑' k : ℕ, F k a) μ := by
+  let A : ℕ → NNReal :=
+    fun k => ⟨∫ a, |F k a| ∂μ, integral_nonneg (fun a => abs_nonneg (F k a))⟩
+  have hLintegralNeTop :
+      ∑' k : ℕ, ∫⁻ a, ‖F k a‖ₑ ∂μ ≠ ⊤ := by
+    have hConv :
+        (fun k : ℕ => ∫⁻ a, ‖F k a‖ₑ ∂μ)
+          =
+        (fun k : ℕ => (A k : ENNReal)) := by
+      funext k
+      calc
+        ∫⁻ a, ‖F k a‖ₑ ∂μ = ENNReal.ofReal (∫ a, |F k a| ∂μ) := by
+          simpa [Real.norm_eq_abs] using
+            (ofReal_integral_norm_eq_lintegral_enorm (hf := hInt k)).symm
+        _ = ENNReal.ofReal (A k : ℝ) := by
+          simp [A]
+        _ = (A k : ENNReal) := by
+          simpa using (ENNReal.ofReal_coe_nnreal (p := A k))
+    rw [hConv]
+    have hAReal : Summable (fun k : ℕ => (A k : ℝ)) := by
+      simpa [A, Real.norm_eq_abs] using hSumm
+    have hA : Summable A := NNReal.summable_coe.1 hAReal
+    exact ENNReal.tsum_coe_ne_top_iff_summable.2 hA
+  have hEnormMeas : ∀ k : ℕ, AEMeasurable (fun a => ‖F k a‖ₑ) μ :=
+    fun k => (hInt k).1.enorm
+  have hAeSummable : ∀ᵐ a : α ∂μ, Summable (fun k : ℕ => F k a) := by
+    have hAeSummableNorm :
+        ∀ᵐ a : α ∂μ, Summable (fun k : ℕ => (‖F k a‖₊ : ℝ)) := by
+      rw [← lintegral_tsum hEnormMeas] at hLintegralNeTop
+      refine (ae_lt_top' (AEMeasurable.ennreal_tsum hEnormMeas) hLintegralNeTop).mono ?_
+      intro a ha
+      rw [← ENNReal.tsum_coe_ne_top_iff_summable_coe]
+      exact ha.ne
+    filter_upwards [hAeSummableNorm] with a ha
+    have hNorm : Summable (fun k : ℕ => ‖F k a‖) := by
+      simpa using ha
+    exact hNorm.of_norm
+  have hMeas : AEStronglyMeasurable (fun a => ∑' k : ℕ, F k a) μ := by
+    refine aestronglyMeasurable_of_tendsto_ae
+      (u := (Filter.atTop : Filter ℕ))
+      (f := fun (n : ℕ) (a : α) => Finset.sum (Finset.range n) (fun k : ℕ => F k a))
+      (g := fun a => ∑' k : ℕ, F k a)
+      (hf := ?_)
+      (lim := ?_)
+    · intro n
+      exact
+        (Finset.aestronglyMeasurable_sum (Finset.range n) (fun k hk => (hInt k).1)).congr
+          (Filter.EventuallyEq.of_eq (by
+            funext a
+            simp))
+    · filter_upwards [hAeSummable] with a ha
+      simpa using ha.hasSum.tendsto_sum_nat
+  have hNormLe :
+      ∀ᵐ a : α ∂μ, ‖∑' k : ℕ, F k a‖ₑ ≤ ∑' k : ℕ, ‖F k a‖ₑ := by
+    filter_upwards [hAeSummable] with a ha
+    have hNorm : Summable (fun k : ℕ => ‖F k a‖) := ha.norm
+    have hNNNorm : Summable (fun k : ℕ => ‖F k a‖₊) := by
+      exact (NNReal.summable_coe.1 <| by simpa using hNorm)
+    have hLeNN : ‖∑' k : ℕ, F k a‖₊ ≤ ∑' k : ℕ, ‖F k a‖₊ := nnnorm_tsum_le hNNNorm
+    have hLeENNCore :
+        (‖∑' k : ℕ, F k a‖₊ : ENNReal) ≤ ∑' k : ℕ, (‖F k a‖₊ : ENNReal) := by
+      simpa [ENNReal.coe_tsum hNNNorm] using ((ENNReal.coe_le_coe).2 hLeNN)
+    have hLeENN :
+        (‖∑' k : ℕ, F k a‖₊ : ENNReal) ≤ ∑' k : ℕ, ‖F k a‖ₑ := by
+      simpa [enorm_eq_nnnorm] using hLeENNCore
+    calc
+      ‖∑' k : ℕ, F k a‖ₑ = (‖∑' k : ℕ, F k a‖₊ : ENNReal) := by
+        simp [enorm_eq_nnnorm]
+      _ ≤ ∑' k : ℕ, ‖F k a‖ₑ := hLeENN
+  have hFinite : HasFiniteIntegral (fun a => ∑' k : ℕ, F k a) μ := by
+    have hLe :
+        ∫⁻ a, ‖∑' k : ℕ, F k a‖ₑ ∂μ
+          ≤
+        ∫⁻ a, ∑' k : ℕ, ‖F k a‖ₑ ∂μ := lintegral_mono_ae hNormLe
+    have hRightLtTop :
+        ∫⁻ a, ∑' k : ℕ, ‖F k a‖ₑ ∂μ < ⊤ := by
+      have hEq :
+          ∫⁻ a, ∑' k : ℕ, ‖F k a‖ₑ ∂μ
+            =
+          ∑' k : ℕ, ∫⁻ a, ‖F k a‖ₑ ∂μ := by
+        simpa using (lintegral_tsum hEnormMeas)
+      exact lt_top_iff_ne_top.2 <| by simpa [hEq] using hLintegralNeTop
+    exact lt_of_le_of_lt hLe hRightLtTop
+  exact ⟨hMeas, hFinite⟩
+
 /-- Outer-swap lemma: commute the outer integral with the double `tsum`
 for the spectral kernel term family, under explicit summability assumptions. -/
 lemma kernelEnergy_outer_tsum_tsum_interchange_of_summable_integral_norm
@@ -1075,11 +1168,6 @@ lemma spectralEnergy_eq_kernelEnergy_of_summable_integral_norm
           ∫ w',
             ‖spectralKernelTerm β α hDim hβ hα j k w w'‖
           ∂(P : Measure (Wristband d))))
-    (hInnerOuterInt : ∀ w j,
-      Integrable
-        (fun w' : Wristband d =>
-          ∑' k, spectralKernelTerm β α hDim hβ hα j k w w')
-        (P : Measure (Wristband d)))
     (hInnerOuterNorm : ∀ w,
       Summable
         (fun j =>
@@ -1099,13 +1187,6 @@ lemma spectralEnergy_eq_kernelEnergy_of_summable_integral_norm
             ‖∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
                 ∂(P : Measure (Wristband d))‖
             ∂(P : Measure (Wristband d))))
-    (hOuterOuterInt : ∀ j,
-      Integrable
-        (fun w : Wristband d =>
-          ∑' k,
-            ∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
-                ∂(P : Measure (Wristband d)))
-        (P : Measure (Wristband d)))
     (hOuterOuterNorm :
       Summable
         (fun j =>
@@ -1121,6 +1202,34 @@ lemma spectralEnergy_eq_kernelEnergy_of_summable_integral_norm
         (neumannCosineCoeff β hβ)
         P =
       kernelEnergy (wristbandKernelNeumann (d := d) β α) P := by
+  have hInnerOuterInt : ∀ w j,
+      Integrable
+        (fun w' : Wristband d =>
+          ∑' k, spectralKernelTerm β α hDim hβ hα j k w w')
+        (P : Measure (Wristband d)) := by
+    intro w j
+    exact
+      integrable_tsum_of_summable_integral_norm_real
+        (μ := (P : Measure (Wristband d)))
+        (F := fun k (w' : Wristband d) => spectralKernelTerm β α hDim hβ hα j k w w')
+        (hInt := hInnerInt w j)
+        (hSumm := hInnerRowNorm w j)
+  have hOuterOuterInt : ∀ j,
+      Integrable
+        (fun w : Wristband d =>
+          ∑' k,
+            ∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+                ∂(P : Measure (Wristband d)))
+        (P : Measure (Wristband d)) := by
+    intro j
+    exact
+      integrable_tsum_of_summable_integral_norm_real
+        (μ := (P : Measure (Wristband d)))
+        (F := fun k (w : Wristband d) =>
+          ∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+              ∂(P : Measure (Wristband d)))
+        (hInt := hOuterInt j)
+        (hSumm := hOuterRowNorm j)
   let hPkg : KernelExpansionInterchangeAssumptions β α hDim hβ hα P :=
     { hPointwiseAng := hPointwiseAng
       hPointwiseRad := hPointwiseRad
@@ -1152,11 +1261,6 @@ lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_integral
           ∫ w',
             ‖spectralKernelTerm β α hDim hβ hα j k w w'‖
           ∂(P : Measure (Wristband d))))
-    (hInnerOuterInt : ∀ w j,
-      Integrable
-        (fun w' : Wristband d =>
-          ∑' k, spectralKernelTerm β α hDim hβ hα j k w w')
-        (P : Measure (Wristband d)))
     (hInnerOuterNorm : ∀ w,
       Summable
         (fun j =>
@@ -1176,13 +1280,6 @@ lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_integral
             ‖∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
                 ∂(P : Measure (Wristband d))‖
             ∂(P : Measure (Wristband d))))
-    (hOuterOuterInt : ∀ j,
-      Integrable
-        (fun w : Wristband d =>
-          ∑' k,
-            ∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
-                ∂(P : Measure (Wristband d)))
-        (P : Measure (Wristband d)))
     (hOuterOuterNorm :
       Summable
         (fun j =>
@@ -1217,8 +1314,8 @@ lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_integral
     spectralEnergy_eq_kernelEnergy_of_summable_integral_norm
       β α hDim hβ hα P
       hPointwiseAng hPointwiseRad
-      hInnerInt hInnerRowNorm hInnerOuterInt hInnerOuterNorm
-      hOuterInt hOuterRowNorm hOuterOuterInt hOuterOuterNorm
+      hInnerInt hInnerRowNorm hInnerOuterNorm
+      hOuterInt hOuterRowNorm hOuterOuterNorm
 
 /- TODO(spectralEnergy_eq_kernelEnergy, pinned):
 To replace the `sorry` in `spectralEnergy_eq_kernelEnergy`, we need to discharge
@@ -1232,8 +1329,10 @@ Concretely, we still need packaged assumptions/lemmas for:
    (Partially reduced: this now follows from
    `Summable (neumannCosineCoeff β hβ)` via
    `pointwiseRadialSummable_of_summable_neumannCosineCoeff`.)
-3. The inner/outer integrability + norm-summability side conditions required by
+3. The remaining inner/outer norm-summability side conditions required by
    `kernelEnergy_double_tsum_interchange_of_summable_integral_norm`.
+   (The row-`tsum` integrability assumptions are now derived locally via
+   `integrable_tsum_of_summable_integral_norm_real`.)
 
 Likely completion path:
 - either strengthen imported facts so these are available in witness form, or
