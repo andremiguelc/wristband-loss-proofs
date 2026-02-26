@@ -508,6 +508,45 @@ noncomputable def spectralKernelTerm
     modeTerm β α hDim hβ hα j k w *
     modeTerm β α hDim hβ hα j k w'
 
+/-- Product-index summability from summability of two real sequences. -/
+lemma summable_prod_mul_of_summable_real
+    (A B : ℕ → ℝ)
+    (hA : Summable A)
+    (hB : Summable B) :
+    Summable (fun p : ℕ × ℕ => A p.1 * B p.2) := by
+  have hNorm :
+      Summable (fun p : ℕ × ℕ => ‖A p.1 * B p.2‖) := by
+    exact (hA.norm.mul_norm hB.norm)
+  exact hNorm.of_norm
+
+/-- Pointwise summability of spectral kernel terms over product index `(j, k)`,
+derived from separate angular and radial pointwise summability. -/
+lemma pointwiseSpectralKernelTermSummable_of_summable
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (w w' : Wristband d)
+    (hSummAng :
+      Summable
+        (fun j : ℕ =>
+          mercerEigenval d β α hDim hβ hα j *
+            mercerEigenfun d β α hDim hβ hα j w.1 *
+            mercerEigenfun d β α hDim hβ hα j w'.1))
+    (hSummRad :
+      Summable
+        (fun k : ℕ =>
+          neumannRadialCoeff β hβ k * radialFeature k w.2 * radialFeature k w'.2)) :
+    Summable
+      (fun p : ℕ × ℕ =>
+        spectralKernelTerm β α hDim hβ hα p.1 p.2 w w') := by
+  let A : ℕ → ℝ := fun j =>
+    mercerEigenval d β α hDim hβ hα j *
+      mercerEigenfun d β α hDim hβ hα j w.1 *
+      mercerEigenfun d β α hDim hβ hα j w'.1
+  let B : ℕ → ℝ := fun k =>
+    neumannRadialCoeff β hβ k * radialFeature k w.2 * radialFeature k w'.2
+  have hPair : Summable (fun p : ℕ × ℕ => A p.1 * B p.2) :=
+    summable_prod_mul_of_summable_real A B hSummAng hSummRad
+  simpa [A, B, spectralKernelTerm, modeTerm, mul_assoc, mul_left_comm, mul_comm] using hPair
+
 /-- Pointwise kernel expansion as a double `tsum`, under explicit
 summability assumptions for the angular and radial mode families at `(w, w')`. -/
 lemma wristbandKernelNeumann_eq_double_tsum_modeTerm_of_summable
@@ -593,6 +632,60 @@ lemma integral_tsum_tsum_of_summable_integral_norm
       refine tsum_congr ?_
       intro j
       exact hRowEq j
+
+/-- One-step `∫`/double-`tsum` interchange via pair index `(j, k)`.
+
+This avoids nested inner/outer swap hypotheses by requiring:
+- pointwise pair summability (`∀ a, Summable (j,k ↦ F j k a)`),
+- per-term integrability (`∀ j k, Integrable (F j k)`),
+- pair summability of integral norms (`Summable (j,k ↦ ∫ ‖F j k‖)`). -/
+lemma integral_tsum_tsum_of_pair_summable_integral_norm
+    {α : Type*} [MeasurableSpace α]
+    (μ : Measure α)
+    (F : ℕ → ℕ → α → ℝ)
+    (hPointwise :
+      ∀ a : α, Summable (fun p : ℕ × ℕ => F p.1 p.2 a))
+    (hInt : ∀ j k, Integrable (F j k) μ)
+    (hPairNorm :
+      Summable
+        (fun p : ℕ × ℕ =>
+          ∫ a, ‖F p.1 p.2 a‖ ∂μ)) :
+    ∫ a, ∑' j, ∑' k, F j k a ∂μ = ∑' j, ∑' k, ∫ a, F j k a ∂μ := by
+  let G : ℕ × ℕ → α → ℝ := fun p a => F p.1 p.2 a
+  have hSwapPair :
+      ∫ a, ∑' p : ℕ × ℕ, G p a ∂μ
+        =
+      ∑' p : ℕ × ℕ, ∫ a, G p a ∂μ := by
+    symm
+    exact
+      integral_tsum_of_summable_integral_norm
+        (hF_int := fun p => by simpa [G] using hInt p.1 p.2)
+        (hF_sum := by simpa [G] using hPairNorm)
+  have hLeft :
+      ∫ a, ∑' j, ∑' k, F j k a ∂μ
+        =
+      ∫ a, ∑' p : ℕ × ℕ, G p a ∂μ := by
+    refine integral_congr_ae ?_
+    filter_upwards with a
+    simpa [G] using (hPointwise a).tsum_prod.symm
+  have hPairIntAbs :
+      Summable (fun p : ℕ × ℕ => |∫ a, G p a ∂μ|) := by
+    refine Summable.of_nonneg_of_le (fun _ => abs_nonneg _) ?_ hPairNorm
+    intro p
+    simpa [Real.norm_eq_abs] using
+      (norm_integral_le_integral_norm (fun a => G p a))
+  have hPairIntSumm :
+      Summable (fun p : ℕ × ℕ => ∫ a, G p a ∂μ) := by
+    have hPairIntNorm :
+        Summable (fun p : ℕ × ℕ => ‖∫ a, G p a ∂μ‖) := by
+      simpa [Real.norm_eq_abs] using hPairIntAbs
+    exact hPairIntNorm.of_norm
+  have hRight :
+      (∑' p : ℕ × ℕ, ∫ a, G p a ∂μ)
+        =
+      ∑' j, ∑' k, ∫ a, F j k a ∂μ := by
+    simpa [G] using hPairIntSumm.tsum_prod
+  exact hLeft.trans (hSwapPair.trans hRight)
 
 /-- If each row element is integrable and the row of integral norms is summable,
 then the row `tsum` is integrable. -/
@@ -686,6 +779,157 @@ lemma integrable_tsum_of_summable_integral_norm_real
       exact lt_top_iff_ne_top.2 <| by simpa [hEq] using hLintegralNeTop
     exact lt_of_le_of_lt hLe hRightLtTop
   exact ⟨hMeas, hFinite⟩
+
+/-- Pair-index integrability of `tsum` from summable integral norms,
+obtained by reindexing `ℕ × ℕ` through `Nat.pairEquiv`. -/
+lemma integrable_tsum_prod_of_summable_integral_norm_real
+    {α : Type*} [MeasurableSpace α]
+    (μ : Measure α)
+    (F : ℕ → ℕ → α → ℝ)
+    (hInt : ∀ j k, Integrable (F j k) μ)
+    (hSumm :
+      Summable
+        (fun p : ℕ × ℕ =>
+          ∫ a, ‖F p.1 p.2 a‖ ∂μ)) :
+    Integrable (fun a => ∑' p : ℕ × ℕ, F p.1 p.2 a) μ := by
+  let G : ℕ → α → ℝ := fun n a => F (Nat.unpair n).1 (Nat.unpair n).2 a
+  have hIntG : ∀ n : ℕ, Integrable (G n) μ := by
+    intro n
+    simpa [G] using hInt (Nat.unpair n).1 (Nat.unpair n).2
+  have hSummG : Summable (fun n : ℕ => ∫ a, ‖G n a‖ ∂μ) := by
+    simpa [G, Function.comp] using
+      ((Equiv.summable_iff Nat.pairEquiv.symm).2 hSumm)
+  have hTsumG :
+      Integrable (fun a => ∑' n : ℕ, G n a) μ :=
+    integrable_tsum_of_summable_integral_norm_real μ G hIntG hSummG
+  have hEq :
+      (fun a => ∑' n : ℕ, G n a)
+        =
+      (fun a => ∑' p : ℕ × ℕ, F p.1 p.2 a) := by
+    funext a
+    simpa [G] using
+      (Equiv.tsum_eq Nat.pairEquiv.symm
+        (fun p : ℕ × ℕ => F p.1 p.2 a))
+  exact hTsumG.congr (Filter.EventuallyEq.of_eq hEq)
+
+/-- Almost-everywhere summability of pointwise norm series from summable
+integral norms. -/
+lemma ae_summable_norm_of_summable_integral_norm_real
+    {α : Type*} [MeasurableSpace α]
+    (μ : Measure α)
+    (F : ℕ → α → ℝ)
+    (hInt : ∀ k : ℕ, Integrable (F k) μ)
+    (hSumm : Summable (fun k : ℕ => ∫ a, ‖F k a‖ ∂μ)) :
+    ∀ᵐ a : α ∂μ, Summable (fun k : ℕ => ‖F k a‖) := by
+  let A : ℕ → NNReal :=
+    fun k => ⟨∫ a, |F k a| ∂μ, integral_nonneg (fun a => abs_nonneg (F k a))⟩
+  have hLintegralNeTop :
+      ∑' k : ℕ, ∫⁻ a, ‖F k a‖ₑ ∂μ ≠ ⊤ := by
+    have hConv :
+        (fun k : ℕ => ∫⁻ a, ‖F k a‖ₑ ∂μ)
+          =
+        (fun k : ℕ => (A k : ENNReal)) := by
+      funext k
+      calc
+        ∫⁻ a, ‖F k a‖ₑ ∂μ = ENNReal.ofReal (∫ a, |F k a| ∂μ) := by
+          simpa [Real.norm_eq_abs] using
+            (ofReal_integral_norm_eq_lintegral_enorm (hf := hInt k)).symm
+        _ = ENNReal.ofReal (A k : ℝ) := by
+          simp [A]
+        _ = (A k : ENNReal) := by
+          simpa using (ENNReal.ofReal_coe_nnreal (p := A k))
+    rw [hConv]
+    have hAReal : Summable (fun k : ℕ => (A k : ℝ)) := by
+      simpa [A, Real.norm_eq_abs] using hSumm
+    have hA : Summable A := NNReal.summable_coe.1 hAReal
+    exact ENNReal.tsum_coe_ne_top_iff_summable.2 hA
+  have hEnormMeas : ∀ k : ℕ, AEMeasurable (fun a => ‖F k a‖ₑ) μ :=
+    fun k => (hInt k).1.enorm
+  have hAeSummableNormNN :
+      ∀ᵐ a : α ∂μ, Summable (fun k : ℕ => (‖F k a‖₊ : ℝ)) := by
+    rw [← lintegral_tsum hEnormMeas] at hLintegralNeTop
+    refine (ae_lt_top' (AEMeasurable.ennreal_tsum hEnormMeas) hLintegralNeTop).mono ?_
+    intro a ha
+    rw [← ENNReal.tsum_coe_ne_top_iff_summable_coe]
+    exact ha.ne
+  filter_upwards [hAeSummableNormNN] with a ha
+  simpa using ha
+
+/-- Triangle-inequality estimate for commuting norm, integral, and `tsum`:
+`∫ ‖Σ' k, F k‖ ≤ Σ' k, ∫ ‖F k‖`. -/
+lemma integral_norm_tsum_le_tsum_integral_norm_real
+    {α : Type*} [MeasurableSpace α]
+    (μ : Measure α)
+    (F : ℕ → α → ℝ)
+    (hInt : ∀ k : ℕ, Integrable (F k) μ)
+    (hSumm : Summable (fun k : ℕ => ∫ a, ‖F k a‖ ∂μ)) :
+    ∫ a, ‖∑' k : ℕ, F k a‖ ∂μ ≤ ∑' k : ℕ, ∫ a, ‖F k a‖ ∂μ := by
+  have hAeSummableNorm :
+      ∀ᵐ a : α ∂μ, Summable (fun k : ℕ => ‖F k a‖) :=
+    ae_summable_norm_of_summable_integral_norm_real
+      (μ := μ) (F := F) hInt hSumm
+  have hTsumInt : Integrable (fun a => ∑' k : ℕ, F k a) μ :=
+    integrable_tsum_of_summable_integral_norm_real
+      (μ := μ) (F := F) hInt hSumm
+  have hNormInt : ∀ k : ℕ, Integrable (fun a => ‖F k a‖) μ := by
+    intro k
+    exact (hInt k).norm
+  have hNormSumm :
+      Summable (fun k : ℕ => ∫ a, ‖‖F k a‖‖ ∂μ) := by
+    simpa using hSumm
+  have hSumNormInt : Integrable (fun a => ∑' k : ℕ, ‖F k a‖) μ := by
+    simpa using
+      (integrable_tsum_of_summable_integral_norm_real
+        (μ := μ)
+        (F := fun k a => ‖F k a‖)
+        hNormInt
+        hNormSumm)
+  have hAeLe :
+      ∀ᵐ a : α ∂μ, ‖∑' k : ℕ, F k a‖ ≤ ∑' k : ℕ, ‖F k a‖ := by
+    filter_upwards [hAeSummableNorm] with a ha
+    exact norm_tsum_le_tsum_norm ha
+  have hIntLe :
+      ∫ a, ‖∑' k : ℕ, F k a‖ ∂μ
+        ≤
+      ∫ a, ∑' k : ℕ, ‖F k a‖ ∂μ :=
+    integral_mono_ae hTsumInt.norm hSumNormInt hAeLe
+  have hEqNorm :
+      ∫ a, ∑' k : ℕ, ‖F k a‖ ∂μ
+        =
+      ∑' k : ℕ, ∫ a, ‖F k a‖ ∂μ := by
+    symm
+    simpa using
+      (integral_tsum_of_summable_integral_norm
+        (F := fun k a => ‖F k a‖)
+        hNormInt
+        hNormSumm)
+  exact hIntLe.trans_eq hEqNorm
+
+/-- Turn a summable majorant of rowwise integral-norm `tsum`s into summability
+of rowwise `∫ ‖Σ' k, F j k‖`. -/
+lemma summable_integral_norm_tsum_of_summable_tsum_integral_norm
+    {α : Type*} [MeasurableSpace α]
+    (μ : Measure α)
+    (F : ℕ → ℕ → α → ℝ)
+    (hInt : ∀ j k, Integrable (F j k) μ)
+    (hRowNorm : ∀ j, Summable (fun k => ∫ a, ‖F j k a‖ ∂μ))
+    (hMajor :
+      Summable
+        (fun j : ℕ =>
+          ∑' k : ℕ, ∫ a, ‖F j k a‖ ∂μ)) :
+    Summable
+      (fun j : ℕ =>
+        ∫ a, ‖∑' k : ℕ, F j k a‖ ∂μ) := by
+  refine Summable.of_nonneg_of_le ?_ ?_ hMajor
+  · intro j
+    exact integral_nonneg (fun a => norm_nonneg (∑' k : ℕ, F j k a))
+  · intro j
+    exact
+      integral_norm_tsum_le_tsum_integral_norm_real
+        (μ := μ)
+        (F := F j)
+        (hInt := hInt j)
+        (hSumm := hRowNorm j)
 
 /-- Outer-swap lemma: commute the outer integral with the double `tsum`
 for the spectral kernel term family, under explicit summability assumptions. -/
@@ -922,6 +1166,278 @@ lemma kernelEnergy_double_tsum_interchange_of_summable_integral_norm
     kernelEnergy_outer_tsum_tsum_interchange_of_summable_integral_norm
       β α hDim hβ hα P hOuterInt hOuterRowNorm hOuterOuterInt hOuterOuterNorm
   exact hInnerSwap.trans hOuterSwap
+
+/-- One-step product-measure interchange for spectral kernel terms.
+
+Compared to `kernelEnergy_double_tsum_interchange_of_summable_integral_norm`,
+this route replaces nested inner/outer swap hypotheses with:
+- pointwise pair-index summability,
+- per-term integrability on the product measure,
+- pair summability of product integral norms. -/
+lemma kernelEnergy_double_tsum_interchange_of_pair_summable_integral_norm
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d))
+    (hPointwisePair : ∀ w w',
+      Summable
+        (fun p : ℕ × ℕ =>
+          spectralKernelTerm β α hDim hβ hα p.1 p.2 w w'))
+    (hProdInt : ∀ j k,
+      Integrable
+        (fun z : Wristband d × Wristband d =>
+          spectralKernelTerm β α hDim hβ hα j k z.1 z.2)
+        ((P : Measure (Wristband d)).prod (P : Measure (Wristband d))))
+    (hProdNorm :
+      Summable
+        (fun p : ℕ × ℕ =>
+          ∫ z : Wristband d × Wristband d,
+            ‖spectralKernelTerm β α hDim hβ hα p.1 p.2 z.1 z.2‖
+          ∂((P : Measure (Wristband d)).prod (P : Measure (Wristband d))))) :
+    (∫ w, ∫ w',
+      ∑' j, ∑' k, spectralKernelTerm β α hDim hβ hα j k w w'
+      ∂(P : Measure (Wristband d)) ∂(P : Measure (Wristband d)))
+      =
+    ∑' j, ∑' k,
+      ∫ w,
+        ∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+            ∂(P : Measure (Wristband d))
+      ∂(P : Measure (Wristband d)) := by
+  let μ : Measure (Wristband d) := (P : Measure (Wristband d))
+  let μprod : Measure (Wristband d × Wristband d) := μ.prod μ
+  have hSwapProd :
+      (∫ z : Wristband d × Wristband d,
+        ∑' j, ∑' k, spectralKernelTerm β α hDim hβ hα j k z.1 z.2
+      ∂μprod)
+        =
+      ∑' j, ∑' k,
+        ∫ z : Wristband d × Wristband d,
+          spectralKernelTerm β α hDim hβ hα j k z.1 z.2
+        ∂μprod := by
+    exact
+      integral_tsum_tsum_of_pair_summable_integral_norm
+        (μ := μprod)
+        (F := fun j k (z : Wristband d × Wristband d) =>
+          spectralKernelTerm β α hDim hβ hα j k z.1 z.2)
+        (hPointwise := by
+          intro z
+          simpa using hPointwisePair z.1 z.2)
+        (hInt := hProdInt)
+        (hPairNorm := hProdNorm)
+  have hTsumPairInt :
+      Integrable
+        (fun z : Wristband d × Wristband d =>
+          ∑' p : ℕ × ℕ, spectralKernelTerm β α hDim hβ hα p.1 p.2 z.1 z.2)
+        μprod := by
+    exact
+      integrable_tsum_prod_of_summable_integral_norm_real
+        (μ := μprod)
+        (F := fun j k (z : Wristband d × Wristband d) =>
+          spectralKernelTerm β α hDim hβ hα j k z.1 z.2)
+        (hInt := hProdInt)
+        (hSumm := hProdNorm)
+  have hTsumInt :
+      Integrable
+        (fun z : Wristband d × Wristband d =>
+          ∑' j, ∑' k, spectralKernelTerm β α hDim hβ hα j k z.1 z.2)
+        μprod := by
+    refine hTsumPairInt.congr ?_
+    filter_upwards with z
+    simpa using (hPointwisePair z.1 z.2).tsum_prod
+  have hLeftNested :
+      (∫ w, ∫ w',
+        ∑' j, ∑' k, spectralKernelTerm β α hDim hβ hα j k w w'
+        ∂μ ∂μ)
+        =
+      (∫ z : Wristband d × Wristband d,
+        ∑' j, ∑' k, spectralKernelTerm β α hDim hβ hα j k z.1 z.2
+        ∂μprod) := by
+    simpa [μ, μprod] using
+      (integral_integral
+        (f := fun w w' => ∑' j, ∑' k, spectralKernelTerm β α hDim hβ hα j k w w')
+        hTsumInt)
+  have hTermProdToNested : ∀ j k,
+      (∫ z : Wristband d × Wristband d,
+        spectralKernelTerm β α hDim hβ hα j k z.1 z.2
+      ∂μprod)
+        =
+      (∫ w, ∫ w',
+        spectralKernelTerm β α hDim hβ hα j k w w'
+        ∂μ ∂μ) := by
+    intro j k
+    simpa [μ, μprod] using
+      (integral_integral
+        (f := fun w w' => spectralKernelTerm β α hDim hβ hα j k w w')
+        (hProdInt j k)).symm
+  have hRightNested :
+      (∑' j, ∑' k,
+        ∫ z : Wristband d × Wristband d,
+          spectralKernelTerm β α hDim hβ hα j k z.1 z.2
+        ∂μprod)
+        =
+      ∑' j, ∑' k,
+        ∫ w, ∫ w',
+          spectralKernelTerm β α hDim hβ hα j k w w'
+          ∂μ ∂μ := by
+    refine tsum_congr ?_
+    intro j
+    refine tsum_congr ?_
+    intro k
+    exact hTermProdToNested j k
+  exact hLeftNested.trans (hSwapProd.trans hRightNested)
+
+/-- Build product-measure integrability of each spectral term from
+integrability of the corresponding single-variable `modeTerm`. -/
+lemma spectralKernelTerm_prod_integrable_of_modeTerm_integrable
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d))
+    (hModeInt : ∀ j k,
+      Integrable
+        (fun w : Wristband d => modeTerm β α hDim hβ hα j k w)
+        (P : Measure (Wristband d))) :
+    ∀ j k,
+      Integrable
+        (fun z : Wristband d × Wristband d =>
+          spectralKernelTerm β α hDim hβ hα j k z.1 z.2)
+        ((P : Measure (Wristband d)).prod (P : Measure (Wristband d))) := by
+  intro j k
+  let c : ℝ := mercerEigenval d β α hDim hβ hα j * neumannRadialCoeff β hβ k
+  have hMul :
+      Integrable
+        (fun z : Wristband d × Wristband d =>
+          modeTerm β α hDim hβ hα j k z.1 *
+            modeTerm β α hDim hβ hα j k z.2)
+        ((P : Measure (Wristband d)).prod (P : Measure (Wristband d))) := by
+    exact (hModeInt j k).mul_prod (hModeInt j k)
+  have hConst :
+      Integrable
+        (fun z : Wristband d × Wristband d =>
+          c *
+            (modeTerm β α hDim hβ hα j k z.1 *
+              modeTerm β α hDim hβ hα j k z.2))
+        ((P : Measure (Wristband d)).prod (P : Measure (Wristband d))) := by
+    exact hMul.const_mul c
+  simpa [spectralKernelTerm, c, mul_assoc, mul_left_comm, mul_comm] using hConst
+
+/-- Upper-bound product integral norms of spectral terms by coefficient and
+single-variable `modeTerm` `L¹` majorants. -/
+lemma spectralKernelTerm_prod_norm_le_of_modeL1_majorant
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d))
+    (M : ℕ → ℝ)
+    (hMNonneg : ∀ j, 0 ≤ M j)
+    (hModeInt : ∀ j k,
+      Integrable
+        (fun w : Wristband d => modeTerm β α hDim hβ hα j k w)
+        (P : Measure (Wristband d)))
+    (hModeL1Bound : ∀ j k,
+      ∫ w, ‖modeTerm β α hDim hβ hα j k w‖ ∂(P : Measure (Wristband d)) ≤ M j) :
+    ∀ j k,
+      ∫ z : Wristband d × Wristband d,
+        ‖spectralKernelTerm β α hDim hβ hα j k z.1 z.2‖
+      ∂((P : Measure (Wristband d)).prod (P : Measure (Wristband d)))
+        ≤
+      ‖mercerEigenval d β α hDim hβ hα j * neumannRadialCoeff β hβ k‖ * (M j) ^ 2 := by
+  intro j k
+  let μ : Measure (Wristband d) := (P : Measure (Wristband d))
+  let c : ℝ := mercerEigenval d β α hDim hβ hα j * neumannRadialCoeff β hβ k
+  let m : Wristband d → ℝ := fun w => modeTerm β α hDim hβ hα j k w
+  have hNormInt :
+      Integrable (fun w : Wristband d => ‖m w‖) μ := (hModeInt j k).norm
+  have hEq :
+      (∫ z : Wristband d × Wristband d, ‖spectralKernelTerm β α hDim hβ hα j k z.1 z.2‖
+        ∂(μ.prod μ))
+        =
+      ‖c‖ * (∫ w : Wristband d, ‖m w‖ ∂μ) ^ 2 := by
+    calc
+      (∫ z : Wristband d × Wristband d, ‖spectralKernelTerm β α hDim hβ hα j k z.1 z.2‖
+        ∂(μ.prod μ))
+          =
+        (∫ z : Wristband d × Wristband d,
+          ‖c‖ * (‖m z.1‖ * ‖m z.2‖)
+          ∂(μ.prod μ)) := by
+            refine integral_congr_ae ?_
+            filter_upwards with z
+            simp [spectralKernelTerm, c, m, mul_assoc, norm_mul]
+      _ = ‖c‖ *
+            (∫ z : Wristband d × Wristband d,
+              ‖m z.1‖ * ‖m z.2‖
+            ∂(μ.prod μ)) := by
+              simpa using
+                (integral_const_mul
+                  (μ := μ.prod μ)
+                  ‖c‖
+                  (fun z : Wristband d × Wristband d => ‖m z.1‖ * ‖m z.2‖))
+      _ = ‖c‖ * ((∫ w : Wristband d, ‖m w‖ ∂μ) * (∫ w : Wristband d, ‖m w‖ ∂μ)) := by
+            congr 1
+            simpa using
+              (integral_prod_mul
+                (f := fun w : Wristband d => ‖m w‖)
+                (g := fun w : Wristband d => ‖m w‖))
+      _ = ‖c‖ * (∫ w : Wristband d, ‖m w‖ ∂μ) ^ 2 := by
+            ring
+  have hL1Nonneg : 0 ≤ ∫ w : Wristband d, ‖m w‖ ∂μ :=
+    integral_nonneg (fun _ => norm_nonneg _)
+  have hSqLe : (∫ w : Wristband d, ‖m w‖ ∂μ) ^ 2 ≤ (M j) ^ 2 := by
+    nlinarith [hL1Nonneg, hMNonneg j, hModeL1Bound j k]
+  calc
+    ∫ z : Wristband d × Wristband d, ‖spectralKernelTerm β α hDim hβ hα j k z.1 z.2‖
+      ∂(μ.prod μ)
+        = ‖c‖ * (∫ w : Wristband d, ‖m w‖ ∂μ) ^ 2 := hEq
+    _ ≤ ‖c‖ * (M j) ^ 2 := by
+          exact mul_le_mul_of_nonneg_left hSqLe (norm_nonneg _)
+    _ = ‖mercerEigenval d β α hDim hβ hα j * neumannRadialCoeff β hβ k‖ * (M j) ^ 2 := by
+          simp [c]
+
+/-- Build pair-norm summability of spectral terms on product space from
+`modeTerm` `L¹` majorants and product-form coefficient summability. -/
+lemma spectralKernelTerm_prod_norm_summable_of_modeL1_majorant
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d))
+    (M : ℕ → ℝ)
+    (hMNonneg : ∀ j, 0 ≤ M j)
+    (hModeInt : ∀ j k,
+      Integrable
+        (fun w : Wristband d => modeTerm β α hDim hβ hα j k w)
+        (P : Measure (Wristband d)))
+    (hModeL1Bound : ∀ j k,
+      ∫ w, ‖modeTerm β α hDim hβ hα j k w‖ ∂(P : Measure (Wristband d)) ≤ M j)
+    (hCoeffMajor :
+      Summable
+        (fun p : ℕ × ℕ =>
+          ‖mercerEigenval d β α hDim hβ hα p.1 * neumannRadialCoeff β hβ p.2‖ *
+            (M p.1) ^ 2)) :
+    Summable
+      (fun p : ℕ × ℕ =>
+        ∫ z : Wristband d × Wristband d,
+          ‖spectralKernelTerm β α hDim hβ hα p.1 p.2 z.1 z.2‖
+        ∂((P : Measure (Wristband d)).prod (P : Measure (Wristband d)))) := by
+  refine Summable.of_nonneg_of_le ?_ ?_ hCoeffMajor
+  · intro p
+    exact integral_nonneg (fun _ => norm_nonneg _)
+  · intro p
+    exact
+      spectralKernelTerm_prod_norm_le_of_modeL1_majorant
+        β α hDim hβ hα P M hMNonneg hModeInt hModeL1Bound p.1 p.2
+
+/-- Factorized coefficient-majorant summability:
+separate `j`- and `k`-summability imply pair summability on `(j, k)`. -/
+lemma coeff_majorant_pair_summable_of_factorized
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (M : ℕ → ℝ)
+    (hAngMajor :
+      Summable
+        (fun j : ℕ => ‖mercerEigenval d β α hDim hβ hα j‖ * (M j) ^ 2))
+    (hRadMajor :
+      Summable
+        (fun k : ℕ => ‖neumannRadialCoeff β hβ k‖)) :
+    Summable
+      (fun p : ℕ × ℕ =>
+        ‖mercerEigenval d β α hDim hβ hα p.1 * neumannRadialCoeff β hβ p.2‖ *
+          (M p.1) ^ 2) := by
+  let A : ℕ → ℝ := fun j => ‖mercerEigenval d β α hDim hβ hα j‖ * (M j) ^ 2
+  let B : ℕ → ℝ := fun k => ‖neumannRadialCoeff β hβ k‖
+  have hPair : Summable (fun p : ℕ × ℕ => A p.1 * B p.2) :=
+    summable_prod_mul_of_summable_real A B hAngMajor hRadMajor
+  simpa [A, B, mul_assoc, mul_left_comm, mul_comm, norm_mul] using hPair
 
 /-- Conditional assembly: rewrite `kernelEnergy` as the spectral double sum,
 assuming pointwise kernel expansion and justified interchange. -/
@@ -1243,6 +1759,105 @@ lemma spectralEnergy_eq_kernelEnergy_of_summable_integral_norm
       hOuterOuterNorm := hOuterOuterNorm }
   exact spectralEnergy_eq_kernelEnergy_of_package β α hDim hβ hα P hPkg
 
+/-- Conditional end-to-end wrapper with majorized outer summability:
+replace `∫ ‖Σ' k, ·‖` assumptions by simpler majorants
+`Σ' k ∫ ‖·‖`, then discharge by triangle inequality + comparison. -/
+lemma spectralEnergy_eq_kernelEnergy_of_summable_integral_norm_majorized
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d))
+    (hPointwiseAng : ∀ (w w' : Wristband d),
+      Summable
+        (fun j : ℕ =>
+          mercerEigenval d β α hDim hβ hα j *
+            mercerEigenfun d β α hDim hβ hα j w.1 *
+            mercerEigenfun d β α hDim hβ hα j w'.1))
+    (hPointwiseRad : ∀ (w w' : Wristband d),
+      Summable
+        (fun k : ℕ =>
+          neumannRadialCoeff β hβ k * radialFeature k w.2 * radialFeature k w'.2))
+    (hInnerInt : ∀ w j k,
+      Integrable
+        (fun w' : Wristband d => spectralKernelTerm β α hDim hβ hα j k w w')
+        (P : Measure (Wristband d)))
+    (hInnerRowNorm : ∀ w j,
+      Summable
+        (fun k =>
+          ∫ w',
+            ‖spectralKernelTerm β α hDim hβ hα j k w w'‖
+          ∂(P : Measure (Wristband d))))
+    (hInnerOuterNormMajor : ∀ w,
+      Summable
+        (fun j =>
+          ∑' k,
+            ∫ w',
+              ‖spectralKernelTerm β α hDim hβ hα j k w w'‖
+            ∂(P : Measure (Wristband d))))
+    (hOuterInt : ∀ j k,
+      Integrable
+        (fun w : Wristband d =>
+          ∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+              ∂(P : Measure (Wristband d)))
+        (P : Measure (Wristband d)))
+    (hOuterRowNorm : ∀ j,
+      Summable
+        (fun k =>
+          ∫ w,
+            ‖∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+                ∂(P : Measure (Wristband d))‖
+            ∂(P : Measure (Wristband d))))
+    (hOuterOuterNormMajor :
+      Summable
+        (fun j =>
+          ∑' k,
+            ∫ w,
+              ‖∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+                  ∂(P : Measure (Wristband d))‖
+            ∂(P : Measure (Wristband d)))) :
+    spectralEnergy
+        (mercerEigenfun d β α hDim hβ hα)
+        (mercerEigenval d β α hDim hβ hα)
+        (neumannConstantCoeff β hβ)
+        (neumannCosineCoeff β hβ)
+        P =
+      kernelEnergy (wristbandKernelNeumann (d := d) β α) P := by
+  have hInnerOuterNorm : ∀ w,
+      Summable
+        (fun j =>
+          ∫ w',
+            ‖∑' k, spectralKernelTerm β α hDim hβ hα j k w w'‖
+          ∂(P : Measure (Wristband d))) := by
+    intro w
+    exact
+      summable_integral_norm_tsum_of_summable_tsum_integral_norm
+        (μ := (P : Measure (Wristband d)))
+        (F := fun j k (w' : Wristband d) => spectralKernelTerm β α hDim hβ hα j k w w')
+        (hInt := hInnerInt w)
+        (hRowNorm := hInnerRowNorm w)
+        (hMajor := hInnerOuterNormMajor w)
+  have hOuterOuterNorm :
+      Summable
+        (fun j =>
+          ∫ w,
+            ‖∑' k,
+                ∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+                    ∂(P : Measure (Wristband d))‖
+            ∂(P : Measure (Wristband d))) := by
+    exact
+      summable_integral_norm_tsum_of_summable_tsum_integral_norm
+        (μ := (P : Measure (Wristband d)))
+        (F := fun j k (w : Wristband d) =>
+          ∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+              ∂(P : Measure (Wristband d)))
+        (hInt := hOuterInt)
+        (hRowNorm := hOuterRowNorm)
+        (hMajor := hOuterOuterNormMajor)
+  exact
+    spectralEnergy_eq_kernelEnergy_of_summable_integral_norm
+      β α hDim hβ hα P
+      hPointwiseAng hPointwiseRad
+      hInnerInt hInnerRowNorm hInnerOuterNorm
+      hOuterInt hOuterRowNorm hOuterOuterNorm
+
 /-- Reduced-condition wrapper:
 - angular pointwise summability is derived from Mercer diagonal summability,
 - radial pointwise summability is derived from a single global summability
@@ -1317,6 +1932,284 @@ lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_integral
       hInnerInt hInnerRowNorm hInnerOuterNorm
       hOuterInt hOuterRowNorm hOuterOuterNorm
 
+/-- Reduced-condition wrapper with majorized outer summability:
+combine cosine-coefficient summability for pointwise radial convergence with
+majorant-style interchange hypotheses. -/
+lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_integral_norm_majorized
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d))
+    (hSummCos : Summable (neumannCosineCoeff β hβ))
+    (hInnerInt : ∀ w j k,
+      Integrable
+        (fun w' : Wristband d => spectralKernelTerm β α hDim hβ hα j k w w')
+        (P : Measure (Wristband d)))
+    (hInnerRowNorm : ∀ w j,
+      Summable
+        (fun k =>
+          ∫ w',
+            ‖spectralKernelTerm β α hDim hβ hα j k w w'‖
+          ∂(P : Measure (Wristband d))))
+    (hInnerOuterNormMajor : ∀ w,
+      Summable
+        (fun j =>
+          ∑' k,
+            ∫ w',
+              ‖spectralKernelTerm β α hDim hβ hα j k w w'‖
+            ∂(P : Measure (Wristband d))))
+    (hOuterInt : ∀ j k,
+      Integrable
+        (fun w : Wristband d =>
+          ∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+              ∂(P : Measure (Wristband d)))
+        (P : Measure (Wristband d)))
+    (hOuterRowNorm : ∀ j,
+      Summable
+        (fun k =>
+          ∫ w,
+            ‖∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+                ∂(P : Measure (Wristband d))‖
+            ∂(P : Measure (Wristband d))))
+    (hOuterOuterNormMajor :
+      Summable
+        (fun j =>
+          ∑' k,
+            ∫ w,
+              ‖∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+                  ∂(P : Measure (Wristband d))‖
+            ∂(P : Measure (Wristband d)))) :
+    spectralEnergy
+        (mercerEigenfun d β α hDim hβ hα)
+        (mercerEigenval d β α hDim hβ hα)
+        (neumannConstantCoeff β hβ)
+        (neumannCosineCoeff β hβ)
+        P =
+      kernelEnergy (wristbandKernelNeumann (d := d) β α) P := by
+  have hPointwiseAng : ∀ (w w' : Wristband d),
+      Summable
+        (fun j : ℕ =>
+          mercerEigenval d β α hDim hβ hα j *
+            mercerEigenfun d β α hDim hβ hα j w.1 *
+            mercerEigenfun d β α hDim hβ hα j w'.1) := by
+    intro w w'
+    exact pointwiseAngularSummable β α hDim hβ hα w w'
+  have hPointwiseRad : ∀ (w w' : Wristband d),
+      Summable
+        (fun k : ℕ =>
+          neumannRadialCoeff β hβ k * radialFeature k w.2 * radialFeature k w'.2) := by
+    intro w w'
+    exact pointwiseRadialSummable_of_summable_neumannCosineCoeff
+      (d := d) β hβ hSummCos w w'
+  exact
+    spectralEnergy_eq_kernelEnergy_of_summable_integral_norm_majorized
+      β α hDim hβ hα P
+      hPointwiseAng hPointwiseRad
+      hInnerInt hInnerRowNorm hInnerOuterNormMajor
+      hOuterInt hOuterRowNorm hOuterOuterNormMajor
+
+/-- Product-measure wrapper:
+derive the spectral/kernel identity from pointwise expansion witnesses plus
+a one-step pair-index interchange package on `(j, k)`. -/
+lemma spectralEnergy_eq_kernelEnergy_of_pair_summable_integral_norm
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d))
+    (hPointwiseAng : ∀ (w w' : Wristband d),
+      Summable
+        (fun j : ℕ =>
+          mercerEigenval d β α hDim hβ hα j *
+            mercerEigenfun d β α hDim hβ hα j w.1 *
+            mercerEigenfun d β α hDim hβ hα j w'.1))
+    (hPointwiseRad : ∀ (w w' : Wristband d),
+      Summable
+        (fun k : ℕ =>
+          neumannRadialCoeff β hβ k * radialFeature k w.2 * radialFeature k w'.2))
+    (hProdInt : ∀ j k,
+      Integrable
+        (fun z : Wristband d × Wristband d =>
+          spectralKernelTerm β α hDim hβ hα j k z.1 z.2)
+        ((P : Measure (Wristband d)).prod (P : Measure (Wristband d))))
+    (hProdNorm :
+      Summable
+        (fun p : ℕ × ℕ =>
+          ∫ z : Wristband d × Wristband d,
+            ‖spectralKernelTerm β α hDim hβ hα p.1 p.2 z.1 z.2‖
+          ∂((P : Measure (Wristband d)).prod (P : Measure (Wristband d))))) :
+    spectralEnergy
+        (mercerEigenfun d β α hDim hβ hα)
+        (mercerEigenval d β α hDim hβ hα)
+        (neumannConstantCoeff β hβ)
+        (neumannCosineCoeff β hβ)
+        P =
+      kernelEnergy (wristbandKernelNeumann (d := d) β α) P := by
+  have hPointwise : ∀ w w',
+      wristbandKernelNeumann (d := d) β α w w' =
+        ∑' j : ℕ, ∑' k : ℕ, spectralKernelTerm β α hDim hβ hα j k w w' := by
+    intro w w'
+    simpa [spectralKernelTerm] using
+      (wristbandKernelNeumann_eq_double_tsum_modeTerm_of_summable
+        β α hDim hβ hα w w' (hPointwiseAng w w') (hPointwiseRad w w'))
+  have hPointwisePair : ∀ w w',
+      Summable
+        (fun p : ℕ × ℕ =>
+          spectralKernelTerm β α hDim hβ hα p.1 p.2 w w') := by
+    intro w w'
+    exact
+      pointwiseSpectralKernelTermSummable_of_summable
+        β α hDim hβ hα w w'
+        (hPointwiseAng w w')
+        (hPointwiseRad w w')
+  have hInterchange :
+      (∫ w, ∫ w',
+        ∑' j : ℕ, ∑' k : ℕ, spectralKernelTerm β α hDim hβ hα j k w w'
+        ∂(P : Measure (Wristband d)) ∂(P : Measure (Wristband d)))
+        =
+      ∑' j : ℕ, ∑' k : ℕ,
+        ∫ w,
+          ∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+              ∂(P : Measure (Wristband d))
+        ∂(P : Measure (Wristband d)) := by
+    exact
+      kernelEnergy_double_tsum_interchange_of_pair_summable_integral_norm
+        β α hDim hβ hα P hPointwisePair hProdInt hProdNorm
+  exact
+    spectralEnergy_eq_kernelEnergy_of_expansion_and_interchange
+      β α hDim hβ hα P hPointwise hInterchange
+
+/-- Reduced-condition product-measure wrapper:
+pointwise radial summability is derived from `Summable (neumannCosineCoeff β hβ)`,
+and interchange is supplied through pair-index product assumptions. -/
+lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_pair_summable_integral_norm
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d))
+    (hSummCos : Summable (neumannCosineCoeff β hβ))
+    (hProdInt : ∀ j k,
+      Integrable
+        (fun z : Wristband d × Wristband d =>
+          spectralKernelTerm β α hDim hβ hα j k z.1 z.2)
+        ((P : Measure (Wristband d)).prod (P : Measure (Wristband d))))
+    (hProdNorm :
+      Summable
+        (fun p : ℕ × ℕ =>
+          ∫ z : Wristband d × Wristband d,
+            ‖spectralKernelTerm β α hDim hβ hα p.1 p.2 z.1 z.2‖
+          ∂((P : Measure (Wristband d)).prod (P : Measure (Wristband d))))) :
+    spectralEnergy
+        (mercerEigenfun d β α hDim hβ hα)
+        (mercerEigenval d β α hDim hβ hα)
+        (neumannConstantCoeff β hβ)
+        (neumannCosineCoeff β hβ)
+        P =
+      kernelEnergy (wristbandKernelNeumann (d := d) β α) P := by
+  have hPointwiseAng : ∀ (w w' : Wristband d),
+      Summable
+        (fun j : ℕ =>
+          mercerEigenval d β α hDim hβ hα j *
+            mercerEigenfun d β α hDim hβ hα j w.1 *
+            mercerEigenfun d β α hDim hβ hα j w'.1) := by
+    intro w w'
+    exact pointwiseAngularSummable β α hDim hβ hα w w'
+  have hPointwiseRad : ∀ (w w' : Wristband d),
+      Summable
+        (fun k : ℕ =>
+          neumannRadialCoeff β hβ k * radialFeature k w.2 * radialFeature k w'.2) := by
+    intro w w'
+    exact pointwiseRadialSummable_of_summable_neumannCosineCoeff
+      (d := d) β hβ hSummCos w w'
+  exact
+    spectralEnergy_eq_kernelEnergy_of_pair_summable_integral_norm
+      β α hDim hβ hα P
+      hPointwiseAng hPointwiseRad
+      hProdInt hProdNorm
+
+/-- Reduced-condition product wrapper derived from `modeTerm` `L¹` majorants.
+
+This further decomposes the pair-interchange obligations into:
+- pointwise angular/radial summability (radial from `hSummCos`),
+- `modeTerm` integrability,
+- row-independent `L¹` majorants `M j`,
+- summability of the coefficient-majorant product over `(j,k)`. -/
+lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_modeL1_majorant
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d))
+    (hSummCos : Summable (neumannCosineCoeff β hβ))
+    (M : ℕ → ℝ)
+    (hMNonneg : ∀ j, 0 ≤ M j)
+    (hModeInt : ∀ j k,
+      Integrable
+        (fun w : Wristband d => modeTerm β α hDim hβ hα j k w)
+        (P : Measure (Wristband d)))
+    (hModeL1Bound : ∀ j k,
+      ∫ w, ‖modeTerm β α hDim hβ hα j k w‖ ∂(P : Measure (Wristband d)) ≤ M j)
+    (hCoeffMajor :
+      Summable
+        (fun p : ℕ × ℕ =>
+          ‖mercerEigenval d β α hDim hβ hα p.1 * neumannRadialCoeff β hβ p.2‖ *
+            (M p.1) ^ 2)) :
+    spectralEnergy
+        (mercerEigenfun d β α hDim hβ hα)
+        (mercerEigenval d β α hDim hβ hα)
+        (neumannConstantCoeff β hβ)
+        (neumannCosineCoeff β hβ)
+        P =
+      kernelEnergy (wristbandKernelNeumann (d := d) β α) P := by
+  have hProdInt :
+      ∀ j k,
+        Integrable
+          (fun z : Wristband d × Wristband d =>
+            spectralKernelTerm β α hDim hβ hα j k z.1 z.2)
+          ((P : Measure (Wristband d)).prod (P : Measure (Wristband d))) := by
+    exact
+      spectralKernelTerm_prod_integrable_of_modeTerm_integrable
+        β α hDim hβ hα P hModeInt
+  have hProdNorm :
+      Summable
+        (fun p : ℕ × ℕ =>
+          ∫ z : Wristband d × Wristband d,
+            ‖spectralKernelTerm β α hDim hβ hα p.1 p.2 z.1 z.2‖
+          ∂((P : Measure (Wristband d)).prod (P : Measure (Wristband d)))) := by
+    exact
+      spectralKernelTerm_prod_norm_summable_of_modeL1_majorant
+        β α hDim hβ hα P M hMNonneg hModeInt hModeL1Bound hCoeffMajor
+  exact
+    spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_pair_summable_integral_norm
+      β α hDim hβ hα P hSummCos hProdInt hProdNorm
+
+/-- Further reduced `modeL1` wrapper:
+the pair coefficient majorant is produced from factorized `j`/`k` summability. -/
+lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_modeL1_majorant_factorized
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d))
+    (hSummCos : Summable (neumannCosineCoeff β hβ))
+    (M : ℕ → ℝ)
+    (hMNonneg : ∀ j, 0 ≤ M j)
+    (hModeInt : ∀ j k,
+      Integrable
+        (fun w : Wristband d => modeTerm β α hDim hβ hα j k w)
+        (P : Measure (Wristband d)))
+    (hModeL1Bound : ∀ j k,
+      ∫ w, ‖modeTerm β α hDim hβ hα j k w‖ ∂(P : Measure (Wristband d)) ≤ M j)
+    (hAngMajor :
+      Summable
+        (fun j : ℕ => ‖mercerEigenval d β α hDim hβ hα j‖ * (M j) ^ 2)) :
+    spectralEnergy
+        (mercerEigenfun d β α hDim hβ hα)
+        (mercerEigenval d β α hDim hβ hα)
+        (neumannConstantCoeff β hβ)
+        (neumannCosineCoeff β hβ)
+        P =
+      kernelEnergy (wristbandKernelNeumann (d := d) β α) P := by
+  have hRadSumm : Summable (neumannRadialCoeff β hβ) :=
+    summable_neumannRadialCoeff_of_summable_neumannCosineCoeff β hβ hSummCos
+  have hRadMajor : Summable (fun k : ℕ => ‖neumannRadialCoeff β hβ k‖) := hRadSumm.norm
+  have hCoeffMajor :
+      Summable
+        (fun p : ℕ × ℕ =>
+          ‖mercerEigenval d β α hDim hβ hα p.1 * neumannRadialCoeff β hβ p.2‖ *
+            (M p.1) ^ 2) := by
+    exact coeff_majorant_pair_summable_of_factorized β α hDim hβ hα M hAngMajor hRadMajor
+  exact
+    spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_modeL1_majorant
+      β α hDim hβ hα P hSummCos M hMNonneg hModeInt hModeL1Bound hCoeffMajor
+
 /- TODO(spectralEnergy_eq_kernelEnergy, pinned):
 To replace the `sorry` in `spectralEnergy_eq_kernelEnergy`, we need to discharge
 the hypotheses currently made explicit in
@@ -1329,14 +2222,26 @@ Concretely, we still need packaged assumptions/lemmas for:
    (Partially reduced: this now follows from
    `Summable (neumannCosineCoeff β hβ)` via
    `pointwiseRadialSummable_of_summable_neumannCosineCoeff`.)
-3. The remaining inner/outer norm-summability side conditions required by
-   `kernelEnergy_double_tsum_interchange_of_summable_integral_norm`.
-   (The row-`tsum` integrability assumptions are now derived locally via
-   `integrable_tsum_of_summable_integral_norm_real`.)
+3. Interchange-side control for `∫∫` and `Σ'_j Σ'_k`.
+   Three equivalent entry-point families are now available:
+   - direct `∫ ‖Σ' k, ·‖` assumptions (original wrappers), or
+   - majorant assumptions `Σ' k ∫ ‖·‖` via
+     `summable_integral_norm_tsum_of_summable_tsum_integral_norm`
+     and wrappers ending in `_majorized`, or
+   - one-step product assumptions:
+     `hProdInt` + `hProdNorm` via
+     `kernelEnergy_double_tsum_interchange_of_pair_summable_integral_norm`
+     and wrappers ending in `_pair_summable_integral_norm`, or
+   - `modeTerm`-level assumptions:
+     integrability + `L¹` majorants via
+     `spectralKernelTerm_prod_norm_summable_of_modeL1_majorant`
+     and wrappers ending in `_modeL1_majorant` /
+     `_modeL1_majorant_factorized`.
 
 Likely completion path:
-- either strengthen imported facts so these are available in witness form, or
-- add local wrappers that derive them from existing imported assumptions. -/
+- either strengthen imported facts so these witness families are available, or
+- derive one of the `_majorized` / `_pair_summable_integral_norm`
+  assumption packages from existing kernel/operator bounds. -/
 
 /-! ### The main spectral energy identity -/
 
