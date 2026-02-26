@@ -105,6 +105,110 @@ lemma kernelAngChordal_mercerExpansion_witness
           mercerEigenfun d β α hDim hβ hα j v :=
   (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.2.2.1 u v
 
+/-- Summability of the diagonal Mercer series at a fixed point `u`. -/
+lemma mercerDiagonalSeries_summable
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (u : Sphere d) :
+    Summable
+      (fun j : ℕ =>
+        mercerEigenval d β α hDim hβ hα j *
+          mercerEigenfun d β α hDim hβ hα j u *
+          mercerEigenfun d β α hDim hβ hα j u) := by
+  let diag : ℕ → ℝ := fun j =>
+    mercerEigenval d β α hDim hβ hα j *
+      mercerEigenfun d β α hDim hβ hα j u *
+      mercerEigenfun d β α hDim hβ hα j u
+  have hDiagEq : kernelAngChordal β α u u = ∑' j : ℕ, diag j := by
+    simpa [diag] using kernelAngChordal_mercerExpansion_witness β α hDim hβ hα u u
+  have hOne : kernelAngChordal β α u u = 1 := by
+    simp [kernelAngChordal, sphereInner]
+  by_contra hNot
+  have hZero : (∑' j : ℕ, diag j) = 0 := tsum_eq_zero_of_not_summable hNot
+  have : (1 : ℝ) = 0 := by
+    calc
+      (1 : ℝ) = kernelAngChordal β α u u := hOne.symm
+      _ = ∑' j : ℕ, diag j := hDiagEq
+      _ = 0 := hZero
+  exact one_ne_zero this
+
+/-- Pointwise summability of the Mercer angular series at `(u, v)`. -/
+lemma mercerPointwiseSummable
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (u v : Sphere d) :
+    Summable
+      (fun j : ℕ =>
+        mercerEigenval d β α hDim hβ hα j *
+          mercerEigenfun d β α hDim hβ hα j u *
+          mercerEigenfun d β α hDim hβ hα j v) := by
+  let diagU : ℕ → ℝ := fun j =>
+    mercerEigenval d β α hDim hβ hα j *
+      (mercerEigenfun d β α hDim hβ hα j u) ^ 2
+  let diagV : ℕ → ℝ := fun j =>
+    mercerEigenval d β α hDim hβ hα j *
+      (mercerEigenfun d β α hDim hβ hα j v) ^ 2
+  have hSumU : Summable diagU := by
+    simpa [diagU, pow_two, mul_assoc] using
+      (mercerDiagonalSeries_summable β α hDim hβ hα u)
+  have hSumV : Summable diagV := by
+    simpa [diagV, pow_two, mul_assoc] using
+      (mercerDiagonalSeries_summable β α hDim hβ hα v)
+  let term : ℕ → ℝ := fun j =>
+    mercerEigenval d β α hDim hβ hα j *
+      mercerEigenfun d β α hDim hβ hα j u *
+      mercerEigenfun d β α hDim hβ hα j v
+  let major : ℕ → ℝ := fun j => (2 : ℝ)⁻¹ * (diagU j + diagV j)
+  have hMajor : Summable major := by
+    simpa [major] using ((hSumU.add hSumV).mul_left ((2 : ℝ)⁻¹))
+  have hLe : ∀ j : ℕ, |term j| ≤ major j := by
+    intro j
+    have hLam : 0 ≤ mercerEigenval d β α hDim hβ hα j :=
+      mercerEigenval_nonneg d β α hDim hβ hα j
+    have hUV :
+        2 * |mercerEigenfun d β α hDim hβ hα j u *
+              mercerEigenfun d β α hDim hβ hα j v|
+          ≤ (mercerEigenfun d β α hDim hβ hα j u) ^ 2 +
+            (mercerEigenfun d β α hDim hβ hα j v) ^ 2 := by
+      have hRaw := two_mul_le_add_sq
+        (|mercerEigenfun d β α hDim hβ hα j u|)
+        (|mercerEigenfun d β α hDim hβ hα j v|)
+      simpa [abs_mul, abs_mul_abs_self, mul_assoc] using hRaw
+    have hHalf :
+        |mercerEigenfun d β α hDim hβ hα j u *
+            mercerEigenfun d β α hDim hβ hα j v|
+          ≤ ((mercerEigenfun d β α hDim hβ hα j u) ^ 2 +
+              (mercerEigenfun d β α hDim hβ hα j v) ^ 2) / 2 := by
+      linarith [hUV]
+    calc
+      |term j|
+          = |mercerEigenval d β α hDim hβ hα j| *
+              |mercerEigenfun d β α hDim hβ hα j u *
+                mercerEigenfun d β α hDim hβ hα j v| := by
+              simp [term, abs_mul, mul_assoc]
+      _ ≤ mercerEigenval d β α hDim hβ hα j *
+            (((mercerEigenfun d β α hDim hβ hα j u) ^ 2 +
+              (mercerEigenfun d β α hDim hβ hα j v) ^ 2) / 2) := by
+            rw [abs_of_nonneg hLam]
+            exact mul_le_mul_of_nonneg_left hHalf hLam
+      _ = major j := by
+            simp [major, diagU, diagV]
+            ring
+  have hAbs : Summable (fun j => |term j|) :=
+    Summable.of_nonneg_of_le (fun _ => abs_nonneg _) hLe hMajor
+  have hNorm : Summable (fun j => ‖term j‖) := by
+    simpa [Real.norm_eq_abs] using hAbs
+  simpa [term] using hNorm.of_norm
+
+/-- Pointwise angular summability on wristband space. -/
+lemma pointwiseAngularSummable
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (w w' : Wristband d) :
+    Summable
+      (fun j : ℕ =>
+        mercerEigenval d β α hDim hβ hα j *
+          mercerEigenfun d β α hDim hβ hα j w.1 *
+          mercerEigenfun d β α hDim hβ hα j w'.1) := by
+  simpa using mercerPointwiseSummable β α hDim hβ hα w.1 w'.1
+
 /-- Radial cosine expansion rewritten in extracted witness notation. -/
 lemma kernelRadNeumann_cosineExpansion_witness
     (β : ℝ) (hβ : 0 < β) (t t' : UnitInterval) :
@@ -1030,18 +1134,14 @@ lemma spectralEnergy_eq_kernelEnergy_of_summable_integral_norm
       hOuterOuterNorm := hOuterOuterNorm }
   exact spectralEnergy_eq_kernelEnergy_of_package β α hDim hβ hα P hPkg
 
-/-- Reduced-condition wrapper: the radial pointwise summability field is derived
-from a single global summability assumption on cosine coefficients. -/
+/-- Reduced-condition wrapper:
+- angular pointwise summability is derived from Mercer diagonal summability,
+- radial pointwise summability is derived from a single global summability
+  assumption on cosine coefficients. -/
 lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_integral_norm
     {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
     (P : Distribution (Wristband d))
     (hSummCos : Summable (neumannCosineCoeff β hβ))
-    (hPointwiseAng : ∀ (w w' : Wristband d),
-      Summable
-        (fun j : ℕ =>
-          mercerEigenval d β α hDim hβ hα j *
-            mercerEigenfun d β α hDim hβ hα j w.1 *
-            mercerEigenfun d β α hDim hβ hα j w'.1))
     (hInnerInt : ∀ w j k,
       Integrable
         (fun w' : Wristband d => spectralKernelTerm β α hDim hβ hα j k w w')
@@ -1098,6 +1198,14 @@ lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_integral
         (neumannCosineCoeff β hβ)
         P =
       kernelEnergy (wristbandKernelNeumann (d := d) β α) P := by
+  have hPointwiseAng : ∀ (w w' : Wristband d),
+      Summable
+        (fun j : ℕ =>
+          mercerEigenval d β α hDim hβ hα j *
+            mercerEigenfun d β α hDim hβ hα j w.1 *
+            mercerEigenfun d β α hDim hβ hα j w'.1) := by
+    intro w w'
+    exact pointwiseAngularSummable β α hDim hβ hα w w'
   have hPointwiseRad : ∀ (w w' : Wristband d),
       Summable
         (fun k : ℕ =>
@@ -1119,6 +1227,7 @@ the hypotheses currently made explicit in
 
 Concretely, we still need packaged assumptions/lemmas for:
 1. Pointwise summability of the angular series at every `(w, w')`.
+   (Discharged locally via `pointwiseAngularSummable`.)
 2. Pointwise summability of the extended radial series at every `(w, w')`.
    (Partially reduced: this now follows from
    `Summable (neumannCosineCoeff β hβ)` via
