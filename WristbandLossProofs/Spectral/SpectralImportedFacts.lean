@@ -47,9 +47,16 @@ or locally derivable (from orthonormality + sphere symmetry).
        (valid since `sphereUniform d` is a probability measure).
 
     **Source**: Mercer (1909); Steinwart–Christmann (2008), Theorem 4.49.
-    `kernelAngChordal β α` is continuous, symmetric, and PSD
-    (`kernelAngChordal_posSemiDef`), so Mercer's theorem applies on the
-    compact metric space `Sphere d` with probability surface measure `sphereUniform d`.
+    The chain of reasoning is:
+    - *Compactness of `T_K`:* `kernelAngChordal β α` is continuous on the compact
+      space `Sphere d`, so `K ∈ L²(σ ⊗ σ)` and `T_K` is Hilbert–Schmidt, hence compact.
+    - *Self-adjointness of `T_K`:* the kernel is symmetric (`K(u,v) = K(v,u)`).
+    - *Nonnegativity of eigenvalues:* the kernel is PSD (`kernelAngChordal_posSemiDef`),
+      so `⟨T_K f, f⟩ ≥ 0`, giving `λv j ≥ 0` (clause 1).
+    These three properties are standard functional analysis; they yield the countable
+    orthonormal eigenbasis. **Mercer's theorem** is the separate, stronger statement
+    that the eigenexpansion in clause (3) converges *pointwise* (not merely in `L²`),
+    which holds for continuous PSD kernels on compact metric spaces.
 
     **Mathlib status**: Mathlib has spectral theory for compact operators
     (`Analysis.InnerProductSpace.Spectrum`) but not the Mercer pointwise
