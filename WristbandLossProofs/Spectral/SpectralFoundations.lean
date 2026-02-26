@@ -1,5 +1,6 @@
 import WristbandLossProofs.Spectral.SpectralImportedFacts
 import WristbandLossProofs.KernelFoundations
+import WristbandLossProofs.KernelMinimization
 
 set_option autoImplicit false
 
@@ -13,7 +14,7 @@ open scoped BigOperators
 /-! ## Spectral Foundations
 
 Local lemmas for the spectral energy branch.  Most proofs are complete;
-2 unconditional forms remain as `sorry` (conditional endpoints proved).
+1 unconditional form remains as `sorry` (conditional endpoints proved).
 
 ### Proof obligations summary
 
@@ -158,6 +159,94 @@ To remove the explicit `Summable` hypothesis in
 
 Until that is discharged, downstream helper lemmas can thread this summability
 assumption explicitly. -/
+
+/-- Absolute value bound for the unified radial feature family. -/
+lemma abs_radialFeature_le_one (k : ℕ) (t : UnitInterval) :
+    |radialFeature k t| ≤ 1 := by
+  by_cases hk : k = 0
+  · simp [radialFeature, hk]
+  · simp [radialFeature, hk, Real.abs_cos_le_one]
+
+/-- If cosine-mode coefficients are summable, then the extended radial
+coefficient sequence is summable. -/
+lemma summable_neumannRadialCoeff_of_summable_neumannCosineCoeff
+    (β : ℝ) (hβ : 0 < β)
+    (hSummCos : Summable (neumannCosineCoeff β hβ)) :
+    Summable (neumannRadialCoeff β hβ) := by
+  have hTail : Summable (fun k : ℕ => neumannRadialCoeff β hβ (k + 1)) := by
+    simpa [neumannRadialCoeff, radialCoeff] using hSummCos
+  exact (summable_nat_add_iff 1).1 hTail
+
+/-- Pointwise summability of the extended radial expansion follows from a
+single global summability assumption on cosine coefficients. -/
+lemma summable_extended_radial_series_of_summable_neumannCosineCoeff
+    (β : ℝ) (hβ : 0 < β)
+    (hSummCos : Summable (neumannCosineCoeff β hβ))
+    (t t' : UnitInterval) :
+    Summable
+      (fun k : ℕ =>
+        neumannRadialCoeff β hβ k * radialFeature k t * radialFeature k t') := by
+  let term : ℕ → ℝ := fun k =>
+    neumannRadialCoeff β hβ k * radialFeature k t * radialFeature k t'
+  have hCoeff : Summable (neumannRadialCoeff β hβ) :=
+    summable_neumannRadialCoeff_of_summable_neumannCosineCoeff β hβ hSummCos
+  have hAbs : Summable (fun k : ℕ => |term k|) := by
+    refine Summable.of_nonneg_of_le (fun _ => abs_nonneg _) ?_ hCoeff
+    intro k
+    have hCoeffNonneg : 0 ≤ neumannRadialCoeff β hβ k :=
+      neumannRadialCoeff_nonneg β hβ k
+    have hRad : |radialFeature k t| ≤ 1 :=
+      abs_radialFeature_le_one k t
+    have hRad' : |radialFeature k t'| ≤ 1 :=
+      abs_radialFeature_le_one k t'
+    have hProd : |radialFeature k t * radialFeature k t'| ≤ 1 := by
+      calc
+        |radialFeature k t * radialFeature k t'|
+            = |radialFeature k t| * |radialFeature k t'| := abs_mul _ _
+        _ ≤ 1 * 1 := by
+            exact mul_le_mul hRad hRad' (abs_nonneg _) (by positivity)
+        _ = 1 := by norm_num
+    calc
+      |term k|
+          = |neumannRadialCoeff β hβ k| *
+              |radialFeature k t * radialFeature k t'| := by
+              simpa [term, mul_assoc] using
+                (abs_mul (neumannRadialCoeff β hβ k)
+                  (radialFeature k t * radialFeature k t'))
+      _ ≤ neumannRadialCoeff β hβ k * 1 := by
+            rw [abs_of_nonneg hCoeffNonneg]
+            exact mul_le_mul_of_nonneg_left hProd hCoeffNonneg
+      _ = neumannRadialCoeff β hβ k := by ring
+  have hNorm : Summable (fun k : ℕ => ‖term k‖) := by
+    simpa [Real.norm_eq_abs] using hAbs
+  exact hNorm.of_norm
+
+/-- Unconditional wrapper for the extended-index radial expansion, assuming
+global summability of cosine-mode coefficients. -/
+lemma kernelRadNeumann_spectralExpansion_extended_of_summable_neumannCosineCoeff
+    (β : ℝ) (hβ : 0 < β)
+    (hSummCos : Summable (neumannCosineCoeff β hβ))
+    (t t' : UnitInterval) :
+    kernelRadNeumann β t t' =
+      ∑' k : ℕ,
+        neumannRadialCoeff β hβ k * radialFeature k t * radialFeature k t' := by
+  exact
+    kernelRadNeumann_spectralExpansion_extended_of_summable β hβ t t'
+      (summable_extended_radial_series_of_summable_neumannCosineCoeff
+        β hβ hSummCos t t')
+
+/-- Pointwise radial summability on wristband space from the same global
+coefficient summability assumption. -/
+lemma pointwiseRadialSummable_of_summable_neumannCosineCoeff
+    {d : ℕ} (β : ℝ) (hβ : 0 < β)
+    (hSummCos : Summable (neumannCosineCoeff β hβ))
+    (w w' : Wristband d) :
+    Summable
+      (fun k : ℕ =>
+        neumannRadialCoeff β hβ k * radialFeature k w.2 * radialFeature k w'.2) := by
+  simpa using
+    (summable_extended_radial_series_of_summable_neumannCosineCoeff
+      β hβ hSummCos w.2 w'.2)
 
 /-! ### Integrals Vanishing At Uniform Measure -/
 
@@ -941,6 +1030,88 @@ lemma spectralEnergy_eq_kernelEnergy_of_summable_integral_norm
       hOuterOuterNorm := hOuterOuterNorm }
   exact spectralEnergy_eq_kernelEnergy_of_package β α hDim hβ hα P hPkg
 
+/-- Reduced-condition wrapper: the radial pointwise summability field is derived
+from a single global summability assumption on cosine coefficients. -/
+lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_integral_norm
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d))
+    (hSummCos : Summable (neumannCosineCoeff β hβ))
+    (hPointwiseAng : ∀ (w w' : Wristband d),
+      Summable
+        (fun j : ℕ =>
+          mercerEigenval d β α hDim hβ hα j *
+            mercerEigenfun d β α hDim hβ hα j w.1 *
+            mercerEigenfun d β α hDim hβ hα j w'.1))
+    (hInnerInt : ∀ w j k,
+      Integrable
+        (fun w' : Wristband d => spectralKernelTerm β α hDim hβ hα j k w w')
+        (P : Measure (Wristband d)))
+    (hInnerRowNorm : ∀ w j,
+      Summable
+        (fun k =>
+          ∫ w',
+            ‖spectralKernelTerm β α hDim hβ hα j k w w'‖
+          ∂(P : Measure (Wristband d))))
+    (hInnerOuterInt : ∀ w j,
+      Integrable
+        (fun w' : Wristband d =>
+          ∑' k, spectralKernelTerm β α hDim hβ hα j k w w')
+        (P : Measure (Wristband d)))
+    (hInnerOuterNorm : ∀ w,
+      Summable
+        (fun j =>
+          ∫ w',
+            ‖∑' k, spectralKernelTerm β α hDim hβ hα j k w w'‖
+          ∂(P : Measure (Wristband d))))
+    (hOuterInt : ∀ j k,
+      Integrable
+        (fun w : Wristband d =>
+          ∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+              ∂(P : Measure (Wristband d)))
+        (P : Measure (Wristband d)))
+    (hOuterRowNorm : ∀ j,
+      Summable
+        (fun k =>
+          ∫ w,
+            ‖∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+                ∂(P : Measure (Wristband d))‖
+            ∂(P : Measure (Wristband d))))
+    (hOuterOuterInt : ∀ j,
+      Integrable
+        (fun w : Wristband d =>
+          ∑' k,
+            ∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+                ∂(P : Measure (Wristband d)))
+        (P : Measure (Wristband d)))
+    (hOuterOuterNorm :
+      Summable
+        (fun j =>
+          ∫ w,
+            ‖∑' k,
+                ∫ w', spectralKernelTerm β α hDim hβ hα j k w w'
+                    ∂(P : Measure (Wristband d))‖
+            ∂(P : Measure (Wristband d)))) :
+    spectralEnergy
+        (mercerEigenfun d β α hDim hβ hα)
+        (mercerEigenval d β α hDim hβ hα)
+        (neumannConstantCoeff β hβ)
+        (neumannCosineCoeff β hβ)
+        P =
+      kernelEnergy (wristbandKernelNeumann (d := d) β α) P := by
+  have hPointwiseRad : ∀ (w w' : Wristband d),
+      Summable
+        (fun k : ℕ =>
+          neumannRadialCoeff β hβ k * radialFeature k w.2 * radialFeature k w'.2) := by
+    intro w w'
+    exact pointwiseRadialSummable_of_summable_neumannCosineCoeff
+      (d := d) β hβ hSummCos w w'
+  exact
+    spectralEnergy_eq_kernelEnergy_of_summable_integral_norm
+      β α hDim hβ hα P
+      hPointwiseAng hPointwiseRad
+      hInnerInt hInnerRowNorm hInnerOuterInt hInnerOuterNorm
+      hOuterInt hOuterRowNorm hOuterOuterInt hOuterOuterNorm
+
 /- TODO(spectralEnergy_eq_kernelEnergy, pinned):
 To replace the `sorry` in `spectralEnergy_eq_kernelEnergy`, we need to discharge
 the hypotheses currently made explicit in
@@ -948,8 +1119,10 @@ the hypotheses currently made explicit in
 
 Concretely, we still need packaged assumptions/lemmas for:
 1. Pointwise summability of the angular series at every `(w, w')`.
-2. Pointwise summability of the extended radial series at every `(w, w')`
-   (this is linked to TODO(kernelRadNeumann_extended_index)).
+2. Pointwise summability of the extended radial series at every `(w, w')`.
+   (Partially reduced: this now follows from
+   `Summable (neumannCosineCoeff β hβ)` via
+   `pointwiseRadialSummable_of_summable_neumannCosineCoeff`.)
 3. The inner/outer integrability + norm-summability side conditions required by
    `kernelEnergy_double_tsum_interchange_of_summable_integral_norm`.
 
@@ -1225,6 +1398,28 @@ lemma spectralEnergy_nonneg_excess
         (neumannConstantCoeff β hβ)
         (neumannCosineCoeff β hβ)
         P := by
-  sorry
+  have hKernelMin :
+      kernelEnergy (wristbandKernelNeumann (d := d) β α) (wristbandUniform d) ≤
+        kernelEnergy (wristbandKernelNeumann (d := d) β α) P := by
+    exact kernelEnergy_minimized_at_uniform d hDim β α hβ hα P
+  calc
+    spectralEnergy
+        (mercerEigenfun d β α hDim hβ hα)
+        (mercerEigenval d β α hDim hβ hα)
+        (neumannConstantCoeff β hβ)
+        (neumannCosineCoeff β hβ)
+        (wristbandUniform d)
+        = kernelEnergy (wristbandKernelNeumann (d := d) β α) (wristbandUniform d) := by
+          exact
+            spectralEnergy_eq_kernelEnergy (d := d) β α hDim hβ hα (wristbandUniform d)
+    _ ≤ kernelEnergy (wristbandKernelNeumann (d := d) β α) P := hKernelMin
+    _ = spectralEnergy
+          (mercerEigenfun d β α hDim hβ hα)
+          (mercerEigenval d β α hDim hβ hα)
+          (neumannConstantCoeff β hβ)
+          (neumannCosineCoeff β hβ)
+          P := by
+            symm
+            exact spectralEnergy_eq_kernelEnergy (d := d) β α hDim hβ hα P
 
 end WristbandLossProofs
