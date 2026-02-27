@@ -13,8 +13,7 @@ open scoped BigOperators
 
 /-! ## Spectral Foundations
 
-Local lemmas for the spectral energy branch.  Most proofs are complete;
-1 unconditional form remains as `sorry` (conditional endpoints proved).
+Local lemmas for the spectral energy branch.
 
 ### Proof obligations summary
 
@@ -28,34 +27,7 @@ Local lemmas for the spectral energy branch.  Most proofs are complete;
 | `spectralEnergy_nonneg_excess` | all terms non-negative; (0,0) term constant | order lemmas |
 -/
 
-/-! ### Witness extraction from axioms -/
-
-/-- Angular eigenfunctions extracted from the Mercer axiom. -/
-noncomputable def mercerEigenfun
-    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) :
-    ℕ → Sphere d → ℝ :=
-  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose
-
-/-- Angular eigenvalues extracted from the Mercer axiom. -/
-noncomputable def mercerEigenval
-    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) :
-    ℕ → ℝ :=
-  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose
-
-/-- Constant-mode radial coefficient (`a0`) extracted from the Neumann cosine axiom. -/
-noncomputable def neumannConstantCoeff (β : ℝ) (hβ : 0 < β) : ℝ :=
-  (kernelRadNeumann_hasCosineExpansion β hβ).choose
-
-/-- Cosine-mode radial coefficients (`a k`) extracted from the Neumann cosine axiom. -/
-noncomputable def neumannCosineCoeff (β : ℝ) (hβ : 0 < β) : ℕ → ℝ :=
-  (kernelRadNeumann_hasCosineExpansion β hβ).choose_spec.choose
-
-/-- Shorthand: the full radial coefficient sequence `radialCoeff a0 a` for
-    the Neumann kernel, combining the constant and cosine witnesses. -/
-noncomputable def neumannRadialCoeff (β : ℝ) (hβ : 0 < β) : ℕ → ℝ :=
-  radialCoeff (neumannConstantCoeff β hβ) (neumannCosineCoeff β hβ)
-
-/-! ### Properties of witnesses (from the axiom spec) -/
+/-! ### Properties of imported witnesses -/
 
 lemma mercerEigenval_nonneg
     (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (j : ℕ) :
@@ -2210,39 +2182,6 @@ lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_modeL1_m
     spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_modeL1_majorant
       β α hDim hβ hα P hSummCos M hMNonneg hModeInt hModeL1Bound hCoeffMajor
 
-/- TODO(spectralEnergy_eq_kernelEnergy, pinned):
-To replace the `sorry` in `spectralEnergy_eq_kernelEnergy`, we need to discharge
-the hypotheses currently made explicit in
-`spectralEnergy_eq_kernelEnergy_of_summable_integral_norm`.
-
-Concretely, we still need packaged assumptions/lemmas for:
-1. Pointwise summability of the angular series at every `(w, w')`.
-   (Discharged locally via `pointwiseAngularSummable`.)
-2. Pointwise summability of the extended radial series at every `(w, w')`.
-   (Partially reduced: this now follows from
-   `Summable (neumannCosineCoeff β hβ)` via
-   `pointwiseRadialSummable_of_summable_neumannCosineCoeff`.)
-3. Interchange-side control for `∫∫` and `Σ'_j Σ'_k`.
-   Three equivalent entry-point families are now available:
-   - direct `∫ ‖Σ' k, ·‖` assumptions (original wrappers), or
-   - majorant assumptions `Σ' k ∫ ‖·‖` via
-     `summable_integral_norm_tsum_of_summable_tsum_integral_norm`
-     and wrappers ending in `_majorized`, or
-   - one-step product assumptions:
-     `hProdInt` + `hProdNorm` via
-     `kernelEnergy_double_tsum_interchange_of_pair_summable_integral_norm`
-     and wrappers ending in `_pair_summable_integral_norm`, or
-   - `modeTerm`-level assumptions:
-     integrability + `L¹` majorants via
-     `spectralKernelTerm_prod_norm_summable_of_modeL1_majorant`
-     and wrappers ending in `_modeL1_majorant` /
-     `_modeL1_majorant_factorized`.
-
-Likely completion path:
-- either strengthen imported facts so these witness families are available, or
-- derive one of the `_majorized` / `_pair_summable_integral_norm`
-  assumption packages from existing kernel/operator bounds. -/
-
 /-! ### The main spectral energy identity -/
 
 /-- **Spectral energy equals kernel energy**.
@@ -2271,7 +2210,23 @@ lemma spectralEnergy_eq_kernelEnergy
         (neumannCosineCoeff β hβ)
         P =
       kernelEnergy (wristbandKernelNeumann (d := d) β α) P := by
-  sorry
+  let hSummCos : Summable (neumannCosineCoeff β hβ) :=
+    summable_neumannCosineCoeff_imported β hβ
+  obtain ⟨M, hMNonneg, hModeIntRaw, hModeL1BoundRaw, hAngMajor⟩ :=
+    spectral_modeL1_factorized_bridge_imported β α hDim hβ hα P
+  have hModeInt : ∀ j k,
+      Integrable
+        (fun w : Wristband d => modeTerm β α hDim hβ hα j k w)
+        (P : Measure (Wristband d)) := by
+    intro j k
+    simpa [modeTerm] using hModeIntRaw j k
+  have hModeL1Bound : ∀ j k,
+      ∫ w, ‖modeTerm β α hDim hβ hα j k w‖ ∂(P : Measure (Wristband d)) ≤ M j := by
+    intro j k
+    simpa [modeTerm] using hModeL1BoundRaw j k
+  simpa using
+    spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_modeL1_majorant_factorized
+      β α hDim hβ hα P hSummCos M hMNonneg hModeInt hModeL1Bound hAngMajor
 
 /-! ### Non-negative excess energy -/
 
