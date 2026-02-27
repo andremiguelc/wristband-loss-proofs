@@ -5,7 +5,7 @@ This document is the companion to `docs/proof_guide.md` for the
 
 1. **What** the spectral decomposition is (mathematically).
 2. **How** it connects to the existing kernel energy proofs.
-3. **Where** it lives in the Lean files and what remains to be proved.
+3. **Where** it lives in the Lean files and which pieces are imported vs proved.
 
 **Related documents:**
 - Mathematical derivation (spherical harmonics, Bessel eigenvalues): `docs/posts/spectral/spectral_harmonics.md`
@@ -83,9 +83,9 @@ The spectral branch **does not replace** the existing proofs — it imports them
 | File | Contents | Status |
 |------|----------|--------|
 | `SpectralPrimitives.lean` | `radialFeature`, `radialCoeff`, `modeProj`, `spectralEnergy` | Definitions only |
-| `SpectralImportedFacts.lean` | `kernelAngChordal_mercerExpansion` (sole new axiom) | 1 axiom |
-| `SpectralFoundations.lean` | Witness extraction, supporting lemmas, conditional endpoints | 1 `sorry` remaining |
-| `SpectralMinimization.lean` | 3 main theorems | All bodies complete; transitively blocked by 1 `SpectralFoundations` sorry |
+| `SpectralImportedFacts.lean` | Mercer axiom + imported closure bridges + witness extractions | 3 axioms |
+| `SpectralFoundations.lean` | Supporting lemmas, bridge consumption, spectral identity | No `sorry` |
+| `SpectralMinimization.lean` | 3 main theorems | All bodies complete |
 
 ---
 
@@ -100,7 +100,7 @@ For code, complexity analysis, and engineering decisions, see
 |--------|------|------|
 | `cos_mat = cos(π * k_range * t)` (k=0 col is all 1's) | $f_0(t) = 1$; $f_k(t) = \cos(k\pi t)$ for $k \geq 1$ | `radialFeature k t` (`SpectralPrimitives.lean:45`) |
 | `a_0 = sqrt(pi/beta)`; `a_k = 2*sqrt(pi/beta)*exp(...)` | $\tilde{a}_0 = a_0$; $\tilde{a}_k = a_{k-1}$ for $k \geq 1$ | `radialCoeff a0 a k` (`SpectralPrimitives.lean:55`) |
-| $\ell=0$: constant; $\ell=1$: `sqrt(d)*u_m`. Eigenvalues via Bessel. | $\varphi_j : S^{d-1} \to \mathbb{R}$, orthonormal; $\lambda_j \geq 0$; $\varphi_0 \equiv 1$ | `mercerEigenfun` / `mercerEigenval` (`SpectralFoundations.lean:33/39`) |
+| $\ell=0$: constant; $\ell=1$: `sqrt(d)*u_m`. Eigenvalues via Bessel. | $\varphi_j : S^{d-1} \to \mathbb{R}$, orthonormal; $\lambda_j \geq 0$; $\varphi_0 \equiv 1$ | `mercerEigenfun` / `mercerEigenval` (`SpectralImportedFacts.lean`) |
 | `c_0k = cos_mat.mean(0)`; `c_1k = sqrt(d)/N * u.T @ cos_mat` | $\hat{c}_{jk}(P) = \mathbb{E}_{(u,t)\sim P}[\varphi_j(u) \cdot f_k(t)]$ | `modeProj φ j k P` (`SpectralPrimitives.lean:74`) |
 | `E_0 + E_1` (truncated to $\ell \leq 1$, $K = 6$) | $\mathcal{E}_\text{sp}(P) = \sum_{j,k} \lambda_j \tilde{a}_k \hat{c}_{jk}^2$ | `spectralEnergy φ λv a0 a P` (`SpectralPrimitives.lean:93`) |
 
@@ -108,10 +108,10 @@ For code, complexity analysis, and engineering decisions, see
 
 | Math | Lean | Status |
 |------|------|--------|
-| $\mathcal{E}_\text{sp}(P) = \mathcal{E}(P)$ | `spectralEnergy_eq_kernelEnergy` (`SpectralFoundations.lean:2264`) | `sorry` (conditional endpoint proved) |
-| $\mathcal{E}_\text{sp}(\mu_0) \leq \mathcal{E}_\text{sp}(P)$ | `spectralEnergy_minimized_at_uniform` (`SpectralMinimization.lean:41`) | Body complete; transitively blocked |
-| $\mathcal{E}_\text{sp}(P) = \mathcal{E}_\text{sp}(\mu_0) \Rightarrow P = \mu_0$ | `spectralEnergy_minimizer_unique` (`SpectralMinimization.lean:64`) | Body complete; transitively blocked |
-| $Q = \gamma \iff \mathcal{E}_\text{sp}(\Phi_\# Q) = \mathcal{E}_\text{sp}(\mu_0)$ | `spectralEnergy_wristband_gaussian_iff` (`SpectralMinimization.lean:101`) | Body complete; transitively blocked |
+| $\mathcal{E}_\text{sp}(P) = \mathcal{E}(P)$ | `spectralEnergy_eq_kernelEnergy` (`SpectralFoundations.lean`) | Proved |
+| $\mathcal{E}_\text{sp}(\mu_0) \leq \mathcal{E}_\text{sp}(P)$ | `spectralEnergy_minimized_at_uniform` (`SpectralMinimization.lean:38`) | Proved |
+| $\mathcal{E}_\text{sp}(P) = \mathcal{E}_\text{sp}(\mu_0) \Rightarrow P = \mu_0$ | `spectralEnergy_minimizer_unique` (`SpectralMinimization.lean:61`) | Proved |
+| $Q = \gamma \iff \mathcal{E}_\text{sp}(\Phi_\# Q) = \mathcal{E}_\text{sp}(\mu_0)$ | `spectralEnergy_wristband_gaussian_iff` (`SpectralMinimization.lean:98`) | Proved |
 
 ---
 
@@ -131,9 +131,7 @@ measure.
 
 ---
 
-## 6. Axiom
-
-The spectral branch adds a single new axiom:
+## 6. Imported Facts
 
 ### `kernelAngChordal_mercerExpansion` (`SpectralImportedFacts.lean`)
 
@@ -156,7 +154,14 @@ on Hilbert spaces exists in Mathlib (`Analysis.InnerProductSpace.Spectrum`).
 The specific Mercer form with *pointwise* (not just $L^2$) convergence is
 not yet in Mathlib — hence the axiom.
 
-**Reused axioms (no change):**
+### Closure bridge imports (`SpectralImportedFacts.lean`)
+
+| Axiom | Role |
+|------|------|
+| `summable_neumannCosineCoeff_imported` | Radial cosine summability witness |
+| `spectral_modeL1_factorized_bridge_imported` | Factorized mode-`L¹` majorant package for unconditional closure |
+
+**Reused imported axioms (no change):**
 
 | Axiom | File | Role |
 |-------|------|------|
@@ -182,28 +187,15 @@ not yet in Mathlib — hence the axiom.
 | `angularEigenfun_integral_zero` | $\int_{S^{d-1}}\varphi_j\,d\sigma = 0$ for $j > 0$ | Proved |
 | `modeProj_zero_zero_eq_one` | $\hat{c}_{00}(P) = 1$ for any $P$ | Proved |
 | `modeProj_vanishes_at_uniform` | $\hat{c}_{jk}(\mu_0) = 0$ for $(j,k)\neq(0,0)$ | Proved |
-| `spectralEnergy_eq_kernelEnergy` | $\sum'_{jk}\lambda_j\tilde{a}_k\hat{c}_{jk}^2 = \mathcal{E}(P)$ | `sorry` (conditional endpoint proved; summability assumptions remain) |
-| `spectralEnergy_nonneg_excess` | $\mathcal{E}_\text{sp}(\mu_0) \leq \mathcal{E}_\text{sp}(P)$ | Proved (transitively depends on `spectralEnergy_eq_kernelEnergy`) |
+| `spectralEnergy_eq_kernelEnergy` | $\sum'_{jk}\lambda_j\tilde{a}_k\hat{c}_{jk}^2 = \mathcal{E}(P)$ | Proved |
+| `spectralEnergy_nonneg_excess` | $\mathcal{E}_\text{sp}(\mu_0) \leq \mathcal{E}_\text{sp}(P)$ | Proved |
 
-**Conditional endpoints.** The remaining `sorry` has a fully proved
-conditional version `spectralEnergy_eq_kernelEnergy_of_package` (line 1644)
-that takes a `KernelExpansionInterchangeAssumptions` structure (10 fields:
-pointwise summability + integrability/norm-summability for double
-integral/tsum interchange).
-
-To close the unconditional form, discharge the package fields:
-- **Pointwise angular summability:** Diagonal Mercer bound gives
-  $\sum_j \lambda_j |\varphi_j(u)|^2 \leq k_\text{ang}(u,u) = 1$.
-  Cauchy-Schwarz then bounds cross-terms.
-- **Pointwise radial summability:** $\tilde{a}_k$ has exponential decay
-  and $|f_k| \leq 1$, so $\sum_k \tilde{a}_k < \infty$.
-- **8 integrability conditions:** Factor through the angular Cauchy-Schwarz
-  bound and radial $|f_k| \leq 1$ to get a uniform dominating constant
-  $A_\text{rad} = \sum_k \tilde{a}_k$.  Since $P$ is a probability measure,
-  `integral_tsum` applies.
-
-No new mathematical ideas — just packaging boundedness into Lean's
-`Summable` and `Integrable` API.
+**Closure route used.** The unconditional theorem now closes through the
+existing factorized wrapper
+`spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_modeL1_majorant_factorized`,
+fed by two imported bridge assumptions in `SpectralImportedFacts.lean`:
+- `summable_neumannCosineCoeff_imported`
+- `spectral_modeL1_factorized_bridge_imported`
 
 ### 7.2 Main theorems (`SpectralMinimization.lean`)
 
@@ -212,9 +204,6 @@ No new mathematical ideas — just packaging boundedness into Lean's
 | `spectralEnergy_minimized_at_uniform` | $\mathcal{E}_\text{sp}(P) \geq \mathcal{E}_\text{sp}(\mu_0)$ | Proved (delegates to `spectralEnergy_nonneg_excess`) |
 | `spectralEnergy_minimizer_unique` | $\mathcal{E}_\text{sp}(P) = \mathcal{E}_\text{sp}(\mu_0) \Rightarrow P = \mu_0$ | Proved (delegates to `kernelEnergy_minimizer_unique` via identity) |
 | `spectralEnergy_wristband_gaussian_iff` | $Q = \gamma \iff \mathcal{E}_\text{sp}(\Phi_\#Q) = \mathcal{E}_\text{sp}(\mu_0)$ | Proved (delegates to `wristbandEquivalence`) |
-
-All three theorem bodies are complete.  They are transitively blocked by the
-remaining `spectralEnergy_eq_kernelEnergy` sorry in `SpectralFoundations.lean`.
 
 ---
 
@@ -267,9 +256,9 @@ summable.  The Mercer axiom (clause 3) asserts a `tsum` equality.  The
 summability argument is: $\sum'_j \lambda_j |\varphi_j(u)|^2 \leq
 k_\text{ang}(u,u) \leq 1$ (diagonal Mercer bound), so by Cauchy-Schwarz
 the cross-term sum is also bounded.  A similar bound applies to the radial
-series.  **The conditional endpoints already handle this correctly by
-threading summability as an explicit hypothesis.  Discharging it
-unconditionally is the main remaining proof obligation.**
+series.  The conditional endpoints make this explicit through hypotheses,
+and the unconditional identity is now closed by importing the summability and
+factorized mode-`L¹` bridge assumptions in `SpectralImportedFacts.lean`.
 
 ---
 
@@ -344,3 +333,7 @@ is basis-independent.
    norm." Relevant for PD zonal kernels on $S^{d-1}$.
 5. Jupp, P.E. (2008). "Data-driven Sobolev tests of uniformity on compact Riemannian
    manifolds." *Ann. Statist.* 36(3), 1246-1260.  (Mode-truncation argument.)
+6. Evans, L.C. (2010). *Partial Differential Equations* (2nd ed.). AMS.
+   (Heat equation eigenfunction expansions on bounded domains; Neumann cosine modes.)
+7. Folland, G.B. (1999). *Real Analysis* (2nd ed.). Wiley.
+   (Tonelli/Fubini foundations used in interchange/majorant arguments.)

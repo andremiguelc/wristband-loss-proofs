@@ -14,11 +14,8 @@ open scoped BigOperators
 
 Main theorems of the spectral kernel branch.
 
-All three theorem bodies are complete.  They are transitively blocked by
-the remaining open sorry in `SpectralFoundations.lean`:
-1. `spectralEnergy_eq_kernelEnergy` + `kernelEnergy_minimizer_unique` (uniqueness).
-2. `spectralEnergy_nonneg_excess` depends on `spectralEnergy_eq_kernelEnergy`.
-3. `wristbandEquivalence` (Gaussian characterization).
+All three theorem bodies are complete and now discharge directly from
+`SpectralFoundations` + `KernelMinimization`.
 
 ### Import DAG for this file
 
