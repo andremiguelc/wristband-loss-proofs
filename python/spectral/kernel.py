@@ -48,17 +48,23 @@ class SpectralNeumannCoefficients:
 
 
 def _safe_log_ive(order: float, c: float) -> float:
-    """log(ive(order, c)) with fallback for underflow."""
+    """log(ive(order, c)) with fallbacks for large-order underflow.
+
+    Three-stage fallback:
+      1. ive directly (accurate, scaled to avoid overflow).
+      2. iv (unscaled) - c  (when ive underflows but iv is finite).
+      3. Asymptotic: log(ive(ν,c)) ≈ -c + ν·log(c/2) - gammaln(ν+1)
+         Accurate when ν >> c (i.e. large d with typical β,α).
+    """
     v = float(ive(order, c))
     if v > 0.0 and math.isfinite(v):
         return math.log(v)
-    # ive underflowed: use iv (unscaled) and subtract c
     v = float(iv(order, c))
     if v > 0.0 and math.isfinite(v):
         return math.log(v) - c
-    raise FloatingPointError(
-        f"Cannot evaluate Bessel term for order={order}, c={c}."
-    )
+    # Large-ν asymptotic (leading term of modified Bessel series):
+    #   I_ν(c) ≈ (c/2)^ν / Γ(ν+1),  ive(ν,c) = e^{-c} I_ν(c)
+    return float(-c + order * math.log(c / 2.0) - gammaln(order + 1.0))
 
 
 def _angular_eigenvalue_l(d: int, beta: float, alpha: float, ell: int) -> float:
