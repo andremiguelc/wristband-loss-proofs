@@ -8,8 +8,8 @@ This document is the companion to `docs/proof_guide.md` for the
 3. **Where** it lives in the Lean files and what remains to be proved.
 
 **Related documents:**
-- Mathematical derivation (spherical harmonics, Bessel eigenvalues): `docs/posts/spectral_harmonics.md`
-- Narrative overview (motivation, intuition, big picture): `docs/posts/spectral_narrative.md`
+- Mathematical derivation (spherical harmonics, Bessel eigenvalues): `docs/posts/spectral/spectral_harmonics.md`
+- Narrative overview (motivation, intuition, big picture): `docs/posts/spectral/spectral_narrative.md`
 - Python implementation + complexity analysis: `docs/working/_spectral_python.md`
 
 ---

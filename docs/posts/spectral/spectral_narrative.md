@@ -111,7 +111,10 @@ radial modes, the cost is $O(NdK)$ for the $\ell = 1$ angular modes
 (which require the matrix multiply $U^\top \cdot \text{CosMatrix}$).
 
 At $L = 1$ (constant + linear harmonics) and $K = 6$ radial modes, the
-cost drops to $\approx 12.6$ million multiplications — a **680x speedup**.
+cost drops to $\approx 12.6$ million multiplications — a **680× reduction
+in flops** at $d = 512$ (flop-count estimate; measured wall-clock speedup
+exceeds 1000× at large $N$, since the spectral path also has much better
+memory locality).
 Memory goes from $O(N^2)$ to $O(Nd)$, enabling batches of $N \approx 65000$.
 
 ### Why truncation to $\ell \leq 1$ is sufficient
@@ -168,22 +171,22 @@ $\tilde{a}_k = 2\sqrt{\pi/\beta}\,e^{-\pi^2 k^2/(4\beta)}$.
 
 ## 6. The Lean formalization: what the theorems say
 
-The spectral branch introduces four new theorems, all with complete proof
-bodies:
+The spectral branch introduces one bridge lemma and three main theorems,
+all with complete proof bodies:
 
-1. **Identity** (`spectralEnergy_eq_kernelEnergy`): The spectral energy
-   $\sum_{j,k} \lambda_j \tilde{a}_k \hat{c}_{jk}^2$ equals the kernel
-   energy $\mathbb{E}[K(W,W')]$.
+- **Identity** (`spectralEnergy_eq_kernelEnergy`, `SpectralFoundations.lean`):
+  The spectral energy $\sum_{j,k} \lambda_j \tilde{a}_k \hat{c}_{jk}^2$
+  equals the kernel energy $\mathbb{E}[K(W,W')]$.
 
-2. **Minimization** (`spectralEnergy_minimized_at_uniform`): The spectral
-   energy is minimized at the uniform measure.
+- **Minimization** (`spectralEnergy_minimized_at_uniform`): The spectral
+  energy is minimized at the uniform measure.
 
-3. **Uniqueness** (`spectralEnergy_minimizer_unique`): The minimizer is
-   unique.
+- **Uniqueness** (`spectralEnergy_minimizer_unique`): The minimizer is
+  unique.
 
-4. **Gaussian characterization** (`spectralEnergy_wristband_gaussian_iff`):
-   $Q = \mathcal{N}(0,I)$ if and only if the spectral energy of $\Phi_\# Q$
-   is at its minimum.
+- **Gaussian characterization** (`spectralEnergy_wristband_gaussian_iff`):
+  $Q = \mathcal{N}(0,I)$ if and only if the spectral energy of $\Phi_\# Q$
+  is at its minimum.
 
 The proof strategy for minimization is elegant: at $\mu_0$, all mode
 projections $\hat{c}_{jk}$ vanish except $(0,0)$ (because angular
