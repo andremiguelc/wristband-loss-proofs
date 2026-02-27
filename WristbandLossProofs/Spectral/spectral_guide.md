@@ -3,12 +3,14 @@
 This document is the companion to `docs/proof_guide.md` for the
 `WristbandLossProofs/Spectral/` branch.  It covers three questions:
 
-1. **What** the spectral decomposition is (mathematically and algorithmically).
+1. **What** the spectral decomposition is (mathematically).
 2. **How** it connects to the existing kernel energy proofs.
 3. **Where** it lives in the Lean files and what remains to be proved.
 
-For algorithmic complexity analysis (O(N^2d) vs O(NdK), higher-order angular
-corrections, polynomial alternatives), see `spectral_complexity.md`.
+**Related documents:**
+- Mathematical derivation (spherical harmonics, Bessel eigenvalues): `docs/posts/spectral_harmonics.md`
+- Narrative overview (motivation, intuition, big picture): `docs/posts/spectral_narrative.md`
+- Python implementation + complexity analysis: `docs/working/_spectral_python.md`
 
 ---
 
@@ -82,52 +84,34 @@ The spectral branch **does not replace** the existing proofs — it imports them
 |------|----------|--------|
 | `SpectralPrimitives.lean` | `radialFeature`, `radialCoeff`, `modeProj`, `spectralEnergy` | Definitions only |
 | `SpectralImportedFacts.lean` | `kernelAngChordal_mercerExpansion` (sole new axiom) | 1 axiom |
-| `SpectralFoundations.lean` | Witness extraction, supporting lemmas, conditional endpoints | 2 `sorry` remaining |
-| `SpectralMinimization.lean` | 3 main theorems | All bodies complete; 2 blocked by `SpectralFoundations` sorry's |
+| `SpectralFoundations.lean` | Witness extraction, supporting lemmas, conditional endpoints | 1 `sorry` remaining |
+| `SpectralMinimization.lean` | 3 main theorems | All bodies complete; transitively blocked by 1 `SpectralFoundations` sorry |
 
 ---
 
-## 4. Python Correspondence
+## 4. Python × Math × Lean Correspondence
 
-All Python references are to
-[`EmbedModels.py`](https://github.com/mvparakhin/ml-tidbits/blob/main/python/embed_models/EmbedModels.py),
-method `_Compute` (lines 762-804).
+For code, complexity analysis, and engineering decisions, see
+`docs/working/_spectral_python.md`.
 
-### 4.1 Current code (O(N^2 d))
+### 4.1 Spectral definitions
 
-```python
-g     = (u @ u.T).clamp(-1., 1.)          # (N,N) angular Gram matrix
-e_ang = (2. * beta_alpha2) * (g - 1.)     # (N,N)
-diff0 = t[:,None] - t[None,:]             # (N,N)
-diff1 = t[:,None] + t[None,:]             # (N,N)
-diff2 = diff1 - 2.                        # (N,N)
-total  = exp(e_ang - beta * diff0**2)     # three (N,N) kernel matrices
-total += exp(e_ang - beta * diff1**2)
-total += exp(e_ang - beta * diff2**2)
-rep_loss = log(total.sum() / (3N^2-N)) / beta
-```
+| Python | Math | Lean |
+|--------|------|------|
+| `cos_mat = cos(π * k_range * t)` (k=0 col is all 1's) | $f_0(t) = 1$; $f_k(t) = \cos(k\pi t)$ for $k \geq 1$ | `radialFeature k t` (`SpectralPrimitives.lean:45`) |
+| `a_0 = sqrt(pi/beta)`; `a_k = 2*sqrt(pi/beta)*exp(...)` | $\tilde{a}_0 = a_0$; $\tilde{a}_k = a_{k-1}$ for $k \geq 1$ | `radialCoeff a0 a k` (`SpectralPrimitives.lean:55`) |
+| $\ell=0$: constant; $\ell=1$: `sqrt(d)*u_m`. Eigenvalues via Bessel. | $\varphi_j : S^{d-1} \to \mathbb{R}$, orthonormal; $\lambda_j \geq 0$; $\varphi_0 \equiv 1$ | `mercerEigenfun` / `mercerEigenval` (`SpectralFoundations.lean:33/39`) |
+| `c_0k = cos_mat.mean(0)`; `c_1k = sqrt(d)/N * u.T @ cos_mat` | $\hat{c}_{jk}(P) = \mathbb{E}_{(u,t)\sim P}[\varphi_j(u) \cdot f_k(t)]$ | `modeProj φ j k P` (`SpectralPrimitives.lean:74`) |
+| `E_0 + E_1` (truncated to $\ell \leq 1$, $K = 6$) | $\mathcal{E}_\text{sp}(P) = \sum_{j,k} \lambda_j \tilde{a}_k \hat{c}_{jk}^2$ | `spectralEnergy φ λv a0 a P` (`SpectralPrimitives.lean:93`) |
 
-### 4.2 Proposed spectral code (O(NdK))
+### 4.2 Spectral theorems
 
-```python
-# Precomputed once at construction (from beta, alpha, d -- no new hyperparameters):
-#   a_k  = [1, 2*exp(-pi^2/4beta), 2*exp(-4pi^2/4beta), ...]  for k = 0..K-1
-#   b_0, b_1 = angular eigenvalues (Bessel-function formula, see section 7)
-
-K       = 6
-k_range = torch.arange(K)                          # (K,)
-cos_mat = torch.cos(pi * k_range[None,:] * t[:,None]) # (N,K)  radial features
-
-c_0k = cos_mat.mean(0)                             # (K,)   l=0 projections
-c_1k = u.T @ cos_mat / N                           # (d,K)  l=1 projections
-
-E_0  = b_0 * (a_k * c_0k**2).sum()
-E_1  = b_1 * (a_k[None,:] * c_1k**2).sum()
-rep_loss = log(E_0 + E_1) / beta
-```
-
-**What changed:** the three $(N,N)$ matrices are replaced by a single
-$(d, K)$ matrix multiply.  Nothing else changes.
+| Math | Lean | Status |
+|------|------|--------|
+| $\mathcal{E}_\text{sp}(P) = \mathcal{E}(P)$ | `spectralEnergy_eq_kernelEnergy` (`SpectralFoundations.lean:2264`) | `sorry` (conditional endpoint proved) |
+| $\mathcal{E}_\text{sp}(\mu_0) \leq \mathcal{E}_\text{sp}(P)$ | `spectralEnergy_minimized_at_uniform` (`SpectralMinimization.lean:41`) | Body complete; transitively blocked |
+| $\mathcal{E}_\text{sp}(P) = \mathcal{E}_\text{sp}(\mu_0) \Rightarrow P = \mu_0$ | `spectralEnergy_minimizer_unique` (`SpectralMinimization.lean:64`) | Body complete; transitively blocked |
+| $Q = \gamma \iff \mathcal{E}_\text{sp}(\Phi_\# Q) = \mathcal{E}_\text{sp}(\mu_0)$ | `spectralEnergy_wristband_gaussian_iff` (`SpectralMinimization.lean:101`) | Body complete; transitively blocked |
 
 ---
 
@@ -199,13 +183,27 @@ not yet in Mathlib — hence the axiom.
 | `modeProj_zero_zero_eq_one` | $\hat{c}_{00}(P) = 1$ for any $P$ | Proved |
 | `modeProj_vanishes_at_uniform` | $\hat{c}_{jk}(\mu_0) = 0$ for $(j,k)\neq(0,0)$ | Proved |
 | `spectralEnergy_eq_kernelEnergy` | $\sum'_{jk}\lambda_j\tilde{a}_k\hat{c}_{jk}^2 = \mathcal{E}(P)$ | `sorry` (conditional endpoint proved; summability assumptions remain) |
-| `spectralEnergy_nonneg_excess` | $\mathcal{E}_\text{sp}(\mu_0) \leq \mathcal{E}_\text{sp}(P)$ | `sorry` (conditional endpoint proved; summability assumptions remain) |
+| `spectralEnergy_nonneg_excess` | $\mathcal{E}_\text{sp}(\mu_0) \leq \mathcal{E}_\text{sp}(P)$ | Proved (transitively depends on `spectralEnergy_eq_kernelEnergy`) |
 
-**Conditional endpoints available:** Both open sorry's have fully proved
-conditional versions (`spectralEnergy_eq_kernelEnergy_of_package` and
-`spectralEnergy_nonneg_excess_of_summable`) that reduce the problem to
-discharging summability/integrability witnesses. See `_spectral_status.md`
-in `docs/working/` for details.
+**Conditional endpoints.** The remaining `sorry` has a fully proved
+conditional version `spectralEnergy_eq_kernelEnergy_of_package` (line 1644)
+that takes a `KernelExpansionInterchangeAssumptions` structure (10 fields:
+pointwise summability + integrability/norm-summability for double
+integral/tsum interchange).
+
+To close the unconditional form, discharge the package fields:
+- **Pointwise angular summability:** Diagonal Mercer bound gives
+  $\sum_j \lambda_j |\varphi_j(u)|^2 \leq k_\text{ang}(u,u) = 1$.
+  Cauchy-Schwarz then bounds cross-terms.
+- **Pointwise radial summability:** $\tilde{a}_k$ has exponential decay
+  and $|f_k| \leq 1$, so $\sum_k \tilde{a}_k < \infty$.
+- **8 integrability conditions:** Factor through the angular Cauchy-Schwarz
+  bound and radial $|f_k| \leq 1$ to get a uniform dominating constant
+  $A_\text{rad} = \sum_k \tilde{a}_k$.  Since $P$ is a probability measure,
+  `integral_tsum` applies.
+
+No new mathematical ideas — just packaging boundedness into Lean's
+`Summable` and `Integrable` API.
 
 ### 7.2 Main theorems (`SpectralMinimization.lean`)
 
@@ -216,29 +214,21 @@ in `docs/working/` for details.
 | `spectralEnergy_wristband_gaussian_iff` | $Q = \gamma \iff \mathcal{E}_\text{sp}(\Phi_\#Q) = \mathcal{E}_\text{sp}(\mu_0)$ | Proved (delegates to `wristbandEquivalence`) |
 
 All three theorem bodies are complete.  They are transitively blocked by the
-2 sorry's in `SpectralFoundations.lean`.
+remaining `spectralEnergy_eq_kernelEnergy` sorry in `SpectralFoundations.lean`.
 
 ---
 
-## 8. Angular Eigenvalues in Practice
+## 8. Angular Eigenvalues
 
-For the angular kernel $k_\text{ang}(u,u') = e^{2\beta\alpha^2(\langle u,u'\rangle-1)}$
-with $\alpha^2 = 1/12$ (default), the Mercer eigenvalues involve modified Bessel
-functions:
+$$\lambda_\ell = e^{-c}\,\Gamma(d/2)\,(2/c)^{(d-2)/2}\, I_{\ell+(d-2)/2}(c), \quad c = 2\beta\alpha^2$$
 
-$$\lambda_\ell \propto e^{-c}\,I_{\ell+(d-2)/2}(c)\cdot (c/2)^{-(d-2)/2},
-\quad c = 2\beta\alpha^2$$
+Key properties: $\lambda_\ell \geq 0$ (Schoenberg); super-exponential decay
+in $\ell$; $\lambda_1/\lambda_0 \approx c/d$ for $d \gg c$.
 
-Key qualitative properties:
+For $\ell=1$: $\varphi_{1,m}(u) = \sqrt{d}\,u_m$, so mode projections are
+$\hat{c}_{1k} = \frac{\sqrt{d}}{N}U^\top\text{CosMatrix}$.
 
-- **$\lambda_\ell \geq 0$ always** (Schoenberg's theorem / existing PSD axiom).
-- **Exponential decay in $\ell$**: $\lambda_\ell \to 0$ super-exponentially.
-- **High-$d$ effect**: for $d \gg c$, $\lambda_1/\lambda_0 \approx c/d$ — the
-  $\ell=1$ term is small but significant.
-
-For the $\ell=1$ eigenfunctions: $\varphi_{1,m}(u) = \sqrt{d}\,u_m$.  This
-means the $\ell=1$ mode projections are $\hat{c}_{1k} = \frac{\sqrt{d}}{N}U^\top\text{CosMatrix}$
--- just the matrix multiply `u.T @ cos_mat`, already available.
+Full derivation: `docs/posts/spectral_harmonics.md`.
 
 ---
 
