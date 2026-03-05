@@ -131,11 +131,7 @@ lemma measurable_direction (d : ℕ) : Measurable (direction (d := d)) := by
 
 The uniform law on `S^{d-1}` is the target marginal for the direction coordinate.
 We construct it by normalizing the ambient surface measure (Hausdorff measure
-restricted to the sphere) so total mass is 1.
-
-Axiom: `sphereUniform_isProbability` — the normalized surface measure is a
-probability measure. Proving this from scratch would require showing the sphere
-has finite nonzero surface area, which is nontrivial in Mathlib currently.
+restricted to the sphere) so total mass is 1, for `d ≥ 1`.
 -/
 
 /-- Surface measure on the unit sphere induced from ambient `volume`.
@@ -143,24 +139,48 @@ has finite nonzero surface area, which is nontrivial in Mathlib currently.
 noncomputable def sphereSurface (d : ℕ) : Measure (Sphere d) :=
   (volume : Measure (Vec d)).toSphere
 
-/-- **Axiom**: the normalized sphere surface measure has total mass 1.
-    This is the only axiom in Foundations.lean. It asserts that `S^{d-1}` has
-    finite nonzero surface area so normalization produces a probability measure. -/
-axiom sphereUniform_isProbability
-    (d : ℕ) :
+/-- `Vec d` is nontrivial when `d ≥ 1`. -/
+lemma vec_nontrivial_of_one_le (d : ℕ) (hDim : 1 ≤ d) : Nontrivial (Vec d) := by
+  haveI : Nonempty (Fin d) := Fin.pos_iff_nonempty.mp (Nat.succ_le_iff.mp hDim)
+  infer_instance
+
+/-- The sphere surface measure has nonzero total mass when `d ≥ 1`. -/
+lemma sphereSurface_univ_ne_zero (d : ℕ) (hDim : 1 ≤ d) :
+    (sphereSurface d) Set.univ ≠ 0 := by
+  haveI : Nontrivial (Vec d) := vec_nontrivial_of_one_le d hDim
+  have hMeasNeZero : sphereSurface d ≠ 0 := by
+    simpa [sphereSurface] using
+      (MeasureTheory.Measure.toSphere_ne_zero (μ := (volume : Measure (Vec d))))
+  intro hZero
+  exact hMeasNeZero ((MeasureTheory.Measure.measure_univ_eq_zero).1 hZero)
+
+/-- The normalized sphere surface measure is a probability measure when `d ≥ 1`. -/
+theorem sphereUniform_isProbability
+    (d : ℕ) (hDim : 1 ≤ d) :
     IsProbabilityMeasure (((sphereSurface d) Set.univ)⁻¹ • sphereSurface d)
+    := by
+  refine ⟨?_⟩
+  have hFin : (sphereSurface d) Set.univ < (⊤ : ENNReal) := by
+    simpa [sphereSurface] using
+      (measure_lt_top (μ := (volume : Measure (Vec d)).toSphere) Set.univ)
+  have hPos : (sphereSurface d) Set.univ ≠ 0 := sphereSurface_univ_ne_zero d hDim
+  calc
+    (((sphereSurface d) Set.univ)⁻¹ • sphereSurface d) Set.univ
+        = ((sphereSurface d) Set.univ)⁻¹ * (sphereSurface d) Set.univ := by
+            simp [Measure.smul_apply]
+    _ = 1 := ENNReal.inv_mul_cancel hPos (ne_of_lt hFin)
 
 /-- Uniform probability law on the unit sphere `S^{d-1}`.
     Math: `σ_{d-1}`, the normalized surface measure. -/
-noncomputable def sphereUniform (d : ℕ) : Distribution (Sphere d) :=
-  ⟨((sphereSurface d) Set.univ)⁻¹ • sphereSurface d, sphereUniform_isProbability d⟩
+noncomputable def sphereUniform (d : ℕ) (hDim : 1 ≤ d) : Distribution (Sphere d) :=
+  ⟨((sphereSurface d) Set.univ)⁻¹ • sphereSurface d, sphereUniform_isProbability d hDim⟩
 
 /-- Target wristband law `μ₀ = σ_{d-1} ⊗ Unif[0,1]`.
     This is the "ideal" distribution on wristband space: direction is uniform on
     the sphere and the radial percentile is uniform on `[0,1]`, independently.
     Python: the wristband loss drives the embedding distribution toward this target. -/
-def wristbandUniform (d : ℕ) : Distribution (Wristband d) :=
-  productLaw (sphereUniform d) uniform01
+def wristbandUniform (d : ℕ) (hDim : 1 ≤ d) : Distribution (Wristband d) :=
+  productLaw (sphereUniform d hDim) uniform01
 
 /-- Rotate a point on the sphere via a linear isometric equivalence.
     Used in the rotation-invariance proof for spherical laws. -/
