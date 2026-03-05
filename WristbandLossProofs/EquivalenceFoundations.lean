@@ -7,6 +7,7 @@ noncomputable section
 namespace WristbandLossProofs
 
 open MeasureTheory
+open scoped Pointwise
 
 /-! ## Geometry
 
@@ -149,8 +150,8 @@ lemma sphereSurface_univ_ne_zero (d : ℕ) (hDim : 1 ≤ d) :
     (sphereSurface d) Set.univ ≠ 0 := by
   haveI : Nontrivial (Vec d) := vec_nontrivial_of_one_le d hDim
   have hMeasNeZero : sphereSurface d ≠ 0 := by
-    simpa [sphereSurface] using
-      (MeasureTheory.Measure.toSphere_ne_zero (μ := (volume : Measure (Vec d))))
+    change (volume : Measure (Vec d)).toSphere ≠ 0
+    exact MeasureTheory.Measure.toSphere_ne_zero (μ := (volume : Measure (Vec d)))
   intro hZero
   exact hMeasNeZero ((MeasureTheory.Measure.measure_univ_eq_zero).1 hZero)
 
@@ -199,6 +200,124 @@ lemma measurable_rotateSphere {d : ℕ} (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) :
   refine Measurable.subtype_mk ?_
   simpa [Function.comp] using
     (O.continuous.comp continuous_subtype_val).measurable
+
+/-- The inverse rotation on the sphere induced by `O.symm`. -/
+def sphereSymm (d : ℕ) (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) (u : Sphere d) : Sphere d :=
+  rotateSphere O.symm u
+
+@[simp] lemma rotateSphere_sphereSymm (d : ℕ) (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) (u : Sphere d) :
+    rotateSphere O (sphereSymm d O u) = u := by
+  ext
+  simp [rotateSphere, sphereSymm]
+
+lemma cone_preimage_rotateSphere
+    (d : ℕ) (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) (s : Set (Sphere d)) :
+    (fun x : Vec d => O x) ⁻¹' (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s))
+      = Set.Ioo (0 : ℝ) 1 • (Subtype.val '' ((rotateSphere O) ⁻¹' s)) := by
+  ext x
+  constructor
+  · intro hx
+    rcases hx with ⟨r, hr, y, hy, hxy : r • y = O x⟩
+    have hySphere : y ∈ Metric.sphere (0 : Vec d) (1 : ℝ) := by
+      rcases hy with ⟨u, hu, huy⟩
+      subst huy
+      exact u.2
+    let uy : Sphere d := ⟨y, hySphere⟩
+    refine ⟨r, hr, (sphereSymm d O uy).1, ?_, ?_⟩
+    · refine ⟨sphereSymm d O uy, ?_, rfl⟩
+      change rotateSphere O (sphereSymm d O uy) ∈ s
+      have huyIn : uy ∈ s := by
+        rcases hy with ⟨u, hu, huy⟩
+        subst huy
+        simpa [uy] using hu
+      simpa [rotateSphere_sphereSymm] using huyIn
+    · have hx' : r • O.symm y = x := by
+        calc
+          r • O.symm y = O.symm (r • y) := by simp
+          _ = O.symm (O x) := by simp [hxy]
+          _ = x := by simp
+      simpa [sphereSymm, uy] using hx'
+  · intro hx
+    rcases hx with ⟨r, hr, y, hy, hxy : r • y = x⟩
+    rcases hy with ⟨v, hv, rfl⟩
+    refine ⟨r, hr, (rotateSphere O v).1, ?_, ?_⟩
+    · exact ⟨rotateSphere O v, hv, rfl⟩
+    · calc
+        r • (rotateSphere O v).1 = r • O v.1 := by simp [rotateSphere]
+        _ = O (r • v.1) := by simp
+        _ = O x := by simp [hxy]
+
+/-- Surface measure on the sphere is invariant under linear isometries. -/
+theorem sphereSurface_rotationInvariant
+    (d : ℕ) (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) :
+    Measure.map (rotateSphere O) (sphereSurface d) = sphereSurface d := by
+  apply Measure.ext
+  intro s hs
+  have hToSpherePre :
+      sphereSurface d ((rotateSphere O) ⁻¹' s)
+        = (Module.finrank ℝ (Vec d) : ENNReal) *
+            (volume : Measure (Vec d))
+              (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' ((rotateSphere O) ⁻¹' s))) := by
+    simpa [sphereSurface] using
+      (MeasureTheory.Measure.toSphere_apply' (μ := (volume : Measure (Vec d)))
+        (s := ((rotateSphere O) ⁻¹' s))
+        ((measurable_rotateSphere O) hs))
+  have hToSphere :
+      sphereSurface d s
+        = (Module.finrank ℝ (Vec d) : ENNReal) *
+            (volume : Measure (Vec d))
+              (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s)) := by
+    simpa [sphereSurface] using
+      (MeasureTheory.Measure.toSphere_apply' (μ := (volume : Measure (Vec d))) (s := s) hs)
+  have hMapVol : Measure.map (fun x : Vec d => O x) (volume : Measure (Vec d)) = volume :=
+    O.measurePreserving.map_eq
+  have hVolPre :
+      (volume : Measure (Vec d))
+          (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' ((rotateSphere O) ⁻¹' s)))
+        = (volume : Measure (Vec d)) (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s)) := by
+    calc
+      (volume : Measure (Vec d))
+          (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' ((rotateSphere O) ⁻¹' s)))
+        = (volume : Measure (Vec d))
+            ((fun x : Vec d => O x) ⁻¹' (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s))) := by
+              rw [cone_preimage_rotateSphere]
+      _ = Measure.map (fun x : Vec d => O x) (volume : Measure (Vec d))
+            (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s)) := by
+              symm
+              exact (MeasurableEmbedding.map_apply
+                (hf := O.toHomeomorph.toMeasurableEquiv.measurableEmbedding)
+                (μ := (volume : Measure (Vec d)))
+                (s := (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s))) )
+      _ = (volume : Measure (Vec d)) (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s)) := by rw [hMapVol]
+  calc
+    Measure.map (rotateSphere O) (sphereSurface d) s
+      = sphereSurface d ((rotateSphere O) ⁻¹' s) := by
+          rw [Measure.map_apply (measurable_rotateSphere O) hs]
+    _ = (Module.finrank ℝ (Vec d) : ENNReal) *
+          (volume : Measure (Vec d))
+            (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' ((rotateSphere O) ⁻¹' s))) := hToSpherePre
+    _ = (Module.finrank ℝ (Vec d) : ENNReal) *
+          (volume : Measure (Vec d))
+            (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s)) := by rw [hVolPre]
+    _ = sphereSurface d s := hToSphere.symm
+
+/-- Rotations preserve the normalized uniform law on the sphere. -/
+theorem sphereUniform_rotationInvariant
+    (d : ℕ) (hDim : 1 ≤ d) (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) :
+    pushforward (rotateSphere O) (sphereUniform d hDim) (measurable_rotateSphere O) =
+      sphereUniform d hDim := by
+  apply Subtype.ext
+  change
+    Measure.map (rotateSphere O) (((sphereSurface d) Set.univ)⁻¹ • sphereSurface d)
+      = (((sphereSurface d) Set.univ)⁻¹ • sphereSurface d)
+  calc
+    Measure.map (rotateSphere O) (((sphereSurface d) Set.univ)⁻¹ • sphereSurface d)
+      = ((sphereSurface d) Set.univ)⁻¹ • Measure.map (rotateSphere O) (sphereSurface d) := by
+          exact
+            Measure.map_smul
+              ((sphereSurface d) Set.univ)⁻¹ (sphereSurface d) (rotateSphere O)
+    _ = (((sphereSurface d) Set.univ)⁻¹ • sphereSurface d) := by
+          simp [sphereSurface_rotationInvariant]
 
 /-! ## CDF and PIT Definitions
 
@@ -361,7 +480,7 @@ lemma gammaMeasure_Ioc_pos {a r : ℝ} (ha : 0 < a) (hr : 0 < r)
       unfold ProbabilityTheory.gammaPDF
       exact ENNReal.ofReal_pos.mpr ht_pdf_pos_real
     refine ⟨?_, ?_⟩
-    · simpa [Function.mem_support, ht_pdf_pos.ne']
+    · simp [Function.mem_support, ht_pdf_pos.ne']
     · exact ⟨ht.1, ht.2.le⟩
   have hvolIoo : 0 < (volume (Set.Ioo (x : ℝ) (y : ℝ))) := by
     rw [Real.volume_Ioo]
@@ -386,7 +505,7 @@ lemma continuous_cdf_gammaMeasure {a r : ℝ} (ha : 0 < a) (hr : 0 < r) :
       (MeasureTheory.noAtoms_withDensity (μ := (volume : Measure ℝ)) (ProbabilityTheory.gammaPDF a r))
   have hSingletonZero : (ProbabilityTheory.cdf μ).measure {x} = 0 := by
     rw [ProbabilityTheory.measure_cdf μ]
-    simpa [μ] using (NoAtoms.measure_singleton (μ := μ) x)
+    exact NoAtoms.measure_singleton (μ := μ) x
   have hLeZero : (ProbabilityTheory.cdf μ x - Function.leftLim (ProbabilityTheory.cdf μ) x) ≤ 0 := by
     have hOfRealZero : ENNReal.ofReal
         (ProbabilityTheory.cdf μ x - Function.leftLim (ProbabilityTheory.cdf μ) x) = 0 := by
@@ -588,7 +707,7 @@ theorem probabilityIntegralTransform
     have hA_nonempty : A.Nonempty := by
       refine ⟨0, ?_⟩
       change (F 0 : ℝ) ≤ x
-      exact le_trans (by simpa [hFZero]) u.2.1
+      exact le_trans (by simp [hFZero]) u.2.1
     have hToOne : Filter.Tendsto (fun t : NNReal => (F t : ℝ)) Filter.atTop (nhds 1) := by
       have hTmeas : Filter.Tendsto
           (fun t : NNReal => ((μ : Measure NNReal) (Set.Iic t)))
@@ -602,8 +721,8 @@ theorem probabilityIntegralTransform
         (ENNReal.continuousAt_toReal (measure_ne_top (μ : Measure NNReal) Set.univ)).tendsto.comp hTmeas
       have hUnivToReal : (((μ : Measure NNReal) Set.univ).toReal) = (1 : ℝ) := by
         have hUniv : ((μ : Measure NNReal) Set.univ) = 1 := by
-          simpa using (MeasureTheory.IsProbabilityMeasure.measure_univ (μ := (μ : Measure NNReal)))
-        simpa [hUniv]
+          exact MeasureTheory.IsProbabilityMeasure.measure_univ (μ := (μ : Measure NNReal))
+        simp [hUniv]
       have hEqFun : (fun t : NNReal => (F t : ℝ)) =
           (fun t : NNReal => (((μ : Measure NNReal) (Set.Iic t)).toReal)) := by
         funext t
@@ -669,7 +788,10 @@ theorem probabilityIntegralTransform
         _ = ENNReal.ofReal x := by rw [hy_eq_x]
     rw [hIic]
     symm
-    simpa [x] using unitInterval.volume_Iic u
+    calc
+      (volume : Measure UnitInterval) (Set.Iic u)
+          = ENNReal.ofReal ((u : UnitInterval) : ℝ) := unitInterval.volume_Iic u
+      _ = ENNReal.ofReal x := by simp [x]
 
 /-- **Probability Integral Transform (reverse direction).**
     If `F(X) ~ Unif[0,1]` and `F` is a strictly increasing continuous CDF of
@@ -726,7 +848,10 @@ theorem probabilityIntegralTransform_reverse
       _ = ((uniform01 : Distribution UnitInterval) : Measure UnitInterval) (Set.Iic (F x)) := by
             simp [hUniform]
       _ = ENNReal.ofReal ((F x : UnitInterval) : ℝ) := by
-            simpa [uniform01] using (unitInterval.volume_Iic (F x))
+            calc
+              ((uniform01 : Distribution UnitInterval) : Measure UnitInterval) (Set.Iic (F x))
+                  = (volume : Measure UnitInterval) (Set.Iic (F x)) := by simp [uniform01]
+              _ = ENNReal.ofReal ((F x : UnitInterval) : ℝ) := unitInterval.volume_Iic (F x)
   have hTarIic : (targetLaw : Measure NNReal) (Set.Iic x) =
       ENNReal.ofReal ((F x : UnitInterval) : ℝ) := by
     calc
