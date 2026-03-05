@@ -96,9 +96,10 @@ theorem spectralEnergy_minimizer_unique
        `spectralEnergy_minimizer_unique` gives `wristbandLaw Q = μ₀`, then
        `wristbandEquivalence` gives `Q = gaussianNZ`. -/
 theorem spectralEnergy_wristband_gaussian_iff
-    (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α)
+    (d : ℕ) (hDim : 2 ≤ d) (hDim1 : 1 ≤ d := le_trans (by decide : 1 ≤ 2) hDim)
+    (β α : ℝ) (hβ : 0 < β) (hα : 0 < α)
     (Q : Distribution (VecNZ d)) :
-    Q = gaussianNZ d ↔
+    Q = gaussianNZ d hDim1 ↔
       spectralEnergy
           (mercerEigenfun d β α hDim hβ hα)
           (mercerEigenval d β α hDim hβ hα)
@@ -121,6 +122,6 @@ theorem spectralEnergy_wristband_gaussian_iff
     intro hSpectral
     have hUniform : wristbandLaw d Q = wristbandUniform d :=
       spectralEnergy_minimizer_unique d hDim β α hβ hα (wristbandLaw d Q) hSpectral
-    exact (wristbandEquivalence d hDim Q).mp hUniform
+    exact (wristbandEquivalence d hDim hDim1 Q).mp hUniform
 
 end WristbandLossProofs
