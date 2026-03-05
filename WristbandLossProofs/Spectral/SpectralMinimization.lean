@@ -28,6 +28,9 @@ SpectralMinimization
 ```
 -/
 
+lemma one_le_of_two_le {d : ℕ} (hDim : 2 ≤ d) : 1 ≤ d :=
+  le_trans (Nat.le_of_lt Nat.one_lt_two) hDim
+
 /-! ### Main theorems -/
 
 /-- **Spectral energy is minimized at `wristbandUniform d`**.
@@ -96,10 +99,10 @@ theorem spectralEnergy_minimizer_unique
        `spectralEnergy_minimizer_unique` gives `wristbandLaw Q = μ₀`, then
        `wristbandEquivalence` gives `Q = gaussianNZ`. -/
 theorem spectralEnergy_wristband_gaussian_iff
-    (d : ℕ) (hDim : 2 ≤ d) (hDim1 : 1 ≤ d := le_trans (by decide : 1 ≤ 2) hDim)
+    (d : ℕ) (hDim : 2 ≤ d)
     (β α : ℝ) (hβ : 0 < β) (hα : 0 < α)
     (Q : Distribution (VecNZ d)) :
-    Q = gaussianNZ d hDim1 ↔
+    Q = gaussianNZ d (one_le_of_two_le hDim) ↔
       spectralEnergy
           (mercerEigenfun d β α hDim hβ hα)
           (mercerEigenval d β α hDim hβ hα)
@@ -112,12 +115,13 @@ theorem spectralEnergy_wristband_gaussian_iff
           (neumannConstantCoeff β hβ)
           (neumannCosineCoeff β hβ)
           (wristbandUniform d) := by
+  have hDim1 : 1 ≤ d := one_le_of_two_le hDim
   constructor
   · -- Forward: Q = gaussianNZ → wristbandLaw Q = μ₀ → spectral energy equal.
     intro hQ
     subst hQ
     congr 1
-    exact wristbandEquivalence_forward d hDim
+    exact wristbandEquivalence_forward d hDim hDim1
   · -- Backward: spectral energy equality → wristbandLaw Q = μ₀ → Q = gaussianNZ.
     intro hSpectral
     have hUniform : wristbandLaw d Q = wristbandUniform d :=
