@@ -12,7 +12,7 @@ and extends it with a spectral kernel characterization.
 
 For any distribution $Q$ on $\mathbb{R}^d \setminus \{0\}$ with $d \ge 2$:
 
-$$\Phi_\# Q \;=\; \sigma_{d-1} \otimes \mathrm{Unif}[0,1] \quad\iff\quad Q = \mathcal{N}(0, I_d)$$
+$$\Phi_{\\#} Q \;=\; \sigma_{d-1} \otimes \mathrm{Unif}[0,1] \quad\iff\quad Q = \mathcal{N}(0, I_d)$$
 
 where $\Phi(z) = \bigl(z/\|z\|,\; F_{\chi^2_d}(\|z\|^2)\bigr)$ is the wristband map.
 
