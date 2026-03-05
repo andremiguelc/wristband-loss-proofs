@@ -1,8 +1,12 @@
 # Wristband Loss — Lean 4 Proofs
 
 Machine-checked proofs for the mathematical foundations of the
-[Wristband Gaussian Loss](https://github.com/mvparakhin/ml-tidbits)
+**Wristband Gaussian Loss**, designed by [@mvparakhin](https://github.com/mvparakhin)
+and implemented in [`ml-tidbits`](https://github.com/mvparakhin/ml-tidbits)
 (`C_WristbandGaussianLoss` in `EmbedModels.py`).
+
+This repository formalizes the correctness of @mvparakhin's algorithm in Lean 4,
+and extends it with a spectral kernel characterization.
 
 ## The Central Theorem
 
