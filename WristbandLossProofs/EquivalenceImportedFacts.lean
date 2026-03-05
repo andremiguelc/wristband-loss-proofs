@@ -13,7 +13,7 @@ open MeasureTheory
 All declarations here are `axiom`s — external mathematical results assumed
 without Lean proof. Trust boundary:
 - `gaussianNZ` is the sole **existential** axiom (posits a measure's existence).
-- The remaining four are **relational** (equations over already-defined terms);
+- The remaining three are **relational** (equations over already-defined terms);
   they cannot introduce new objects or contradict each other.
 
 A validator should check per axiom: does the Lean statement faithfully encode
@@ -65,15 +65,5 @@ axiom gaussianPolar_independent (d : ℕ) (hDim : 1 ≤ d) :
       (radiusSq (d := d))
       (measurable_direction d)
       (measurable_radiusSq d)
-
-/-! ### Sphere Rotation Invariance
-
-Planned for a Lean proof via Mathlib isometry-transport lemmas for `toSphere`. -/
-
-/-- O_# σ_{d-1} = σ_{d-1} for any linear isometry O. -/
-axiom sphereUniform_rotationInvariant
-    (d : ℕ) (hDim : 1 ≤ d) (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) :
-    pushforward (rotateSphere O) (sphereUniform d hDim) (measurable_rotateSphere O) =
-      sphereUniform d hDim
 
 end WristbandLossProofs
