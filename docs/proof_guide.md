@@ -6,7 +6,7 @@ formalization faithfully captures the mathematics behind
 
 **Central claim (population setting):**
 
-$$\Phi_\# Q \;=\; \sigma_{d-1} \otimes \mathrm{Unif}[0,1] \;\iff\; Q = \mathcal{N}(0, I_d), \qquad d \ge 2.$$
+$$\Phi_{\\#} Q \;=\; \sigma_{d-1} \otimes \mathrm{Unif}[0,1] \;\iff\; Q = \mathcal{N}(0, I_d), \qquad d \ge 2.$$
 
 In words: the wristband map produces uniform output **if and only if** the
 input is standard Gaussian. Combined with the kernel energy minimization
@@ -50,7 +50,7 @@ Step 1: Wristband Equivalence          Step 2: Kernel Energy Minimization
 
 | Step | Statement | Status |
 |------|-----------|--------|
-| 1 | $\Phi_\# Q = \mu_0 \iff Q = \gamma$ | **Complete** (sorry-free) |
+| 1 | $\Phi_{\\#} Q = \mu_0 \iff Q = \gamma$ | **Complete** (sorry-free) |
 | 2 | $\mathcal{E}(P) \ge \mathcal{E}(\mu_0)$, equality iff $P = \mu_0$ | **Complete** for Neumann kernel |
 | 3 | Combine Steps 1 + 2 via $\log$ monotonicity | Not yet formalized |
 | 4 | Nonneg-addon lemma for auxiliary terms | Not yet formalized |
@@ -113,8 +113,8 @@ uniform, the original radius **must** be chi-square.
 | Math | Lean | File |
 |------|------|------|
 | Probability measure (total mass 1) | `Distribution α` = `ProbabilityMeasure α` | `EquivalenceFoundations.lean:68` |
-| $f_\# Q(B) = Q(f^{-1}(B))$ | `pushforward f Q hf` | `EquivalenceFoundations.lean:73` |
-| $P_Q = \Phi_\# Q$ | `wristbandLaw d Q` | `Equivalence.lean:23` |
+| $f_{\\#} Q(B) = Q(f^{-1}(B))$ | `pushforward f Q hf` | `EquivalenceFoundations.lean:73` |
+| $P_Q = \Phi_{\\#} Q$ | `wristbandLaw d Q` | `Equivalence.lean:23` |
 | $\mu_0 = \sigma_{d-1} \otimes \mathrm{Unif}[0,1]$ | `wristbandUniform d` | `EquivalenceFoundations.lean:162` |
 
 ### 3.6 Kernel Definitions
@@ -144,7 +144,7 @@ terms exponentially small in $\beta$.
 
 ### 4.1 Wristband Equivalence
 
-$$\Phi_\# Q = \sigma_{d-1} \otimes \mathrm{Unif}[0,1] \;\iff\; Q = \mathcal{N}(0, I_d), \qquad d \ge 2.$$
+$$\Phi_{\\#} Q = \sigma_{d-1} \otimes \mathrm{Unif}[0,1] \;\iff\; Q = \mathcal{N}(0, I_d), \qquad d \ge 2.$$
 
 | Direction | Lean | File | Proof idea |
 |-----------|------|------|------------|
@@ -201,7 +201,7 @@ because they are not yet available in Mathlib.
 | `gaussianPolar_direction_uniform` | $Z/\lVert Z\rVert \sim \sigma_{d-1}$ | 42 |
 | `gaussianPolar_radius_chiSq` | $\lVert Z\rVert^2 \sim \chi^2_d$ | 52 |
 | `gaussianPolar_independent` | $Z/\lVert Z\rVert \perp \lVert Z\rVert^2$ | 60 |
-| `sphereUniform_rotationInvariant` | $O_\# \sigma_{d-1} = \sigma_{d-1}$ | 73 |
+| `sphereUniform_rotationInvariant` | $O_{\\#} \sigma_{d-1} = \sigma_{d-1}$ | 73 |
 
 Also: `sphereUniform_isProbability` (`EquivalenceFoundations.lean:149`) —
 normalized surface measure has mass 1.

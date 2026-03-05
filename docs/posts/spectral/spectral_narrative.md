@@ -56,7 +56,7 @@ The fundamental result (proved in Lean, sorry-free) is:
 
 Combined with the equivalence theorem (also sorry-free):
 
-> **Theorem.** $\Phi_\# Q = \mu_0 \iff Q = \mathcal{N}(0, I_d)$.
+> **Theorem.** $\Phi_{\\#} Q = \mu_0 \iff Q = \mathcal{N}(0, I_d)$.
 
 Together: minimizing the kernel energy forces the encoder output to be
 Gaussian.  This is the rigorous foundation the Lean formalization provides.
@@ -185,7 +185,7 @@ all with complete proof bodies:
   unique.
 
 - **Gaussian characterization** (`spectralEnergy_wristband_gaussian_iff`):
-  $Q = \mathcal{N}(0,I)$ if and only if the spectral energy of $\Phi_\# Q$
+  $Q = \mathcal{N}(0,I)$ if and only if the spectral energy of $\Phi_{\\#} Q$
   is at its minimum.
 
 The proof strategy for minimization is elegant: at $\mu_0$, all mode
