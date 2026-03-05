@@ -16,3 +16,6 @@ __pycache__/
 *.pyc
 
 *.png
+AGENTS.md
+_*
+!__init__.py

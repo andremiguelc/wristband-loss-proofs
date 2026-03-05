@@ -1,21 +1,20 @@
-# Wristband Loss — Lean Proof Guide
+# Wristband Loss — Lean 4 Formalization Guide
 
-This document is for ML practitioners who want to verify that the Lean 4
-formalization faithfully captures the mathematics behind
+This document maps the Lean 4 formalization to the mathematics behind
 [`C_WristbandGaussianLoss`](https://github.com/mvparakhin/ml-tidbits/blob/main/python/embed_models/EmbedModels.py).
 
 **Central claim (population setting):**
 
-$$\Phi_{\\#} Q \;=\; \sigma_{d-1} \otimes \mathrm{Unif}[0,1] \;\iff\; Q = \mathcal{N}(0, I_d), \qquad d \ge 2.$$
+$$\Phi_\# Q \;=\; \sigma_{d-1} \otimes \mathrm{Unif}[0,1] \;\iff\; Q = \mathcal{N}(0, I_d), \qquad d \ge 2.$$
 
-In words: the wristband map produces uniform output **if and only if** the
-input is standard Gaussian. Combined with the kernel energy minimization
-result, this implies the wristband repulsion loss has a **unique minimizer**
-at the Gaussian.
+The wristband map produces uniform output **if and only if** the input is
+standard Gaussian. Combined with the kernel energy minimization and spectral
+decomposition results, this implies the wristband repulsion loss has a
+**unique minimizer** at the Gaussian.
 
 ---
 
-## 1. Lean File Map
+## 1. File Map
 
 | File | Contents | Status |
 |------|----------|--------|
@@ -24,47 +23,94 @@ at the Gaussian.
 | `Equivalence.lean` | Wristband map, equivalence theorem (forward + backward + iff) | Fully proven |
 | `KernelPrimitives.lean` | Kernel definitions, energy, MMD, PSD/characteristic/universal predicates | Definitions only |
 | `KernelImportedFacts.lean` | PSD, universality, constant-potential axioms (from literature) | 11 axioms |
-| `KernelFoundations.lean` | Kernel properties, symmetry, measurability, characteristic proofs, constant-potential proofs | Mostly proven (3 `sorry`) |
-| `KernelMinimization.lean` | Energy minimization + uniqueness at uniform; Neumann-to-3-image bridge | Proven for Neumann kernel; 3-image bridge `sorry` |
+| `KernelFoundations.lean` | Kernel properties, symmetry, measurability, characteristic proofs | Mostly proven (3 `sorry`) |
+| `KernelMinimization.lean` | Energy minimization + uniqueness; Neumann-to-3-image approximation | Proven; 1 `sorry` in energy approximation |
+| `Spectral/SpectralPrimitives.lean` | `radialFeature`, `radialCoeff`, `modeProj`, `spectralEnergy` | Definitions only |
+| `Spectral/SpectralImportedFacts.lean` | Mercer decomposition, summability, L¹ factorization (axioms) | 3 axioms |
+| `Spectral/SpectralFoundations.lean` | Spectral–kernel energy identity, mode projections, nonneg excess | Fully proven |
+| `Spectral/SpectralMinimization.lean` | Spectral minimization, uniqueness, Gaussian characterization | Fully proven |
 
 ---
 
-## 2. Proof Architecture
+## 2. Dependency Graph
 
 ```
-Step 1: Wristband Equivalence          Step 2: Kernel Energy Minimization
-   (Equivalence.lean)                     (KernelMinimization.lean)
-   Φ_#Q = μ₀  ⟺  Q = γ                  E(P) ≥ E(μ₀), equality iff P = μ₀
-          \                                  /
-           \                                /
-            ↘                              ↙
-         Step 3: Main Correctness Theorem
-         The repulsion loss L_rep(Q) = (1/β)·log E[K]
-         is uniquely minimized at Q = γ
-                        |
-                        ↓
-         Step 4: Extra Terms Preserve Minimizer
-         Radial, moment, angular penalties are ≥ 0
-         and vanish at γ  →  same unique minimizer
+Wristband Equivalence              Kernel Energy Minimization
+  (Equivalence.lean)                 (KernelMinimization.lean)
+  Φ_#Q = μ₀  ⟺  Q = γ              E(P) ≥ E(μ₀), = iff P = μ₀
+         \                              /       \
+          \                            /    Spectral Identity
+           ↘                          ↙     (SpectralFoundations.lean)
+       Main Correctness Theorem         E_spec = E_kernel
+       L_rep uniquely minimized            ↓
+       at Q = γ  [not yet formal]    Spectral Minimization
+                |                    (SpectralMinimization.lean)
+                ↓                    Gaussian ↔ spectral minimum
+       Auxiliary Terms Preserve
+       Minimizer [not yet formal]
 ```
-
-| Step | Statement | Status |
-|------|-----------|--------|
-| 1 | $\Phi_{\\#} Q = \mu_0 \iff Q = \gamma$ | **Complete** (sorry-free) |
-| 2 | $\mathcal{E}(P) \ge \mathcal{E}(\mu_0)$, equality iff $P = \mu_0$ | **Complete** for Neumann kernel |
-| 3 | Combine Steps 1 + 2 via $\log$ monotonicity | Not yet formalized |
-| 4 | Nonneg-addon lemma for auxiliary terms | Not yet formalized |
-
-Steps 1 and 2 are independent. Step 3 combines them. Step 4 extends Step 3.
 
 ---
 
-## 3. Python-to-Lean Correspondence
+## 3. Main Theorems
+
+### 3.1 Wristband Equivalence
+
+$$\Phi_\# Q = \sigma_{d-1} \otimes \mathrm{Unif}[0,1] \;\iff\; Q = \mathcal{N}(0, I_d), \qquad d \ge 2.$$
+
+| Direction | Lean | File | Proof idea |
+|-----------|------|------|------------|
+| Forward ($\Rightarrow$) | `wristbandEquivalence_forward` | `Equivalence.lean:515` | Gaussian polar decomposition + probability integral transform |
+| Backward ($\Leftarrow$) | `wristbandEquivalence_backward` | `Equivalence.lean:695` | Reverse PIT + spherical law reconstruction |
+| Iff | `wristbandEquivalence` | `Equivalence.lean:999` | Combines forward + backward |
+
+Fully proven (sorry-free). The $d \ge 2$ guard is needed because $S^0 = \{-1,+1\}$ is discrete.
+
+### 3.2 Kernel Energy Minimization
+
+For the Neumann kernel $K_N$ with $\beta > 0$, $\alpha > 0$, $d \ge 2$:
+
+$$\mathcal{E}(P) \;\ge\; \mathcal{E}(\mu_0), \qquad \text{with equality iff } P = \mu_0.$$
+
+| Theorem | Lean | File |
+|---------|------|------|
+| Minimization | `kernelEnergy_minimized_at_uniform` | `KernelMinimization.lean:133` |
+| Uniqueness | `kernelEnergy_minimizer_unique` | `KernelMinimization.lean:155` |
+
+Proven via the MMD pathway: (1) $K_N$ is PSD $\Rightarrow$ $\mathrm{MMD}^2 \ge 0$; (2) constant potential $\Rightarrow$ $\mathcal{E}(P) - \mathcal{E}(\mu_0) = \mathrm{MMD}^2$; (3) $K_N$ is characteristic $\Rightarrow$ equality iff $P = \mu_0$.
+
+### 3.3 Neumann-to-3-Image Approximation
+
+The 3-image radial kernel keeps only the $n \in \{-1,0,1\}$ terms from the
+infinite Neumann reflection series. The truncation error is $O(e^{-\beta})$.
+
+| Theorem | Lean | File | Status |
+|---------|------|------|--------|
+| Pointwise: $\lvert k_{\mathrm{3img}} - k_N \rvert \le C(\beta)$ | `threeImage_approx_neumann` | `KernelMinimization.lean:666` | Proven |
+| Energy: $\lvert \mathcal{E}_{\mathrm{3img}} - \mathcal{E}_N \rvert \le C(\beta)$ | `threeImage_energy_approx` | `KernelMinimization.lean:806` | `sorry` |
+
+### 3.4 Spectral Decomposition
+
+Decomposes the kernel energy into a doubly-indexed sum of nonneg mode
+contributions $\lambda_j \cdot a_k \cdot |\pi_{j,k}(P)|^2$.
+
+| Theorem | Lean | File |
+|---------|------|------|
+| Spectral–kernel identity | `spectralEnergy_eq_kernelEnergy` | `SpectralFoundations.lean:2203` |
+| Minimization | `spectralEnergy_minimized_at_uniform` | `SpectralMinimization.lean:38` |
+| Uniqueness | `spectralEnergy_minimizer_unique` | `SpectralMinimization.lean:61` |
+| Gaussian characterization | `spectralEnergy_wristband_gaussian_iff` | `SpectralMinimization.lean:98` |
+
+All sorry-free in spectral files. Depends transitively on kernel and spectral axioms.
+
+---
+
+## 4. Python-to-Lean Correspondence
 
 All Python references are to
 [`EmbedModels.py`](https://github.com/mvparakhin/ml-tidbits/blob/main/python/embed_models/EmbedModels.py).
 
-### 3.1 Types
+### 4.1 Types
 
 | Math | Python | Lean | File |
 |------|--------|------|------|
@@ -74,7 +120,7 @@ All Python references are to
 | $[0, 1]$ | `clamp(eps, 1-eps)` | `UnitInterval` = `Set.Icc 0 1` | `EquivalenceFoundations.lean:36` |
 | $S^{d-1} \times [0,1]$ | `(u, t)` pair | `Wristband d` = `Sphere d × UnitInterval` | `EquivalenceFoundations.lean:40` |
 
-### 3.2 Wristband Map
+### 4.2 Wristband Map
 
 | Python | Math | Lean | File |
 |--------|------|------|------|
@@ -86,7 +132,7 @@ All Python references are to
 The Python `gammainc(d/2, s/2)` is the regularized lower incomplete gamma function,
 which equals the chi-square CDF: $\texttt{gammainc}(d/2, s/2) = F_{\chi^2_d}(s)$.
 
-### 3.3 Chi-Square Distribution & CDF
+### 4.3 Chi-Square Distribution & CDF
 
 | Math | Lean | File |
 |------|------|------|
@@ -95,29 +141,23 @@ which equals the chi-square CDF: $\texttt{gammainc}(d/2, s/2) = F_{\chi^2_d}(s)$
 | $F_{\chi^2_d}$ continuous ($d \ge 1$) | `chiSqCDFToUnit_isContinuousCDF` | `EquivalenceFoundations.lean:482` |
 | $F_{\chi^2_d}$ strictly increasing ($d \ge 1$) | `chiSqCDFToUnit_isStrictlyIncreasingCDF` | `EquivalenceFoundations.lean:495` |
 
-### 3.4 Probability Integral Transform
+### 4.4 Probability Integral Transform
 
-These theorems formalize why applying the CDF to the radial coordinate works.
+| Statement | Lean | File |
+|-----------|------|------|
+| $X \sim \mu$, $F_\mu$ continuous $\Rightarrow$ $F(X) \sim \mathrm{Unif}[0,1]$ | `probabilityIntegralTransform` | `EquivalenceFoundations.lean:535` |
+| $F(X) \sim \mathrm{Unif}[0,1]$ + $F$ strictly increasing $\Rightarrow$ $X \sim \mu$ | `probabilityIntegralTransform_reverse` | `EquivalenceFoundations.lean:660` |
 
-| Statement | Lean | File | Status |
-|-----------|------|------|--------|
-| $X \sim \mu$, $F_\mu$ continuous with $F(0)=0$ $\Rightarrow$ $F(X) \sim \mathrm{Unif}[0,1]$ | `probabilityIntegralTransform` | `EquivalenceFoundations.lean:535` | Proven |
-| $F(X) \sim \mathrm{Unif}[0,1]$ + $F$ strictly increasing $\Rightarrow$ $X \sim \mu$ | `probabilityIntegralTransform_reverse` | `EquivalenceFoundations.lean:660` | Proven |
-
-The reverse PIT is what makes `gammainc` the *uniquely correct* radial
-transform — not just a convenient choice. If the CDF-transformed radius is
-uniform, the original radius **must** be chi-square.
-
-### 3.5 Distributions & Pushforward
+### 4.5 Distributions & Pushforward
 
 | Math | Lean | File |
 |------|------|------|
 | Probability measure (total mass 1) | `Distribution α` = `ProbabilityMeasure α` | `EquivalenceFoundations.lean:68` |
-| $f_{\\#} Q(B) = Q(f^{-1}(B))$ | `pushforward f Q hf` | `EquivalenceFoundations.lean:73` |
-| $P_Q = \Phi_{\\#} Q$ | `wristbandLaw d Q` | `Equivalence.lean:23` |
+| $f_\# Q(B) = Q(f^{-1}(B))$ | `pushforward f Q hf` | `EquivalenceFoundations.lean:73` |
+| $P_Q = \Phi_\# Q$ | `wristbandLaw d Q` | `Equivalence.lean:23` |
 | $\mu_0 = \sigma_{d-1} \otimes \mathrm{Unif}[0,1]$ | `wristbandUniform d` | `EquivalenceFoundations.lean:162` |
 
-### 3.6 Kernel Definitions
+### 4.6 Kernel Definitions
 
 | Python | Math | Lean | File |
 |--------|------|------|------|
@@ -128,69 +168,14 @@ uniform, the original radius **must** be chi-square.
 | angular × radial | $K(w, w') = k_{\mathrm{ang}} \cdot k_{\mathrm{rad}}$ | `wristbandKernel` / `wristbandKernelNeumann` | `KernelPrimitives.lean:189,195` |
 | `total / (3n² - n)` | $\mathcal{E}(P) = \mathbb{E}_{W,W' \sim P}[K(W,W')]$ | `kernelEnergy` | `KernelPrimitives.lean:215` |
 
-The angular factor $k_{\mathrm{ang}}$ is algebraically equivalent to
-$\exp(-\beta\alpha^2 \lVert u - u' \rVert^2)$ (chordal RBF on the sphere),
+The angular factor is equivalent to a chordal RBF: $\exp(-\beta\alpha^2 \lVert u - u'\rVert^2)$,
 since $\lVert u - u'\rVert^2 = 2(1 - \langle u, u'\rangle)$.
 
-The 3-image radial kernel uses reflected copies at $-t'$ and $2-t'$ to correct
-boundary effects on $[0,1]$ — this is the method-of-images trick from KDE
-boundary correction. The Neumann kernel is the full infinite reflection series;
-the 3-image version keeps only the $n \in \{-1, 0, 1\}$ terms, with omitted
-terms exponentially small in $\beta$.
-
 ---
 
-## 4. Main Theorems
+## 5. Literature Axioms
 
-### 4.1 Wristband Equivalence
-
-$$\Phi_{\\#} Q = \sigma_{d-1} \otimes \mathrm{Unif}[0,1] \;\iff\; Q = \mathcal{N}(0, I_d), \qquad d \ge 2.$$
-
-| Direction | Lean | File | Proof idea |
-|-----------|------|------|------------|
-| Forward ($\Rightarrow$) | `wristbandEquivalence_forward` | `Equivalence.lean:515` | Gaussian polar decomposition + PIT |
-| Backward ($\Leftarrow$) | `wristbandEquivalence_backward` | `Equivalence.lean:695` | Reverse PIT + spherical law reconstruction |
-| Iff | `wristbandEquivalence` | `Equivalence.lean:999` | Combines forward + backward |
-
-**Status:** Fully proven (sorry-free).
-
-The $d \ge 2$ guard is intentional: $d = 1$ gives $S^0 = \{-1, +1\}$
-(discrete), while the continuous sphere geometry requires $d \ge 2$.
-Python allows $d \ge 1$ but practical usage is high-dimensional.
-
-### 4.2 Kernel Energy Minimization
-
-For the Neumann kernel $K_N$ with $\beta > 0$, $\alpha > 0$, $d \ge 2$:
-
-$$\mathcal{E}(P) \;\ge\; \mathcal{E}(\mu_0), \qquad \text{with equality iff } P = \mu_0.$$
-
-| Theorem | Lean | File |
-|---------|------|------|
-| Minimization | `kernelEnergy_minimized_at_uniform` | `KernelMinimization.lean:133` |
-| Uniqueness | `kernelEnergy_minimizer_unique` | `KernelMinimization.lean:155` |
-
-**Status:** Proven for the Neumann kernel (given imported facts).
-
-The proof follows the standard MMD pathway:
-1. $K_N$ is PSD $\Rightarrow$ $\mathrm{MMD}^2(P, \mu_0) \ge 0$
-2. Potential $h(w) = \mathbb{E}_{W' \sim \mu_0}[K_N(w, W')]$ is constant $\Rightarrow$ $\mathcal{E}(P) - \mathcal{E}(\mu_0) = \mathrm{MMD}^2(P, \mu_0)$
-3. $K_N$ is characteristic $\Rightarrow$ $\mathrm{MMD}^2 = 0$ iff $P = \mu_0$
-
-### 4.3 Neumann-to-3-Image Bridge
-
-| Theorem | Lean | File | Status |
-|---------|------|------|--------|
-| Pointwise bound: $\lvert k_{\mathrm{3img}} - k_N \rvert \le C(\beta)$ | `threeImage_approx_neumann` | `KernelMinimization.lean:666` | `sorry` (bound stated, proof pending) |
-| Energy bound: $\lvert \mathcal{E}_{\mathrm{3img}} - \mathcal{E}_N \rvert \le C(\beta)$ | `threeImage_energy_approx` | `KernelMinimization.lean:806` | `sorry` |
-
-The truncation error bound $C(\beta)$ is $O(e^{-\beta})$, exponentially small
-in the kernel bandwidth.
-
----
-
-## 5. Axioms & Imported Facts
-
-These are well-known results from the literature, stated as Lean `axiom`s
+These are well-known results stated as Lean `axiom`s (accepted without proof)
 because they are not yet available in Mathlib.
 
 ### 5.1 Gaussian polar decomposition (`EquivalenceImportedFacts.lean`)
@@ -201,14 +186,9 @@ because they are not yet available in Mathlib.
 | `gaussianPolar_direction_uniform` | $Z/\lVert Z\rVert \sim \sigma_{d-1}$ | 42 |
 | `gaussianPolar_radius_chiSq` | $\lVert Z\rVert^2 \sim \chi^2_d$ | 52 |
 | `gaussianPolar_independent` | $Z/\lVert Z\rVert \perp \lVert Z\rVert^2$ | 60 |
-| `sphereUniform_rotationInvariant` | $O_{\\#} \sigma_{d-1} = \sigma_{d-1}$ | 73 |
+| `sphereUniform_rotationInvariant` | $O_\# \sigma_{d-1} = \sigma_{d-1}$ | 73 |
 
-Also: `sphereUniform_isProbability` (`EquivalenceFoundations.lean:149`) —
-normalized surface measure has mass 1.
-
-**Gap:** `gaussianNZ` is declared as a primitive, with no bridge from an
-ambient Gaussian on all of $\mathbb{R}^d$. In principle this requires
-$\gamma_d(\{0\}) = 0$, which is standard but not yet in Mathlib.
+Also: `sphereUniform_isProbability` (`EquivalenceFoundations.lean:149`).
 
 ### 5.2 Kernel theory (`KernelImportedFacts.lean`)
 
@@ -226,18 +206,27 @@ $\gamma_d(\{0\}) = 0$, which is standard but not yet in Mathlib.
 | `orthogonal_group_transitive_on_sphere` | $O(d)$ acts transitively on $S^{d-1}$ | 138 |
 | `mmdSq_nonneg` | $\mathrm{MMD}^2 \ge 0$ for PSD kernels | 150 |
 
+### 5.3 Spectral theory (`SpectralImportedFacts.lean`)
+
+| Axiom | What it says | Line |
+|-------|-------------|------|
+| `kernelAngChordal_mercerExpansion` | Mercer decomposition of angular kernel into eigenfunctions/eigenvalues | 77 |
+| `summable_neumannCosineCoeff_imported` | Neumann cosine coefficients are summable | 133 |
+| `spectral_modeL1_factorized_bridge_imported` | Factorized L¹ majorant for mode integrals (Fubini/Tonelli) | 152 |
+
 ---
 
-## 6. Remaining Work
+## 6. Proof Status
 
-### Deferred proofs (`sorry`)
+### Deferred proofs
 
-| File | What | Nature |
-|------|------|--------|
+Four lemmas use `sorry` (Lean keyword for a deferred proof):
+
+| File | Lemma | Nature |
+|------|-------|--------|
 | `KernelFoundations.lean` | `measurable_wristbandKernelNeumann` | Measurability (routine) |
 | `KernelFoundations.lean` | `integral_tsum_kernelRadNeumann` | Fubini for tsum (routine) |
-| `KernelFoundations.lean` | `cosine_span_uniformly_dense_on_unitInterval` | Density of cosine span (standard Fourier argument) |
-| `KernelMinimization.lean` | `threeImage_approx_neumann` | Neumann-to-3-image pointwise bound |
+| `KernelFoundations.lean` | `cosine_span_uniformly_dense_on_unitInterval` | Density of cosine span (Fourier / Stone-Weierstrass) |
 | `KernelMinimization.lean` | `threeImage_energy_approx` | Neumann-to-3-image energy bound |
 
 ### Not yet formalized
@@ -251,10 +240,10 @@ $\gamma_d(\{0\}) = 0$, which is standard but not yet in Mathlib.
 | Geodesic angular branch | geodesic option | Only chordal branch formalized |
 | `per_point` reduction | default reduction mode | Only `global` branch matches population energy |
 
-### Steps 3-4 (not started)
+### Future directions
 
-- **Step 3** combines Steps 1+2 via $\log$ monotonicity — immediate once bridged.
-- **Step 4** applies a nonneg-addon lemma to each auxiliary term — short, self-contained.
+- **Main correctness theorem**: combine the equivalence and minimization results via $\log$ monotonicity.
+- **Auxiliary terms**: show each additional penalty is $\ge 0$ and vanishes at the Gaussian, preserving the unique minimizer.
 
 ---
 
