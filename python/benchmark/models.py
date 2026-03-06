@@ -156,7 +156,6 @@ class PairwiseWristbandAE(AE):
         d = model_config.latent_dim
         cal_shape = (256, d) if model_config.calibration_reps > 0 else None
         self.wb_loss = C_WristbandGaussianLoss(
-            d=d,
             beta=model_config.beta,
             alpha=model_config.alpha,
             lambda_rad=model_config.lambda_rad,
