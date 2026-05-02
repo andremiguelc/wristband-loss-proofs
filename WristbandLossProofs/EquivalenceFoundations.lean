@@ -1,4 +1,4 @@
-import Mathlib
+import WristbandLossProofs.EquivalenceImportedFacts
 
 set_option autoImplicit false
 
@@ -7,863 +7,176 @@ noncomputable section
 namespace WristbandLossProofs
 
 open MeasureTheory
-open scoped Pointwise
 
-/-! ## Geometry
+/-! # Equivalence Foundations
 
-These types encode the domain and codomain of the wristband map `Φ`.
+Derivations from the three Muirhead axioms in `EquivalenceImportedFacts`.
+The four Gaussian-specific facts consumed by `Equivalence.lean`
+(`gaussianNZ`, `gaussianPolar_direction_uniform`, `gaussianPolar_radius_chiSq`,
+`gaussianPolar_independent`) are proved here. -/
 
-Python side (`ml-tidbits/.../EmbedModels.py`):
-- A sample is a vector `x` (tensor with last dim = `d`).
-- The wristband map sends `x ↦ (u, t)` where `u = x/‖x‖` and `t = F_{χ²_d}(‖x‖²)`.
+/-! ## Gaussian on `Vec d` — null set at the origin -/
 
-Lean encodes these as subtypes of Euclidean space and the unit interval.
--/
-
-/-- Ambient Euclidean space `ℝ^d`, encoded as `EuclideanSpace ℝ (Fin d)`.
-    Python: a single sample vector of dimension `d`. -/
-abbrev Vec (d : ℕ) : Type := EuclideanSpace ℝ (Fin d)
-
-/-- The unit sphere `S^{d-1}` as a subtype, aligned with Mathlib's `Metric.sphere`.
-    Python: the direction `u = x / ‖x‖` lives here. -/
-abbrev Sphere (d : ℕ) : Type := Metric.sphere (0 : Vec d) (1 : ℝ)
-
-/-- Nonzero vectors `ℝ^d \ {0}`, used because `z / ‖z‖` is undefined at the origin.
-    This is the domain of the wristband map `Φ`. -/
-def VecNZ (d : ℕ) : Type := {z : Vec d // z ≠ 0}
-
-/-- The closed unit interval `[0,1]` as a subtype of real numbers.
-    Python: the radial percentile `t = F_{χ²_d}(‖x‖²)` lives here. -/
-abbrev UnitInterval : Type := Set.Icc (0 : ℝ) 1
-
-/-- Wristband space `S^{d-1} × [0,1]`: direction coordinate plus radial-percentile coordinate.
-    This is the codomain of the wristband map `Φ(z) = (direction(z), CDF(‖z‖²))`. -/
-abbrev Wristband (d : ℕ) : Type := Sphere d × UnitInterval
-
-instance instMeasurableSpaceSphere (d : ℕ) : MeasurableSpace (Sphere d) := by
-  unfold Sphere; infer_instance
-
-instance instMeasurableSpaceVecNZ (d : ℕ) : MeasurableSpace (VecNZ d) := by
-  unfold VecNZ; infer_instance
-
-instance instMeasurableSpaceUnitInterval : MeasurableSpace UnitInterval := by
-  unfold UnitInterval; infer_instance
-
-/-! ## Distributions
-
-`Distribution α` wraps Mathlib's `ProbabilityMeasure α`, which carries a proof
-that the total mass is 1. This replaces the earlier design where `Distribution`
-was a raw `Measure` alias and probability had to be tracked separately.
-
-Key operations:
-- `pushforward f μ hf`: law of `f(X)` when `X ~ μ`. Python analogy: feeding a
-  batch through a map and looking at the output distribution.
-- `productLaw μ ν`: joint law of independent `(X, Y)`.
-- `IndepLaw`: `X ⊥ Y` iff joint law = product of marginals.
--/
-
-universe u v w
-
-/-- `Distribution α` means "a probability law on `α`".
-    Wraps `ProbabilityMeasure α` so total mass = 1 is enforced by the type. -/
-abbrev Distribution (α : Type u) [MeasurableSpace α] : Type u := ProbabilityMeasure α
-
-/-- Pushforward of a distribution along a random-variable map.
-    Math: if `X ~ μ`, then `f(X) ~ pushforward f μ`.
-    Python analogy: applying `wristbandMap` to a batch transforms the distribution. -/
-abbrev pushforward {α : Type u} {β : Type v} (f : α → β)
-    [MeasurableSpace α] [MeasurableSpace β] :
-    Distribution α → Measurable f → Distribution β
-  | μ, hf => μ.map hf.aemeasurable
-
-/-- Product law constructor for independent couplings.
-    Math: `μ ⊗ ν`, the joint law when the two coordinates are independent. -/
-def productLaw {α : Type u} {β : Type v}
-    [MeasurableSpace α] [MeasurableSpace β] :
-    Distribution α → Distribution β → Distribution (α × β)
-  | μ, ν => μ.prod ν
-
-/-- Independence encoded by: joint law of `(X, Y)` equals product of marginals.
-    Math: `X ⊥ Y` iff `Law(X, Y) = Law(X) ⊗ Law(Y)`. -/
-def IndepLaw {Ω : Type u} {α : Type v} {β : Type w}
-    [MeasurableSpace Ω] [MeasurableSpace α] [MeasurableSpace β]
-    (μ : Distribution Ω) (X : Ω → α) (Y : Ω → β)
-    (hX : Measurable X) (hY : Measurable Y) : Prop :=
-  pushforward (fun ω => (X ω, Y ω)) μ (hX.prodMk hY) =
-    productLaw (pushforward X μ hX) (pushforward Y μ hY)
-
-/-- Uniform (Lebesgue) law on `[0,1]`.
-    This is the target marginal for the radial percentile coordinate `t`.
-    Python: the radial quantile loss compares sorted `t` values against
-    uniform quantiles `q_i = (i - 0.5) / n` (EmbedModels.py:757). -/
-def uniform01 : Distribution UnitInterval :=
-  ⟨(volume : Measure UnitInterval), by infer_instance⟩
-
-/-- Squared radius of a nonzero vector: `s(z) = ‖z‖²`, stored in `ℝ≥0`.
-    Python: `s = xw.square().sum(dim=-1)` (EmbedModels.py:749). -/
-def radiusSq {d : ℕ} (z : VecNZ d) : NNReal :=
-  ⟨‖z.1‖ ^ 2, by positivity⟩
-
-/-- Measurability of `radiusSq` — needed for pushforward constructions. -/
-lemma measurable_radiusSq (d : ℕ) : Measurable (radiusSq (d := d)) := by
-  unfold radiusSq
-  refine Measurable.subtype_mk ?_
-  simpa using ((continuous_norm.pow 2).measurable.comp measurable_subtype_coe)
-
-/-- Direction map `z ↦ z / ‖z‖` into the unit sphere.
-    Python: `u = xw * torch.rsqrt(s)[..., :, None]` (EmbedModels.py:750). -/
-noncomputable def direction {d : ℕ} (z : VecNZ d) : Sphere d := by
-  refine ⟨(‖z.1‖)⁻¹ • z.1, ?_⟩
-  have hz : ‖z.1‖ ≠ 0 := norm_ne_zero_iff.mpr z.2
-  have hnorm : ‖(‖z.1‖)⁻¹ • z.1‖ = 1 := by
-    calc
-      ‖(‖z.1‖)⁻¹ • z.1‖ = ‖(‖z.1‖)⁻¹‖ * ‖z.1‖ := norm_smul _ _
-      _ = (‖z.1‖)⁻¹ * ‖z.1‖ := by simp
-      _ = 1 := by simp [hz]
-  simpa [Metric.mem_sphere, dist_eq_norm] using hnorm
-
-/-- Measurability of `direction` — needed for pushforward constructions. -/
-lemma measurable_direction (d : ℕ) : Measurable (direction (d := d)) := by
-  unfold direction
-  refine Measurable.subtype_mk ?_
-  exact ((measurable_norm.comp measurable_subtype_coe).inv.smul measurable_subtype_coe)
-
-/-! ## Sphere Measure
-
-The uniform law on `S^{d-1}` is the target marginal for the direction coordinate.
-We construct it by normalizing the ambient surface measure (Hausdorff measure
-restricted to the sphere) so total mass is 1, for `d ≥ 1`.
--/
-
-/-- Surface measure on the unit sphere induced from ambient `volume`.
-    Uses Mathlib's `Measure.toSphere` which restricts the ambient Hausdorff measure. -/
-noncomputable def sphereSurface (d : ℕ) : Measure (Sphere d) :=
-  (volume : Measure (Vec d)).toSphere
-
-/-- `Vec d` is nontrivial when `d ≥ 1`. -/
-lemma vec_nontrivial_of_one_le (d : ℕ) (hDim : 1 ≤ d) : Nontrivial (Vec d) := by
-  haveI : Nonempty (Fin d) := Fin.pos_iff_nonempty.mp (Nat.succ_le_iff.mp hDim)
-  infer_instance
-
-/-- The sphere surface measure has nonzero total mass when `d ≥ 1`. -/
-lemma sphereSurface_univ_ne_zero (d : ℕ) (hDim : 1 ≤ d) :
-    (sphereSurface d) Set.univ ≠ 0 := by
+theorem gaussianFull_singletonZeroMeasure (d : ℕ) (hDim : 1 ≤ d) :
+    (gaussianFull d).val {0} = 0 := by
   haveI : Nontrivial (Vec d) := vec_nontrivial_of_one_le d hDim
-  have hMeasNeZero : sphereSurface d ≠ 0 := by
-    change (volume : Measure (Vec d)).toSphere ≠ 0
-    exact MeasureTheory.Measure.toSphere_ne_zero (μ := (volume : Measure (Vec d)))
-  intro hZero
-  exact hMeasNeZero ((MeasureTheory.Measure.measure_univ_eq_zero).1 hZero)
+  rw [gaussianFull_density d (measurableSet_singleton 0)]
+  exact setLIntegral_measure_zero _ _ (measure_singleton _)
 
-/-- The normalized sphere surface measure is a probability measure when `d ≥ 1`. -/
-theorem sphereUniform_isProbability
-    (d : ℕ) (hDim : 1 ≤ d) :
-    IsProbabilityMeasure (((sphereSurface d) Set.univ)⁻¹ • sphereSurface d)
-    := by
-  refine ⟨?_⟩
-  have hFin : (sphereSurface d) Set.univ < (⊤ : ENNReal) := by
-    simpa [sphereSurface] using
-      (measure_lt_top (μ := (volume : Measure (Vec d)).toSphere) Set.univ)
-  have hPos : (sphereSurface d) Set.univ ≠ 0 := sphereSurface_univ_ne_zero d hDim
-  calc
-    (((sphereSurface d) Set.univ)⁻¹ • sphereSurface d) Set.univ
-        = ((sphereSurface d) Set.univ)⁻¹ * (sphereSurface d) Set.univ := by
-            simp [Measure.smul_apply]
-    _ = 1 := ENNReal.inv_mul_cancel hPos (ne_of_lt hFin)
+/-! ## Restriction to nonzero vectors -/
 
-/-- Uniform probability law on the unit sphere `S^{d-1}`.
-    Math: `σ_{d-1}`, the normalized surface measure. -/
-noncomputable def sphereUniform (d : ℕ) (hDim : 1 ≤ d) : Distribution (Sphere d) :=
-  ⟨((sphereSurface d) Set.univ)⁻¹ • sphereSurface d, sphereUniform_isProbability d hDim⟩
+/-- `Subtype.val : VecNZ d → Vec d` is a measurable embedding (the underlying
+    set `{z ≠ 0}` is the complement of a singleton, hence measurable). -/
+lemma measurableEmbedding_vecNZ_val (d : ℕ) :
+    MeasurableEmbedding (Subtype.val : VecNZ d → Vec d) := by
+  have hSet : ({z : Vec d | z ≠ 0}) = ({(0 : Vec d)}ᶜ) := by ext z; simp
+  have hMeas : MeasurableSet ({z : Vec d | z ≠ 0}) := by
+    rw [hSet]; exact (measurableSet_singleton 0).compl
+  exact MeasurableEmbedding.subtype_coe hMeas
 
-/-- Target wristband law `μ₀ = σ_{d-1} ⊗ Unif[0,1]`.
-    This is the "ideal" distribution on wristband space: direction is uniform on
-    the sphere and the radial percentile is uniform on `[0,1]`, independently.
-    Python: the wristband loss drives the embedding distribution toward this target. -/
-def wristbandUniform (d : ℕ) (hDim : 1 ≤ d) : Distribution (Wristband d) :=
-  productLaw (sphereUniform d hDim) uniform01
+/-- The standard isotropic Gaussian restricted to nonzero vectors. -/
+def gaussianNZ (d : ℕ) (hDim : 1 ≤ d) : Distribution (VecNZ d) := by
+  haveI hProb : IsProbabilityMeasure (gaussianFull d).val := (gaussianFull d).property
+  refine ⟨(gaussianFull d).val.comap Subtype.val, ⟨?_⟩⟩
+  have hCompl : (gaussianFull d).val ({(0 : Vec d)}ᶜ) = 1 := by
+    rw [prob_compl_eq_one_sub (measurableSet_singleton _),
+        gaussianFull_singletonZeroMeasure d hDim]; simp
+  have hImg : (Subtype.val : VecNZ d → Vec d) '' Set.univ = ({(0 : Vec d)}ᶜ) := by
+    rw [Set.image_univ, Subtype.range_val]; rfl
+  calc (Measure.comap (Subtype.val : VecNZ d → Vec d) (gaussianFull d).val) Set.univ
+      = (gaussianFull d).val ((Subtype.val : VecNZ d → Vec d) '' Set.univ) :=
+        (measurableEmbedding_vecNZ_val d).comap_apply _ _
+    _ = (gaussianFull d).val ({(0 : Vec d)}ᶜ) := by rw [hImg]
+    _ = 1 := hCompl
 
-/-- Rotate a point on the sphere via a linear isometric equivalence.
-    Used in the rotation-invariance proof for spherical laws. -/
-def rotateSphere {d : ℕ} (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) (u : Sphere d) : Sphere d := by
-  refine ⟨O u.1, ?_⟩
-  have hu : ‖u.1‖ = 1 := by simp
-  have hOu : ‖O u.1‖ = 1 := by
-    calc ‖O u.1‖ = ‖u.1‖ := O.norm_map u.1
-      _ = 1 := hu
-  simp [hOu]
+/-! ## Rotation invariance -/
 
-/-- Measurability of sphere rotations. -/
-lemma measurable_rotateSphere {d : ℕ} (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) :
-    Measurable (rotateSphere O) := by
-  unfold rotateSphere
-  refine Measurable.subtype_mk ?_
-  simpa [Function.comp] using
-    (O.continuous.comp continuous_subtype_val).measurable
-
-/-- The inverse rotation on the sphere induced by `O.symm`. -/
-def sphereSymm (d : ℕ) (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) (u : Sphere d) : Sphere d :=
-  rotateSphere O.symm u
-
-@[simp] lemma rotateSphere_sphereSymm (d : ℕ) (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) (u : Sphere d) :
-    rotateSphere O (sphereSymm d O u) = u := by
-  ext
-  simp [rotateSphere, sphereSymm]
-
-lemma cone_preimage_rotateSphere
-    (d : ℕ) (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) (s : Set (Sphere d)) :
-    (fun x : Vec d => O x) ⁻¹' (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s))
-      = Set.Ioo (0 : ℝ) 1 • (Subtype.val '' ((rotateSphere O) ⁻¹' s)) := by
-  ext x
-  constructor
-  · intro hx
-    rcases hx with ⟨r, hr, y, hy, hxy : r • y = O x⟩
-    have hySphere : y ∈ Metric.sphere (0 : Vec d) (1 : ℝ) := by
-      rcases hy with ⟨u, hu, huy⟩
-      subst huy
-      exact u.2
-    let uy : Sphere d := ⟨y, hySphere⟩
-    refine ⟨r, hr, (sphereSymm d O uy).1, ?_, ?_⟩
-    · refine ⟨sphereSymm d O uy, ?_, rfl⟩
-      change rotateSphere O (sphereSymm d O uy) ∈ s
-      have huyIn : uy ∈ s := by
-        rcases hy with ⟨u, hu, huy⟩
-        subst huy
-        simpa [uy] using hu
-      simpa [rotateSphere_sphereSymm] using huyIn
-    · have hx' : r • O.symm y = x := by
-        calc
-          r • O.symm y = O.symm (r • y) := by simp
-          _ = O.symm (O x) := by simp [hxy]
-          _ = x := by simp
-      simpa [sphereSymm, uy] using hx'
-  · intro hx
-    rcases hx with ⟨r, hr, y, hy, hxy : r • y = x⟩
-    rcases hy with ⟨v, hv, rfl⟩
-    refine ⟨r, hr, (rotateSphere O v).1, ?_, ?_⟩
-    · exact ⟨rotateSphere O v, hv, rfl⟩
-    · calc
-        r • (rotateSphere O v).1 = r • O v.1 := by simp [rotateSphere]
-        _ = O (r • v.1) := by simp
-        _ = O x := by simp [hxy]
-
-/-- Surface measure on the sphere is invariant under linear isometries. -/
-theorem sphereSurface_rotationInvariant
-    (d : ℕ) (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) :
-    Measure.map (rotateSphere O) (sphereSurface d) = sphereSurface d := by
+/-- Standard isotropic Gaussian is invariant under linear isometries.
+    Proof: density depends on `‖x‖²` only, and isometries preserve norms. -/
+theorem gaussianFull_rotationInvariant (d : ℕ) (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) :
+    Measure.map (fun x : Vec d => O x) (gaussianFull d).val = (gaussianFull d).val := by
+  set ρ : Vec d → ENNReal :=
+    fun x => ENNReal.ofReal ((2 * Real.pi) ^ (-(d : ℝ) / 2) * Real.exp (-‖x‖ ^ 2 / 2))
+  have hO : Measurable (fun x : Vec d => O x) := O.continuous.measurable
+  have hOMeasPres : MeasurePreserving (fun x : Vec d => O x)
+      (volume : Measure (Vec d)) volume := O.measurePreserving
+  have hρInv : ∀ x : Vec d, ρ (O x) = ρ x := by
+    intro x; simp [ρ, O.norm_map]
+  have hρMeas : Measurable ρ := by
+    refine Measurable.ennreal_ofReal ?_
+    exact measurable_const.mul (Real.measurable_exp.comp
+      ((measurable_norm.pow_const 2).neg.div_const 2))
   apply Measure.ext
   intro s hs
-  have hToSpherePre :
-      sphereSurface d ((rotateSphere O) ⁻¹' s)
-        = (Module.finrank ℝ (Vec d) : ENNReal) *
-            (volume : Measure (Vec d))
-              (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' ((rotateSphere O) ⁻¹' s))) := by
-    simpa [sphereSurface] using
-      (MeasureTheory.Measure.toSphere_apply' (μ := (volume : Measure (Vec d)))
-        (s := ((rotateSphere O) ⁻¹' s))
-        ((measurable_rotateSphere O) hs))
-  have hToSphere :
-      sphereSurface d s
-        = (Module.finrank ℝ (Vec d) : ENNReal) *
-            (volume : Measure (Vec d))
-              (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s)) := by
-    simpa [sphereSurface] using
-      (MeasureTheory.Measure.toSphere_apply' (μ := (volume : Measure (Vec d))) (s := s) hs)
-  have hMapVol : Measure.map (fun x : Vec d => O x) (volume : Measure (Vec d)) = volume :=
-    O.measurePreserving.map_eq
-  have hVolPre :
-      (volume : Measure (Vec d))
-          (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' ((rotateSphere O) ⁻¹' s)))
-        = (volume : Measure (Vec d)) (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s)) := by
-    calc
-      (volume : Measure (Vec d))
-          (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' ((rotateSphere O) ⁻¹' s)))
-        = (volume : Measure (Vec d))
-            ((fun x : Vec d => O x) ⁻¹' (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s))) := by
-              rw [cone_preimage_rotateSphere]
-      _ = Measure.map (fun x : Vec d => O x) (volume : Measure (Vec d))
-            (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s)) := by
-              symm
-              exact (MeasurableEmbedding.map_apply
-                (hf := O.toHomeomorph.toMeasurableEquiv.measurableEmbedding)
-                (μ := (volume : Measure (Vec d)))
-                (s := (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s))) )
-      _ = (volume : Measure (Vec d)) (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s)) := by rw [hMapVol]
-  calc
-    Measure.map (rotateSphere O) (sphereSurface d) s
-      = sphereSurface d ((rotateSphere O) ⁻¹' s) := by
-          rw [Measure.map_apply (measurable_rotateSphere O) hs]
-    _ = (Module.finrank ℝ (Vec d) : ENNReal) *
-          (volume : Measure (Vec d))
-            (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' ((rotateSphere O) ⁻¹' s))) := hToSpherePre
-    _ = (Module.finrank ℝ (Vec d) : ENNReal) *
-          (volume : Measure (Vec d))
-            (Set.Ioo (0 : ℝ) 1 • (Subtype.val '' s)) := by rw [hVolPre]
-    _ = sphereSurface d s := hToSphere.symm
+  rw [Measure.map_apply hO hs, gaussianFull_density d (hO hs), gaussianFull_density d hs]
+  change ∫⁻ x in (fun x => O x) ⁻¹' s, ρ x ∂(volume : Measure (Vec d))
+       = ∫⁻ x in s, ρ x ∂(volume : Measure (Vec d))
+  rw [← lintegral_indicator (hO hs), ← lintegral_indicator hs]
+  -- Pointwise: indicator of preimage agrees with indicator composed with O,
+  -- because the density is rotation-invariant.
+  have hPointwise :
+      ((fun x : Vec d => O x) ⁻¹' s).indicator ρ
+        = (s.indicator ρ) ∘ (fun x : Vec d => O x) := by
+    funext x
+    by_cases hx : O x ∈ s
+    · have hx' : x ∈ (fun x : Vec d => O x) ⁻¹' s := hx
+      simp [Set.indicator_of_mem hx, Set.indicator_of_mem hx', hρInv x]
+    · have hx' : x ∉ (fun x : Vec d => O x) ⁻¹' s := hx
+      simp [Set.indicator_of_notMem hx, Set.indicator_of_notMem hx']
+  rw [hPointwise]
+  exact hOMeasPres.lintegral_comp (hρMeas.indicator hs)
 
-/-- Rotations preserve the normalized uniform law on the sphere. -/
-theorem sphereUniform_rotationInvariant
-    (d : ℕ) (hDim : 1 ≤ d) (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) :
-    pushforward (rotateSphere O) (sphereUniform d hDim) (measurable_rotateSphere O) =
-      sphereUniform d hDim := by
+/-- Restriction of the standard Gaussian to nonzero vectors is rotation invariant.
+    Transports `gaussianFull_rotationInvariant` through the
+    `Subtype.val ∘ rotateVecNZ = O ∘ Subtype.val` commuting square. -/
+theorem gaussianNZ_rotationInvariant (d : ℕ) (hDim : 1 ≤ d)
+    (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) :
+    pushforward (rotateVecNZ O) (gaussianNZ d hDim) (measurable_rotateVecNZ O)
+      = gaussianNZ d hDim := by
   apply Subtype.ext
-  change
-    Measure.map (rotateSphere O) (((sphereSurface d) Set.univ)⁻¹ • sphereSurface d)
-      = (((sphereSurface d) Set.univ)⁻¹ • sphereSurface d)
-  calc
-    Measure.map (rotateSphere O) (((sphereSurface d) Set.univ)⁻¹ • sphereSurface d)
-      = ((sphereSurface d) Set.univ)⁻¹ • Measure.map (rotateSphere O) (sphereSurface d) := by
-          exact
-            Measure.map_smul
-              ((sphereSurface d) Set.univ)⁻¹ (sphereSurface d) (rotateSphere O)
-    _ = (((sphereSurface d) Set.univ)⁻¹ • sphereSurface d) := by
-          simp [sphereSurface_rotationInvariant]
-
-/-! ## CDF and PIT Definitions
-
-These predicates formalize what it means for `F` to be "the CDF" of a law `μ`.
-They are used by the Probability Integral Transform (PIT) theorems below.
-
-The CDF is the key bridge between the squared-radius law and the radial
-percentile coordinate. In Python:
-  `t = torch.special.gammainc(d/2, s/2)` (EmbedModels.py:752)
-computes the chi-square CDF value, which is exactly what `chiSqCDFToUnit` does
-in Lean.
--/
-
-/-- CDF of a probability law on `ℝ≥0`, evaluated at `x`: `F(x) = μ((-∞, x])`.
-    Returns a real number (will be in `[0,1]` for probability measures). -/
-noncomputable def cdfNNReal (μ : Distribution NNReal) (x : NNReal) : ℝ :=
-  ((μ : Measure NNReal) (Set.Iic x)).toReal
-
-/-- Predicate: `F` is the CDF of `μ` and is continuous.
-    Used as the hypothesis for the forward PIT (`F(X) ~ Unif[0,1]`). -/
-def IsContinuousCDFFor (μ : Distribution NNReal) (F : NNReal → UnitInterval) : Prop :=
-  (∀ x, (F x : ℝ) = cdfNNReal μ x) ∧ Continuous (fun x => (F x : ℝ))
-
-/-- Predicate: `F` is the CDF of `μ` and is strictly increasing.
-    Used as the hypothesis for the reverse PIT (`F(X) ~ Unif ⟹ X ~ μ`). -/
-def IsStrictlyIncreasingCDFFor (μ : Distribution NNReal) (F : NNReal → UnitInterval) : Prop :=
-  (∀ x, (F x : ℝ) = cdfNNReal μ x) ∧ StrictMono (fun x => (F x : ℝ))
-
-/-! ## Chi-Square CDF Bridge (Mathlib)
-
-This section builds the chi-square radius law and its CDF from Mathlib's
-`gammaMeasure`, replacing what were previously axioms.
-
-**Mathematical background:**
-The chi-square distribution with `d` degrees of freedom is a Gamma distribution
-with shape `α = d/2` and rate `β = 1/2`:
-  `χ²_d = Gamma(d/2, 1/2)`.
-
-**Python correspondence:**
-  `torch.special.gammainc(d/2, s/2)` (EmbedModels.py:752)
-computes the regularized lower incomplete gamma function, which is exactly the
-CDF of `Gamma(d/2, 1/2)` evaluated at `s`. So `gammainc(d/2, s/2) = F_{χ²_d}(s)`.
-
-**Construction pipeline:**
-1. `chiSqMeasureR d` — gamma measure on `ℝ` with parameters `(d/2, 1/2)`.
-2. `chiSqRadiusMeasurePos d` — pushforward to `ℝ≥0` via `Real.toNNReal`.
-3. `chiSqRadiusLaw d` — wrapped as a `ProbabilityMeasure NNReal`.
-4. `chiSqCDFToUnit d` — CDF map `ℝ≥0 → [0,1]` using Mathlib's `ProbabilityTheory.cdf`.
-
-**What was proved (previously axioms):**
-- `chiSqCDFToUnit_isContinuousCDF` — CDF is continuous (via no-atoms of gamma).
-- `chiSqCDFToUnit_isStrictlyIncreasingCDF` — CDF is strictly increasing
-  (via positive density on all intervals).
--/
-
-/-- Chi-square shape parameter `α = d/2`, expressed over reals.
-    Python: the first argument to `gammainc(d/2, ...)`. -/
-noncomputable def chiSqShape (d : ℕ) : ℝ := (d : ℝ) / 2
-
-/-- Chi-square rate parameter `β = 1/2`.
-    Combined with shape `d/2`, this gives `Gamma(d/2, 1/2) = χ²_d`. -/
-noncomputable def chiSqRate : ℝ := (1 : ℝ) / 2
-
-/-- Shape parameter is positive when `d ≥ 1`. -/
-lemma chiSqShape_pos (d : ℕ) (hDim : 1 ≤ d) : 0 < chiSqShape d := by
-  have hdNat : 0 < d := Nat.succ_le_iff.mp hDim
-  have hd : (0 : ℝ) < (d : ℝ) := by exact_mod_cast hdNat
-  unfold chiSqShape
-  exact div_pos hd (by norm_num)
-
-/-- Rate parameter `1/2` is positive. -/
-lemma chiSqRate_pos : 0 < chiSqRate := by
-  norm_num [chiSqRate]
-
-/-- Chi-square measure on `ℝ`, realized as `gammaMeasure(d/2, 1/2)`.
-    This is a measure on all of `ℝ` (concentrated on `[0,∞)`). -/
-noncomputable def chiSqMeasureR (d : ℕ) : Measure ℝ :=
-  ProbabilityTheory.gammaMeasure (chiSqShape d) chiSqRate
-
-/-- Pushforward of the real-valued chi-square measure to `ℝ≥0` via `Real.toNNReal`.
-    Since `χ²` is supported on `[0,∞)`, this loses no mass. -/
-noncomputable def chiSqRadiusMeasurePos (d : ℕ) : Measure NNReal :=
-  Measure.map Real.toNNReal (chiSqMeasureR d)
-
-/-- Chi-square radius law as a probability measure on `ℝ≥0`, for `d ≥ 1`.
-    Wraps the pushed-forward gamma measure with a proof that it has total mass 1. -/
-noncomputable def chiSqRadiusLawPos (d : ℕ) (hDim : 1 ≤ d) : Distribution NNReal := by
-  have hProbR : IsProbabilityMeasure (chiSqMeasureR d) :=
-    ProbabilityTheory.isProbabilityMeasure_gammaMeasure (chiSqShape_pos d hDim) chiSqRate_pos
-  have hProbNN : IsProbabilityMeasure (chiSqRadiusMeasurePos d) := by
-    letI : IsProbabilityMeasure (chiSqMeasureR d) := hProbR
-    simpa [chiSqRadiusMeasurePos] using
-      (Measure.isProbabilityMeasure_map (μ := chiSqMeasureR d) measurable_real_toNNReal.aemeasurable)
-  exact ⟨chiSqRadiusMeasurePos d, hProbNN⟩
-
-/-- Chi-square radius law on `ℝ≥0` for all `d : ℕ`.
-    For `d ≥ 1`: the gamma-based law (`chiSqRadiusLawPos`).
-    For `d = 0`: a degenerate Dirac mass at `0` (fallback so the definition is total).
-
-    Previously an axiom; now a concrete definition backed by Mathlib's `gammaMeasure`. -/
-noncomputable def chiSqRadiusLaw (d : ℕ) : Distribution NNReal :=
-  if hDim : 1 ≤ d then
-    chiSqRadiusLawPos d hDim
-  else
-    ⟨Measure.dirac (0 : NNReal), by infer_instance⟩
-
-/-- Simp lemma: for `d ≥ 1`, `chiSqRadiusLaw` unfolds to the gamma-based version. -/
-@[simp] lemma chiSqRadiusLaw_eq_pos (d : ℕ) (hDim : 1 ≤ d) :
-    chiSqRadiusLaw d = chiSqRadiusLawPos d hDim := by
-  simp [chiSqRadiusLaw, hDim]
-
-/-- Technical lemma: the preimage of `[0, x]` under `toNNReal` is `(-∞, x]`.
-    This works because `toNNReal` clamps negatives to `0 ≤ x`. -/
-lemma preimage_toNNReal_Iic (x : NNReal) :
-    (Real.toNNReal ⁻¹' Set.Iic x) = Set.Iic (x : ℝ) := by
-  ext t
-  simp [Real.toNNReal_le_iff_le_coe]
-
-/-- The pushed-forward `NNReal` measure on `[0, x]` equals the real gamma measure
-    on `(-∞, x]`. Bridge between the two worlds. -/
-lemma chiSqRadiusMeasurePos_apply_Iic (d : ℕ) (x : NNReal) :
-    chiSqRadiusMeasurePos d (Set.Iic x) = chiSqMeasureR d (Set.Iic (x : ℝ)) := by
-  rw [chiSqRadiusMeasurePos, Measure.map_apply measurable_real_toNNReal measurableSet_Iic]
-  simp [preimage_toNNReal_Iic]
-
-/-- **Key bridge lemma**: our `cdfNNReal` of the `NNReal` chi-square law equals
-    Mathlib's `ProbabilityTheory.cdf` of the real-valued gamma measure.
-    This connects our CDF definition to Mathlib's CDF infrastructure. -/
-lemma cdfNNReal_chiSqRadiusLawPos_eq_cdf (d : ℕ) (hDim : 1 ≤ d) (x : NNReal) :
-    cdfNNReal (chiSqRadiusLawPos d hDim) x = ProbabilityTheory.cdf (chiSqMeasureR d) x := by
-  have hProbR : IsProbabilityMeasure (chiSqMeasureR d) :=
-    ProbabilityTheory.isProbabilityMeasure_gammaMeasure (chiSqShape_pos d hDim) chiSqRate_pos
-  rw [cdfNNReal]
-  change (chiSqRadiusMeasurePos d (Set.Iic x)).toReal = ProbabilityTheory.cdf (chiSqMeasureR d) x
-  rw [chiSqRadiusMeasurePos_apply_Iic]
-  simpa [MeasureTheory.measureReal_def] using
-    (ProbabilityTheory.cdf_eq_real (μ := chiSqMeasureR d) (x := (x : ℝ))).symm
-
-/-- **Positive mass on intervals**: the gamma measure assigns positive mass to
-    every nonempty interval `(x, y]` with `0 ≤ x < y`.
-    This is the engine behind strict monotonicity of the CDF: if `x < y` then
-    `F(y) - F(x) = μ((x,y]) > 0`, so `F(x) < F(y)`. -/
-lemma gammaMeasure_Ioc_pos {a r : ℝ} (ha : 0 < a) (hr : 0 < r)
-    {x y : NNReal} (hxy : x < y) :
-    0 < (ProbabilityTheory.gammaMeasure a r) (Set.Ioc (x : ℝ) (y : ℝ)) := by
-  rw [ProbabilityTheory.gammaMeasure, withDensity_apply _ measurableSet_Ioc]
-  have hMeasGamma : Measurable (ProbabilityTheory.gammaPDF a r) := by
-    simpa [ProbabilityTheory.gammaPDF] using
-      ((ProbabilityTheory.measurable_gammaPDFReal a r).ennreal_ofReal)
-  rw [MeasureTheory.setLIntegral_pos_iff hMeasGamma]
-  have hxyR : (x : ℝ) < (y : ℝ) := by exact_mod_cast hxy
-  have hIoo :
-      Set.Ioo (x : ℝ) (y : ℝ) ⊆
-        Function.support (ProbabilityTheory.gammaPDF a r) ∩ Set.Ioc (x : ℝ) (y : ℝ) := by
-    intro t ht
-    have ht_pos : 0 < t := lt_of_le_of_lt (by exact_mod_cast x.2) ht.1
-    have ht_pdf_pos_real : 0 < ProbabilityTheory.gammaPDFReal a r t :=
-      ProbabilityTheory.gammaPDFReal_pos ha hr ht_pos
-    have ht_pdf_pos : 0 < ProbabilityTheory.gammaPDF a r t := by
-      unfold ProbabilityTheory.gammaPDF
-      exact ENNReal.ofReal_pos.mpr ht_pdf_pos_real
-    refine ⟨?_, ?_⟩
-    · simp [Function.mem_support, ht_pdf_pos.ne']
-    · exact ⟨ht.1, ht.2.le⟩
-  have hvolIoo : 0 < (volume (Set.Ioo (x : ℝ) (y : ℝ))) := by
-    rw [Real.volume_Ioo]
-    exact ENNReal.ofReal_pos.mpr (sub_pos.mpr hxyR)
-  exact lt_of_lt_of_le hvolIoo (measure_mono hIoo)
-
-/-- **CDF continuity for gamma measures**: the CDF `F(x) = μ((-∞, x])` is
-    continuous on all of `ℝ`.
-    Proof idea: gamma measures have no atoms (since they're absolutely continuous
-    w.r.t. Lebesgue measure via `withDensity`), so the CDF has no jumps.
-    A monotone function with no jumps is continuous. -/
-lemma continuous_cdf_gammaMeasure {a r : ℝ} (ha : 0 < a) (hr : 0 < r) :
-    Continuous (fun x : ℝ => (ProbabilityTheory.cdf (ProbabilityTheory.gammaMeasure a r)) x) := by
-  let μ : Measure ℝ := ProbabilityTheory.gammaMeasure a r
-  have hProb : IsProbabilityMeasure μ := ProbabilityTheory.isProbabilityMeasure_gammaMeasure ha hr
-  have hMono : Monotone (ProbabilityTheory.cdf μ) := ProbabilityTheory.monotone_cdf μ
-  refine continuous_iff_continuousAt.mpr ?_
-  intro x
-  rw [hMono.continuousAt_iff_leftLim_eq_rightLim]
-  have hNoAtoms : NoAtoms μ := by
-    simpa [μ, ProbabilityTheory.gammaMeasure] using
-      (MeasureTheory.noAtoms_withDensity (μ := (volume : Measure ℝ)) (ProbabilityTheory.gammaPDF a r))
-  have hSingletonZero : (ProbabilityTheory.cdf μ).measure {x} = 0 := by
-    rw [ProbabilityTheory.measure_cdf μ]
-    exact NoAtoms.measure_singleton (μ := μ) x
-  have hLeZero : (ProbabilityTheory.cdf μ x - Function.leftLim (ProbabilityTheory.cdf μ) x) ≤ 0 := by
-    have hOfRealZero : ENNReal.ofReal
-        (ProbabilityTheory.cdf μ x - Function.leftLim (ProbabilityTheory.cdf μ) x) = 0 := by
-      have hSingleton :
-          (ProbabilityTheory.cdf μ).measure {x} = ENNReal.ofReal
-            (ProbabilityTheory.cdf μ x - Function.leftLim (ProbabilityTheory.cdf μ) x) :=
-        StieltjesFunction.measure_singleton (ProbabilityTheory.cdf μ) x
-      rw [hSingletonZero] at hSingleton
-      simpa using hSingleton.symm
-    exact ENNReal.ofReal_eq_zero.mp hOfRealZero
-  have hLeftLe : Function.leftLim (ProbabilityTheory.cdf μ) x ≤ ProbabilityTheory.cdf μ x :=
-    Monotone.leftLim_le hMono (le_rfl : x ≤ x)
-  have hValLe : ProbabilityTheory.cdf μ x ≤ Function.leftLim (ProbabilityTheory.cdf μ) x := by
-    linarith
-  have hLeftEq : Function.leftLim (ProbabilityTheory.cdf μ) x = ProbabilityTheory.cdf μ x :=
-    le_antisymm hLeftLe hValLe
-  rw [StieltjesFunction.rightLim_eq, hLeftEq]
-
-/-- **CDF strict monotonicity for gamma measures** (restricted to `ℝ≥0`):
-    if `0 ≤ x < y`, then `F(x) < F(y)`.
-    Proof: `F(y) - F(x) = μ((x,y]) > 0` by `gammaMeasure_Ioc_pos`. -/
-lemma strictMono_cdf_gammaMeasure {a r : ℝ} (ha : 0 < a) (hr : 0 < r) :
-    StrictMono (fun x : NNReal => ProbabilityTheory.cdf (ProbabilityTheory.gammaMeasure a r) x) := by
-  intro x y hxy
-  have hProb : IsProbabilityMeasure (ProbabilityTheory.gammaMeasure a r) :=
-    ProbabilityTheory.isProbabilityMeasure_gammaMeasure ha hr
-  have hIocPos : 0 < (ProbabilityTheory.gammaMeasure a r) (Set.Ioc (x : ℝ) (y : ℝ)) :=
-    gammaMeasure_Ioc_pos ha hr hxy
-  have hMeasureEq :
-      (ProbabilityTheory.cdf (ProbabilityTheory.gammaMeasure a r)).measure =
-        ProbabilityTheory.gammaMeasure a r :=
-    ProbabilityTheory.measure_cdf (μ := ProbabilityTheory.gammaMeasure a r)
-  have hIocPosCdf :
-      0 < (ProbabilityTheory.cdf (ProbabilityTheory.gammaMeasure a r)).measure
-            (Set.Ioc (x : ℝ) (y : ℝ)) := by
-    simpa [hMeasureEq] using hIocPos
-  have hDiffPosENN :
-      0 < ENNReal.ofReal
-        (ProbabilityTheory.cdf (ProbabilityTheory.gammaMeasure a r) y -
-          ProbabilityTheory.cdf (ProbabilityTheory.gammaMeasure a r) x) := by
-    simpa [StieltjesFunction.measure_Ioc] using hIocPosCdf
-  have hDiffPos :
-      0 <
-        (ProbabilityTheory.cdf (ProbabilityTheory.gammaMeasure a r) y -
-          ProbabilityTheory.cdf (ProbabilityTheory.gammaMeasure a r) x) :=
-    ENNReal.ofReal_pos.mp hDiffPosENN
-  linarith
-
-/-- Specialization: chi-square CDF is continuous on `ℝ`. -/
-lemma continuous_cdf_chiSqMeasureR (d : ℕ) (hDim : 1 ≤ d) :
-    Continuous (fun x : ℝ => ProbabilityTheory.cdf (chiSqMeasureR d) x) := by
-  simpa [chiSqMeasureR] using
-    (continuous_cdf_gammaMeasure (a := chiSqShape d) (r := chiSqRate)
-      (chiSqShape_pos d hDim) chiSqRate_pos)
-
-/-- Specialization: chi-square CDF is continuous when restricted to `ℝ≥0`. -/
-lemma continuous_cdf_chiSqMeasureR_onNNReal (d : ℕ) (hDim : 1 ≤ d) :
-    Continuous (fun x : NNReal => ProbabilityTheory.cdf (chiSqMeasureR d) x) := by
-  exact (continuous_cdf_chiSqMeasureR d hDim).comp continuous_subtype_val
-
-/-- Specialization: chi-square CDF is strictly increasing on `ℝ≥0`. -/
-lemma strictMono_cdf_chiSqMeasureR (d : ℕ) (hDim : 1 ≤ d) :
-    StrictMono (fun x : NNReal => ProbabilityTheory.cdf (chiSqMeasureR d) x) := by
-  simpa [chiSqMeasureR] using
-    (strictMono_cdf_gammaMeasure (a := chiSqShape d) (r := chiSqRate)
-      (chiSqShape_pos d hDim) chiSqRate_pos)
-
-/-- Chi-square CDF as a map `ℝ≥0 → [0,1]` for `d ≥ 1`.
-    This wraps Mathlib's `ProbabilityTheory.cdf` with a proof that values lie in `[0,1]`.
-    Python: `torch.special.gammainc(d/2, s/2)` (EmbedModels.py:752).
-    Previously an axiom; now a concrete definition. -/
-noncomputable def chiSqCDFToUnitPos (d : ℕ) (_hDim : 1 ≤ d) : NNReal → UnitInterval :=
-  fun x =>
-    ⟨ProbabilityTheory.cdf (chiSqMeasureR d) x,
-      ⟨ProbabilityTheory.cdf_nonneg (μ := chiSqMeasureR d) (x := x),
-        ProbabilityTheory.cdf_le_one (μ := chiSqMeasureR d) (x := x)⟩⟩
-
-/-- Chi-square CDF map `ℝ≥0 → [0,1]` for all dimensions.
-    For `d ≥ 1`: the gamma-based CDF (`chiSqCDFToUnitPos`).
-    For `d = 0`: constant `0` (fallback so the definition is total).
-    Previously an axiom; now a concrete definition backed by Mathlib. -/
-noncomputable def chiSqCDFToUnit (d : ℕ) : NNReal → UnitInterval :=
-  if hDim : 1 ≤ d then
-    chiSqCDFToUnitPos d hDim
-  else
-    fun _ => ⟨0, by simp⟩
-
-/-- Simp lemma: for `d ≥ 1`, `chiSqCDFToUnit` unfolds to the gamma-based version. -/
-@[simp] lemma chiSqCDFToUnit_eq_pos (d : ℕ) (hDim : 1 ≤ d) :
-    chiSqCDFToUnit d = chiSqCDFToUnitPos d hDim := by
-  simp [chiSqCDFToUnit, hDim]
-
-/-- Measurability of `chiSqCDFToUnit` — needed for pushforward constructions.
-    Previously an axiom; now proven from CDF continuity. -/
-lemma chiSqCDFToUnit_measurable (d : ℕ) : Measurable (chiSqCDFToUnit d) := by
-  by_cases hDim : 1 ≤ d
-  · rw [chiSqCDFToUnit_eq_pos d hDim]
-    refine Measurable.subtype_mk ?_
-    simpa [chiSqCDFToUnitPos] using (continuous_cdf_chiSqMeasureR_onNNReal d hDim).measurable
-  · simp [chiSqCDFToUnit, hDim]
-
-/-- The `chiSqCDFToUnitPos` function agrees with `cdfNNReal` of the chi-square law.
-    This is the pointwise bridge between our CDF definition and the measure-theoretic CDF. -/
-lemma chiSqCDFToUnitPos_eq_cdfNNReal (d : ℕ) (hDim : 1 ≤ d) (x : NNReal) :
-    ((chiSqCDFToUnitPos d hDim x : UnitInterval) : ℝ) =
-      cdfNNReal (chiSqRadiusLawPos d hDim) x := by
-  simpa [chiSqCDFToUnitPos] using (cdfNNReal_chiSqRadiusLawPos_eq_cdf d hDim x).symm
-
-/-- **CDF contract (continuity)**: `chiSqCDFToUnit` is the continuous CDF of
-    `chiSqRadiusLaw` when `d ≥ 1`.
-    This was listed as **missing** in the audit (section 4.1); now proven.
-    Needed by the forward PIT to conclude `F(X) ~ Unif[0,1]`. -/
-theorem chiSqCDFToUnit_isContinuousCDF (d : ℕ) (hDim : 1 ≤ d) :
-    IsContinuousCDFFor (chiSqRadiusLaw d) (chiSqCDFToUnit d) := by
-  refine ⟨?_, ?_⟩
-  · intro x
-    rw [chiSqRadiusLaw_eq_pos d hDim, chiSqCDFToUnit_eq_pos d hDim]
-    exact chiSqCDFToUnitPos_eq_cdfNNReal d hDim x
-  · rw [chiSqCDFToUnit_eq_pos d hDim]
-    simpa [chiSqCDFToUnitPos] using (continuous_cdf_chiSqMeasureR_onNNReal d hDim)
-
-/-- **CDF contract (strict monotonicity)**: `chiSqCDFToUnit` is a strictly
-    increasing CDF of `chiSqRadiusLaw` when `d ≥ 1`.
-    This was listed as **missing** in the audit (section 4.1); now proven.
-    Needed by the reverse PIT to conclude `F(X) ~ Unif ⟹ X ~ χ²`. -/
-theorem chiSqCDFToUnit_isStrictlyIncreasingCDF (d : ℕ) (hDim : 1 ≤ d) :
-    IsStrictlyIncreasingCDFFor (chiSqRadiusLaw d) (chiSqCDFToUnit d) := by
-  refine ⟨?_, ?_⟩
-  · intro x
-    rw [chiSqRadiusLaw_eq_pos d hDim, chiSqCDFToUnit_eq_pos d hDim]
-    exact chiSqCDFToUnitPos_eq_cdfNNReal d hDim x
-  · rw [chiSqCDFToUnit_eq_pos d hDim]
-    simpa [chiSqCDFToUnitPos] using (strictMono_cdf_chiSqMeasureR d hDim)
-
-/-!
-### Probability Integral Transform
-
-Theorem shape tracked here:
-\[
-  X \sim F \ \text{continuous} \implies U := F(X) \sim \mathrm{Unif}(0,1).
-\]
-Conversely, with generalized inverse \(F^{-1}\):
-\[
-  U \sim \mathrm{Unif}(0,1) \implies F^{-1}(U) \sim F.
-\]
-
-External bibliography:
-- Lancaster University. *MATH230 Notes*, "Probability Integral Transformation" (Theorem 4.3.1).
-  https://www.lancaster.ac.uk/~prendivs/accessible/math230/math230_notes.tex/Ch4.S3.html
--/
-
-/-- **Probability Integral Transform (forward direction).**
-    If `X ~ μ`, `F` is the continuous CDF of `μ`, and `F 0 = 0`,
-    then `F(X) ~ Unif[0,1]`.
-
-    The endpoint condition excludes the degenerate-at-zero case on `ℝ≥0`,
-    where continuity alone is not enough for uniform output.
-
-    Application to wristband: with `X = ‖Z‖²` (chi-square) and `F = chiSqCDFToUnit`,
-    this gives `t = F(‖Z‖²) ~ Unif[0,1]`, which is the radial percentile coordinate.
-
-    Proof idea: for each threshold `u ∈ [0,1)`, the sublevel set
-    `{x | F x ≤ u}` is a closed lower set, hence an interval `(-∞, y]`.
-    Continuity pins down `F y = u`, so `μ({x | F x ≤ u}) = u`; at `u = 1`,
-    both sides are `1`. -/
-theorem probabilityIntegralTransform
-    (μ : Distribution NNReal)
-    (F : NNReal → UnitInterval)
-    (hFMeas : Measurable F)
-    (hF : IsContinuousCDFFor μ F)
-    (hFZero : (F 0 : ℝ) = 0) :
-    pushforward F μ hFMeas = uniform01 := by
-  rcases hF with ⟨hF_cdf, hF_cont⟩
-  have hmono : Monotone (fun x : NNReal => (F x : ℝ)) := by
-    intro a b hab
-    have hmeas : (μ : Measure NNReal) (Set.Iic a) ≤ (μ : Measure NNReal) (Set.Iic b) :=
-      measure_mono (Set.Iic_subset_Iic.mpr hab)
-    have htop : (μ : Measure NNReal) (Set.Iic b) ≠ (⊤ : ENNReal) :=
-      measure_ne_top (μ : Measure NNReal) (Set.Iic b)
-    simpa [hF_cdf a, hF_cdf b, cdfNNReal] using ENNReal.toReal_mono htop hmeas
-  apply Subtype.ext
-  change ((μ : Measure NNReal).map F) = (volume : Measure UnitInterval)
-  refine Measure.ext_of_Iic _ _ ?_
-  intro u
-  by_cases hu1 : (u : ℝ) = 1
-  · have hIicTop : (Set.Iic u : Set UnitInterval) = Set.univ := by
-      ext v
-      constructor
-      · intro _
-        trivial
-      · intro _
-        change (v : ℝ) ≤ (u : ℝ)
-        simpa [hu1] using v.2.2
-    rw [hIicTop, Measure.map_apply hFMeas MeasurableSet.univ]
-    simp
-  · have hu_lt_one : (u : ℝ) < 1 := lt_of_le_of_ne u.2.2 hu1
-    let x : ℝ := (u : ℝ)
-    let A : Set NNReal := (fun t : NNReal => (F t : ℝ)) ⁻¹' Set.Iic x
-    have hA_nonempty : A.Nonempty := by
-      refine ⟨0, ?_⟩
-      change (F 0 : ℝ) ≤ x
-      exact le_trans (by simp [hFZero]) u.2.1
-    have hToOne : Filter.Tendsto (fun t : NNReal => (F t : ℝ)) Filter.atTop (nhds 1) := by
-      have hTmeas : Filter.Tendsto
-          (fun t : NNReal => ((μ : Measure NNReal) (Set.Iic t)))
-          Filter.atTop
-          (nhds ((μ : Measure NNReal) Set.univ)) :=
-        MeasureTheory.tendsto_measure_Iic_atTop (μ : Measure NNReal)
-      have hTtoReal : Filter.Tendsto
-          (fun t : NNReal => (((μ : Measure NNReal) (Set.Iic t)).toReal))
-          Filter.atTop
-          (nhds (((μ : Measure NNReal) Set.univ).toReal)) :=
-        (ENNReal.continuousAt_toReal (measure_ne_top (μ : Measure NNReal) Set.univ)).tendsto.comp hTmeas
-      have hUnivToReal : (((μ : Measure NNReal) Set.univ).toReal) = (1 : ℝ) := by
-        have hUniv : ((μ : Measure NNReal) Set.univ) = 1 := by
-          exact MeasureTheory.IsProbabilityMeasure.measure_univ (μ := (μ : Measure NNReal))
-        simp [hUniv]
-      have hEqFun : (fun t : NNReal => (F t : ℝ)) =
-          (fun t : NNReal => (((μ : Measure NNReal) (Set.Iic t)).toReal)) := by
-        funext t
-        simpa [cdfNNReal] using hF_cdf t
-      rw [hEqFun]
-      simpa [hUnivToReal] using hTtoReal
-    have hA_bddAbove : BddAbove A := by
-      have hEvent : ∀ᶠ t : NNReal in Filter.atTop, x < (F t : ℝ) :=
-        (tendsto_order.1 hToOne).1 x hu_lt_one
-      rcases Filter.eventually_atTop.1 hEvent with ⟨b, hb⟩
-      refine ⟨b, ?_⟩
-      intro t ht
-      by_contra htb
-      have htb' : b ≤ t := le_of_not_ge htb
-      have hlt : x < (F t : ℝ) := hb t htb'
-      exact not_lt_of_ge ht hlt
-    let y : NNReal := sSup A
-    have hyA : y ∈ A := by
-      refine IsClosed.csSup_mem ?_ hA_nonempty hA_bddAbove
-      simpa [A, x] using (IsClosed.preimage hF_cont isClosed_Iic)
-    have hA_upper : ∀ t, t ∈ A → t ≤ y := by
-      intro t ht
-      exact le_csSup hA_bddAbove ht
-    have hA_lower : IsLowerSet A := by
-      intro a b hab hbA
-      exact by
-        simpa [A] using (le_trans (hmono hab) hbA)
-    have hA_eq_Iic : A = Set.Iic y := by
-      ext t
-      constructor
-      · intro ht
-        exact hA_upper t ht
-      · intro ht
-        exact hA_lower ht hyA
-    have hy_eq_x : (F y : ℝ) = x := by
-      apply le_antisymm hyA
-      by_contra hxy
-      have hxy' : (F y : ℝ) < x := lt_of_not_ge hxy
-      have hN : (fun t : NNReal => (F t : ℝ)) ⁻¹' Set.Iio x ∈ nhds y :=
-        IsOpen.mem_nhds (IsOpen.preimage hF_cont isOpen_Iio) hxy'
-      obtain ⟨z, hyz, hzsub⟩ := exists_Ico_subset_of_mem_nhds hN (exists_gt y)
-      rcases exists_between hyz with ⟨w, hyw, hwz⟩
-      have hwA : w ∈ A := by
-        have hwIn : w ∈ Set.Ico y z := ⟨le_of_lt hyw, hwz⟩
-        have hwlt : (F w : ℝ) < x := hzsub hwIn
-        exact by simpa [A] using (le_of_lt hwlt)
-      have hwy : w ≤ y := hA_upper w hwA
-      exact not_lt_of_ge hwy hyw
-    have hMapA : ((μ : Measure NNReal).map F) (Set.Iic u) = (μ : Measure NNReal) A := by
-      rw [Measure.map_apply hFMeas measurableSet_Iic]
-      rfl
-    rw [hMapA, hA_eq_Iic]
-    have hIic : (μ : Measure NNReal) (Set.Iic y) = ENNReal.ofReal (x : ℝ) := by
-      calc
-        (μ : Measure NNReal) (Set.Iic y)
-            = ENNReal.ofReal (((μ : Measure NNReal) (Set.Iic y)).toReal) := by
-                symm
-                exact ENNReal.ofReal_toReal (measure_ne_top (μ : Measure NNReal) (Set.Iic y))
-        _ = ENNReal.ofReal ((F y : ℝ)) := by
-              congr 1
-              symm
-              exact hF_cdf y
-        _ = ENNReal.ofReal x := by rw [hy_eq_x]
-    rw [hIic]
-    symm
-    calc
-      (volume : Measure UnitInterval) (Set.Iic u)
-          = ENNReal.ofReal ((u : UnitInterval) : ℝ) := unitInterval.volume_Iic u
-      _ = ENNReal.ofReal x := by simp [x]
-
-/-- **Probability Integral Transform (reverse direction).**
-    If `F(X) ~ Unif[0,1]` and `F` is a strictly increasing continuous CDF of
-    `targetLaw`, then `X ~ targetLaw`.
-
-    Application to wristband (backward direction): if the radial percentile is
-    uniform, the squared-radius must follow the chi-square law. -/
-theorem probabilityIntegralTransform_reverse
-    (targetLaw observedLaw : Distribution NNReal)
-    (F : NNReal → UnitInterval)
-    (hFMeas : Measurable F)
-    (hCDF : IsContinuousCDFFor targetLaw F)
-    (hStrict : IsStrictlyIncreasingCDFFor targetLaw F)
-    (hUniform : pushforward F observedLaw hFMeas = uniform01) :
-    observedLaw = targetLaw := by
-  rcases hCDF with ⟨hCDF_eq, _hCont⟩
-  rcases hStrict with ⟨_hStrict_eq, hStrictMono⟩
-  apply Subtype.ext
-  change (observedLaw : Measure NNReal) = (targetLaw : Measure NNReal)
-  refine Measure.ext_of_Iic (μ := (observedLaw : Measure NNReal))
-    (ν := (targetLaw : Measure NNReal)) ?_
-  intro x
-  have hPreimage : F ⁻¹' (Set.Iic (F x)) = Set.Iic x := by
-    ext t
+  change Measure.map (rotateVecNZ O) (gaussianNZ d hDim).val = (gaussianNZ d hDim).val
+  apply Measure.ext
+  intro s hs
+  rw [Measure.map_apply (measurable_rotateVecNZ O) hs]
+  change (Measure.comap Subtype.val (gaussianFull d).val) ((rotateVecNZ O) ⁻¹' s)
+       = (Measure.comap Subtype.val (gaussianFull d).val) s
+  rw [(measurableEmbedding_vecNZ_val d).comap_apply _ ((rotateVecNZ O) ⁻¹' s),
+      (measurableEmbedding_vecNZ_val d).comap_apply _ s]
+  -- Subtype.val '' (rotateVecNZ O ⁻¹' s) = O ⁻¹' (Subtype.val '' s) — commutation of the
+  -- restriction-to-nonzero square. After this, gaussianFull_rotationInvariant closes the goal.
+  have hSet : (Subtype.val : VecNZ d → Vec d) '' ((rotateVecNZ O) ⁻¹' s)
+              = (fun x : Vec d => O x) ⁻¹' ((Subtype.val : VecNZ d → Vec d) '' s) := by
+    ext y
     constructor
-    · intro ht
-      change (F t : ℝ) ≤ (F x : ℝ) at ht
-      change t ≤ x
-      by_contra htx
-      have hxt : x < t := lt_of_not_ge htx
-      have hlt : (F x : ℝ) < (F t : ℝ) := hStrictMono hxt
-      exact (not_lt_of_ge ht) hlt
-    · intro ht
-      change (F t : ℝ) ≤ (F x : ℝ)
-      exact (StrictMono.monotone hStrictMono) ht
-  have hObsPreimage : (observedLaw : Measure NNReal) (Set.Iic x) =
-      ((pushforward F observedLaw hFMeas : Distribution UnitInterval) : Measure UnitInterval)
-        (Set.Iic (F x)) := by
-    calc
-      (observedLaw : Measure NNReal) (Set.Iic x)
-          = (observedLaw : Measure NNReal) (F ⁻¹' (Set.Iic (F x))) := by
-              rw [hPreimage]
-      _ = ((pushforward F observedLaw hFMeas : Distribution UnitInterval) : Measure UnitInterval)
-            (Set.Iic (F x)) := by
-              change (observedLaw : Measure NNReal) (F ⁻¹' Set.Iic (F x)) =
-                ((observedLaw : Measure NNReal).map F) (Set.Iic (F x))
-              rw [Measure.map_apply hFMeas measurableSet_Iic]
-  have hObsIic : (observedLaw : Measure NNReal) (Set.Iic x) =
-      ENNReal.ofReal ((F x : UnitInterval) : ℝ) := by
-    calc
-      (observedLaw : Measure NNReal) (Set.Iic x)
-          = ((pushforward F observedLaw hFMeas : Distribution UnitInterval) : Measure UnitInterval)
-              (Set.Iic (F x)) := hObsPreimage
-      _ = ((uniform01 : Distribution UnitInterval) : Measure UnitInterval) (Set.Iic (F x)) := by
-            simp [hUniform]
-      _ = ENNReal.ofReal ((F x : UnitInterval) : ℝ) := by
-            calc
-              ((uniform01 : Distribution UnitInterval) : Measure UnitInterval) (Set.Iic (F x))
-                  = (volume : Measure UnitInterval) (Set.Iic (F x)) := by simp [uniform01]
-              _ = ENNReal.ofReal ((F x : UnitInterval) : ℝ) := unitInterval.volume_Iic (F x)
-  have hTarIic : (targetLaw : Measure NNReal) (Set.Iic x) =
-      ENNReal.ofReal ((F x : UnitInterval) : ℝ) := by
-    calc
-      (targetLaw : Measure NNReal) (Set.Iic x)
-          = ENNReal.ofReal (((targetLaw : Measure NNReal) (Set.Iic x)).toReal) := by
-              symm
-              exact ENNReal.ofReal_toReal
-                (measure_ne_top (targetLaw : Measure NNReal) (Set.Iic x))
-      _ = ENNReal.ofReal ((F x : UnitInterval) : ℝ) := by
-            congr 1
-            symm
-            exact hCDF_eq x
-  rw [hObsIic, hTarIic]
+    · rintro ⟨z, hz, rfl⟩
+      exact ⟨rotateVecNZ O z, hz, rfl⟩
+    · rintro ⟨w, hw, hOyw⟩
+      have hyne : y ≠ 0 := by
+        intro h
+        apply w.2
+        rw [hOyw]; change O y = 0
+        rw [h]; exact map_zero O
+      refine ⟨⟨y, hyne⟩, ?_, rfl⟩
+      have hEq : rotateVecNZ O ⟨y, hyne⟩ = w :=
+        Subtype.ext (by change O y = w.1; exact hOyw.symm)
+      change rotateVecNZ O ⟨y, hyne⟩ ∈ s
+      rw [hEq]; exact hw
+  rw [hSet]
+  have hImgMeas : MeasurableSet ((Subtype.val : VecNZ d → Vec d) '' s) :=
+    (measurableEmbedding_vecNZ_val d).measurableSet_image' hs
+  rw [← Measure.map_apply O.continuous.measurable hImgMeas,
+      gaussianFull_rotationInvariant d O]
+
+/-! ## Polar decomposition for `gaussianNZ`
+
+The three `gaussianPolar_*` theorems below match the signatures of the four old
+axioms (now removed), so every downstream call site in `Equivalence.lean`
+keeps compiling. -/
+
+/-- `direction#gaussianNZ = sphereUniform` — Thm 1.5.6 applied to `gaussianNZ`. -/
+theorem gaussianPolar_direction_uniform (d : ℕ) (hDim : 1 ≤ d) :
+    pushforward (direction (d := d)) (gaussianNZ d hDim) (measurable_direction d) =
+      sphereUniform d hDim :=
+  (spherical_polar_decomposition d hDim (gaussianNZ d hDim)
+    (gaussianNZ_rotationInvariant d hDim)).1
+
+/-- `direction ⊥ radiusSq` under `gaussianNZ` — Thm 1.5.6 applied to `gaussianNZ`. -/
+theorem gaussianPolar_independent (d : ℕ) (hDim : 1 ≤ d) :
+    IndepLaw (gaussianNZ d hDim) (direction (d := d)) (radiusSq (d := d))
+      (measurable_direction d) (measurable_radiusSq d) :=
+  (spherical_polar_decomposition d hDim (gaussianNZ d hDim)
+    (gaussianNZ_rotationInvariant d hDim)).2
+
+/-- `radiusSq#gaussianNZ = chiSqRadiusLaw` — derived from
+    `gaussianFull_normSq_chiSq` (Thm 1.4.1(a)) by transporting the chi-squared
+    statement from `gaussianFull` (where the axiom lives) down to `gaussianNZ`,
+    using that the origin is a null set. -/
+theorem gaussianPolar_radius_chiSq (d : ℕ) (hDim : 1 ≤ d) :
+    pushforward (radiusSq (d := d)) (gaussianNZ d hDim) (measurable_radiusSq d)
+      = chiSqRadiusLaw d := by
+  apply Subtype.ext
+  change Measure.map (radiusSq (d := d)) (gaussianNZ d hDim).val = (chiSqRadiusLaw d).val
+  -- radiusSq = radiusSqVec ∘ Subtype.val on VecNZ d
+  have hCompose : (radiusSq (d := d)) = (radiusSqVec (d := d)) ∘ Subtype.val := by
+    funext z; exact (radiusSqVec_subtype_val z).symm
+  rw [hCompose,
+      ← Measure.map_map (measurable_radiusSqVec d) measurable_subtype_coe]
+  change Measure.map (radiusSqVec (d := d))
+      (Measure.map Subtype.val (Measure.comap Subtype.val (gaussianFull d).val))
+    = (chiSqRadiusLaw d).val
+  rw [(measurableEmbedding_vecNZ_val d).map_comap]
+  -- Goal: Measure.map radiusSqVec (gaussianFull.restrict (range Subtype.val)) = chiSqRadiusLaw
+  have hRange : Set.range (Subtype.val : VecNZ d → Vec d) = {z : Vec d | z ≠ 0} := by
+    ext z; simp
+  rw [hRange]
+  haveI hProb : IsProbabilityMeasure (gaussianFull d).val := (gaussianFull d).property
+  have hRestrict : (gaussianFull d).val.restrict {z : Vec d | z ≠ 0} = (gaussianFull d).val := by
+    apply Measure.restrict_eq_self_of_ae_mem
+    rw [ae_iff]
+    have h0 : {x : Vec d | ¬ x ∈ {z : Vec d | z ≠ 0}} = {0} := by ext x; simp
+    rw [h0]
+    exact gaussianFull_singletonZeroMeasure d hDim
+  rw [hRestrict]
+  exact congrArg Subtype.val (gaussianFull_normSq_chiSq d hDim)
 
 end WristbandLossProofs
