@@ -1,12 +1,8 @@
 # Wristband Loss — Lean 4 Proofs
 
-Machine-checked proofs for the mathematical foundations of the
-**Wristband Gaussian Loss**, designed by [@mvparakhin](https://github.com/mvparakhin)
-and implemented in [`ml-tidbits`](https://github.com/mvparakhin/ml-tidbits)
-(`C_WristbandGaussianLoss` in `EmbedModels.py`).
+*Lean 4 formalization of the wristband-uniformity ⇔ Gaussian-input theorem, plus a kernel/spectral characterization of the loss minimum.*
 
-This repository formalizes the correctness of @mvparakhin's algorithm in Lean 4,
-and extends it with a spectral kernel characterization.
+Target algorithm: **Wristband Gaussian Loss** at [mvparakhin/ml-tidbits](https://github.com/mvparakhin/ml-tidbits).
 
 ## The Central Theorem
 
@@ -25,7 +21,6 @@ The wristband map produces uniform output *if and only if* the input is standard
 | **Equivalence** | Uniform wristband output $\iff$ Gaussian input | **Complete** (sorry-free) |
 | **Kernel minimization** | Neumann wristband kernel energy uniquely minimized at $\mu_0$ | **Complete** modulo 4 sorry's |
 | **Spectral** | $\text{spectralEnergy} = \text{kernelEnergy}$ + minimization + Gaussian iff | **Complete** (sorry-free in spectral files; transitively blocked by kernel sorry's) |
-| Steps 3–4 | Full correctness of the Python loss | Not started |
 
 ### Open sorry's (4, all in kernel branch)
 
@@ -49,15 +44,16 @@ lake build
 
 | File | Contents |
 |------|----------|
-| `EquivalenceFoundations.lean` | Types, chi-square CDF, probability integral transform |
-| `EquivalenceImportedFacts.lean` | Gaussian polar decomposition axioms (5) |
-| `Equivalence.lean` | Wristband map and equivalence theorem |
+| `EquivalencePrimitives.lean` | Types (`Vec`, `VecNZ`, `Distribution`), sphere uniform measure, $\chi^2$ CDF, probability integral transform |
+| `EquivalenceImportedFacts.lean` | 3 axioms transcribing Muirhead (1982) Thm 1.2.9, 1.5.6, 1.4.1(a) |
+| `EquivalenceFoundations.lean` | Derivations: `gaussianNZ`, polar direction uniform, polar independence, polar radius $\chi^2$ |
+| `Equivalence.lean` | Wristband map $\Phi$ and the central theorem |
 | `KernelPrimitives.lean` | Kernel definitions, energy, MMD, PSD/characteristic predicates |
-| `KernelImportedFacts.lean` | Kernel theory axioms (11): PSD, universality, constant potential |
+| `KernelImportedFacts.lean` | 11 axioms: PSD, universality, characteristic, transitivity, constant potential |
 | `KernelFoundations.lean` | Kernel properties, Neumann radial expansion, cosine orthogonality |
 | `KernelMinimization.lean` | Energy minimization, uniqueness, 3-image bridge |
 | `Spectral/SpectralPrimitives.lean` | `radialFeature`, `radialCoeff`, `modeProj`, `spectralEnergy` |
-| `Spectral/SpectralImportedFacts.lean` | Mercer decomposition axiom for angular kernel |
+| `Spectral/SpectralImportedFacts.lean` | 3 axioms: Mercer expansion, cosine-coefficient summability, $L^1$ factorized bridge |
 | `Spectral/SpectralFoundations.lean` | Witness extraction, mode projections, spectral–kernel identity |
 | `Spectral/SpectralMinimization.lean` | Spectral minimization, uniqueness, Gaussian characterization |
 
@@ -66,5 +62,5 @@ lake build
 - [Proof guide](docs/proof_guide.md) — theorem map, axiom inventory, Python-to-Lean correspondence
 - [Spectral kernel derivation](docs/posts/spectral/spectral_harmonics.md) — spherical harmonics, Gegenbauer, Bessel eigenvalues
 - [Spectral narrative](docs/posts/spectral/spectral_narrative.md) — from wristband loss to spectral kernel
-- [Wristband loss explained](docs/posts/og_wristband/wristband_loss.md) — by [Mikhail Parakhin](https://x.com/MParakhin)
-- [Conditional sampling](docs/posts/og_wristband/conditional_sampling.md) — dependent-factor extension, by [Mikhail Parakhin](https://x.com/MParakhin)
+- [Wristband loss explained](docs/posts/og_wristband/wristband_loss.md) 
+- [Conditional sampling](docs/posts/og_wristband/conditional_sampling.md) 

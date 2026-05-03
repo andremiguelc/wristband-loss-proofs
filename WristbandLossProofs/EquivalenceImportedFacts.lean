@@ -1,4 +1,4 @@
-import WristbandLossProofs.EquivalenceFoundations
+import WristbandLossProofs.EquivalencePrimitives
 
 set_option autoImplicit false
 
@@ -8,62 +8,64 @@ namespace WristbandLossProofs
 
 open MeasureTheory
 
-/-! ## Imported Theorem Debt
+/-! # Imported Theorem Debt
 
-All declarations here are `axiom`s — external mathematical results assumed
-without Lean proof. Trust boundary:
-- `gaussianNZ` is the sole **existential** axiom (posits a measure's existence).
-- The remaining three are **relational** (equations over already-defined terms);
-  they cannot introduce new objects or contradict each other.
+External mathematical results assumed without Lean proof. Each axiom block below
+transcribes one theorem from:
 
-A validator should check per axiom: does the Lean statement faithfully encode
-the cited result at the indicated source? -/
+  Muirhead, R. J. (1982). *Aspects of Multivariate Statistical Theory*.
+  Wiley Series in Probability and Mathematical Statistics. John Wiley & Sons.
 
-/-! ### Gaussian Polar Decomposition
+Validator contract: each axiom names a single Muirhead theorem (with any
+specialization). Reading the axiom requires reading that theorem in the source.
+Everything *derived* from these axioms lives in `EquivalenceFoundations`.
 
-For G ~ N(0, I_d): direction G/‖G‖ is uniform on S^{d-1}, ‖G‖² ~ χ²_d, and
-the two are independent. Primary source for all three: Muirhead (1982), Thm 1.5.6. -/
+This file contains: the three axioms, plus the witness-extraction definition
+`gaussianFull` and its density theorem `gaussianFull_density` — neither is a
+derivation, both are just unwrappings of the existential axiom, named here so
+the chi-squared axiom can refer to them. -/
 
-/-- G ~ N(0, I_d) as a probability measure on ℝ^d \ {0}, for `d ≥ 1`.
+/-! ## Axioms -/
 
-    N(0, I_d) has a Lebesgue density (Vershynin 2026, §3.3.1 Eq. 3.11), so
-    P({0}) = 0 and the restriction to {x ≠ 0} is a probability measure.
+/-- Standard isotropic Gaussian density on `Vec d` — Muirhead Thm 1.2.9
+    specialized to `μ = 0`, `Σ = I_d`. Witness pattern packages existence
+    and the density formula into a single axiom. -/
+private axiom gaussianFull_witness (d : ℕ) :
+    ∃ μ : Distribution (Vec d), ∀ {s : Set (Vec d)}, MeasurableSet s →
+        μ.val s
+          = ∫⁻ x in s,
+              ENNReal.ofReal
+                ((2 * Real.pi) ^ (-(d : ℝ) / 2) * Real.exp (-‖x‖ ^ 2 / 2))
+              ∂(volume : Measure (Vec d))
 
-    Note: derivable (not truly axiomatic) once Mathlib has the ambient Gaussian
-    on Vec d; see audit §9.6 for the proposed bridge. -/
-axiom gaussianNZ (d : ℕ) (hDim : 1 ≤ d) : Distribution (VecNZ d)
+/-- Polar decomposition for spherical distributions — Muirhead Thm 1.5.6. -/
+axiom spherical_polar_decomposition (d : ℕ) (hDim : 1 ≤ d)
+    (μ : Distribution (VecNZ d))
+    (hSpherical : ∀ O : (Vec d) ≃ₗᵢ[ℝ] Vec d,
+        pushforward (rotateVecNZ O) μ (measurable_rotateVecNZ O) = μ) :
+    pushforward (direction (d := d)) μ (measurable_direction d) = sphereUniform d hDim
+      ∧ IndepLaw μ (direction (d := d)) (radiusSq (d := d))
+          (measurable_direction d) (measurable_radiusSq d)
 
-/-- G/‖G‖ ~ σ_{d-1} when G ~ N(0, I_d), for `d ≥ 1`.
+/-! ## Witness unwrapping (so the chi-squared axiom can name `gaussianFull`) -/
 
-    Muirhead (1982), Thm 1.5.6: "T(X) is uniformly distributed on S_m."
-    N(0, I_d) is spherical, satisfying the theorem's hypothesis P(X=0) = 0.
+/-- The standard isotropic Gaussian, named from the witness axiom. -/
+def gaussianFull (d : ℕ) : Distribution (Vec d) := (gaussianFull_witness d).choose
 
-    `direction z = z/‖z‖ : Sphere d` and `sphereUniform d` = σ_{d-1}. -/
-axiom gaussianPolar_direction_uniform (d : ℕ) (hDim : 1 ≤ d) :
-    pushforward (direction (d := d)) (gaussianNZ d hDim) (measurable_direction d) =
-      sphereUniform d hDim
+/-- Density formula for `gaussianFull` (Thm 1.2.9 specialized). -/
+theorem gaussianFull_density (d : ℕ) {s : Set (Vec d)} (hs : MeasurableSet s) :
+    (gaussianFull d).val s
+      = ∫⁻ x in s,
+          ENNReal.ofReal
+            ((2 * Real.pi) ^ (-(d : ℝ) / 2) * Real.exp (-‖x‖ ^ 2 / 2))
+          ∂(volume : Measure (Vec d)) :=
+  (gaussianFull_witness d).choose_spec hs
 
-/-- ‖G‖² ~ χ²_d when G ~ N(0, I_d), for `d ≥ 1`.
-
-    Muirhead (1982), Ch. 1 (before Thm 1.5.6): "r² = X'X has the familiar
-    χ²_m density." Definitionally: χ²_d = Σ Z_i² for Z_i iid N(0,1).
-
-    `radiusSq z = ‖z‖² : NNReal`; `chiSqRadiusLaw d` is defined in
-    Foundations.lean via Mathlib's gammaMeasure (not an axiom). -/
-axiom gaussianPolar_radius_chiSq (d : ℕ) (hDim : 1 ≤ d) :
-    pushforward (radiusSq (d := d)) (gaussianNZ d hDim) (measurable_radiusSq d) = chiSqRadiusLaw d
-
-/-- G/‖G‖ ⊥ ‖G‖² when G ~ N(0, I_d), for `d ≥ 1`.
-
-    Muirhead (1982), Thm 1.5.6: "T(X) and r are independent."
-    Independence extends from r to r² because σ(r) = σ(r²) on [0,∞).
-    Historical: Maxwell (1860), Phil. Mag. 19, pp. 19–32. -/
-axiom gaussianPolar_independent (d : ℕ) (hDim : 1 ≤ d) :
-    IndepLaw
-      (gaussianNZ d hDim)
-      (direction (d := d))
-      (radiusSq (d := d))
-      (measurable_direction d)
-      (measurable_radiusSq d)
+/-- Squared norm of `gaussianFull` is χ²_d — Muirhead Thm 1.4.1(a)
+    specialized to `μ = 0`, `Σ = I_d`. Stated about `gaussianFull` rather than
+    `gaussianNZ` so the axiom does not depend on a derivation. -/
+axiom gaussianFull_normSq_chiSq (d : ℕ) (hDim : 1 ≤ d) :
+    pushforward (radiusSqVec (d := d)) (gaussianFull d) (measurable_radiusSqVec d)
+      = chiSqRadiusLaw d
 
 end WristbandLossProofs
