@@ -93,8 +93,8 @@ theorem spectralEnergy_minimizer_unique
 
     Proof route:
     1. Forward (Q = gaussianNZ → wristbandLaw Q = μ₀ → spectral energy is at minimum):
-       `wristbandEquivalence_forward` gives `wristbandLaw Q = μ₀`, then both
-       spectral energies are equal by definition.
+       `wristbandEquivalence_backward` (RHS ⟹ LHS) gives `wristbandLaw Q = μ₀`,
+       then both spectral energies are equal by definition.
     2. Backward (spectral energy at minimum → Q = gaussianNZ):
        `spectralEnergy_minimizer_unique` gives `wristbandLaw Q = μ₀`, then
        `wristbandEquivalence` gives `Q = gaussianNZ`. -/
@@ -121,7 +121,7 @@ theorem spectralEnergy_wristband_gaussian_iff
     intro hQ
     subst hQ
     congr 1
-    exact wristbandEquivalence_forward d hDim hDim1
+    exact wristbandEquivalence_backward d hDim hDim1
   · -- Backward: spectral energy equality → wristbandLaw Q = μ₀ → Q = gaussianNZ.
     intro hSpectral
     have hUniform : wristbandLaw d Q = wristbandUniform d :=

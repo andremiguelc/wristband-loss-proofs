@@ -60,9 +60,9 @@ $$\Phi_\# Q = \sigma_{d-1} \otimes \mathrm{Unif}[0,1] \;\iff\; Q = \mathcal{N}(0
 
 | Direction | Lean | File | Proof idea |
 |-----------|------|------|------------|
-| Forward ($\Rightarrow$) | `wristbandEquivalence_forward` | `Equivalence.lean:515` | Gaussian polar decomposition + probability integral transform |
-| Backward ($\Leftarrow$) | `wristbandEquivalence_backward` | `Equivalence.lean:695` | Reverse PIT + spherical law reconstruction |
-| Iff | `wristbandEquivalence` | `Equivalence.lean:999` | Combines forward + backward |
+| Forward LHS $\Rightarrow$ RHS | `wristbandEquivalence_forward` | `Equivalence.lean` | Reverse PIT + spherical law reconstruction |
+| Backward RHS $\Rightarrow$ LHS | `wristbandEquivalence_backward` | `Equivalence.lean` | Gaussian polar decomposition + probability integral transform |
+| Iff | `wristbandEquivalence` | `Equivalence.lean` | Combines forward + backward |
 
 Fully proven (sorry-free). The $d \ge 2$ guard is needed because $S^0 = \{-1,+1\}$ is discrete.
 

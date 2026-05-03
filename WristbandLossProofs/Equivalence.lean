@@ -19,7 +19,7 @@ lemma measurable_wristbandMap (d : ℕ) : Measurable (wristbandMap d) := by
   refine (measurable_direction d).prodMk ?_
   exact (chiSqCDFToUnit_measurable d).comp (measurable_radiusSq d)
 
-/-- Pushforward wristband law `P_Q = Φ_#Q`. -/
+/-- Pushforward wristband law `Φ_# Q`. -/
 def wristbandLaw (d : ℕ) (Q : Distribution (VecNZ d)) : Distribution (Wristband d) :=
   pushforward (wristbandMap d) Q (measurable_wristbandMap d)
 
@@ -507,7 +507,8 @@ lemma indepLaw_direction_radius_of_wristbandUniform
 /-! ## Wristband Equivalence Skeleton -/
 
 /--
-**Theorem (Wristband equivalence, forward direction: `Q = γ → P_Q = μ₀`).**
+**Theorem (Wristband equivalence, backward direction RHS ⟹ LHS:
+  `Q = N(0, I_d)  ⟹  Φ_# Q = σ_{d-1} ⊗ Unif[0, 1]`).**
 
 Roadmap:
 1. Use Gaussian polar decomposition (imported package).
@@ -515,7 +516,7 @@ Roadmap:
 3. Transfer independence through the CDF map.
 4. Identify the wristband law as `wristbandUniform`.
 -/
-theorem wristbandEquivalence_forward
+theorem wristbandEquivalence_backward
     (d : ℕ)
     (hDim : 2 ≤ d)
     (hDim1 : 1 ≤ d := le_trans (by decide : 1 ≤ 2) hDim) :
@@ -689,15 +690,16 @@ theorem wristbandEquivalence_forward
           rfl
 
 /--
-**Theorem (Wristband equivalence, backward direction: `P_Q = μ₀ → Q = γ`).**
+**Theorem (Wristband equivalence, forward direction LHS ⟹ RHS:
+  `Φ_# Q = σ_{d-1} ⊗ Unif[0, 1]  ⟹  Q = N(0, I_d)`).**
 
 Roadmap:
-1. Read off uniform marginals and independence from `P_Q = μ₀`.
+1. Read off uniform marginals and independence from `Φ_# Q = σ_{d-1} ⊗ Unif[0, 1]`.
 2. Use reverse PIT to recover the chi-square radius law.
 3. Apply Spherical law determined by radius lemma.
-4. Match Gaussian polar data and conclude `Q = γ`.
+4. Match Gaussian polar data and conclude `Q = N(0, I_d)`.
 -/
-theorem wristbandEquivalence_backward
+theorem wristbandEquivalence_forward
     (d : ℕ)
     (hDim : 2 ≤ d)
     (hDim1 : 1 ≤ d := le_trans (by decide : 1 ≤ 2) hDim)
@@ -998,7 +1000,9 @@ theorem wristbandEquivalence_backward
           exact hEmb.comap_map (gaussianNZ d hDim1 : Measure (VecNZ d))
 
 /--
-**Theorem (full equivalence).**
+**Theorem (Wristband equivalence).**
+For `d ≥ 2`,
+  `Φ_# Q = σ_{d-1} ⊗ Unif[0, 1]  ⟺  Q = N(0, I_d)`.
 
 This is the core logical bridge used later by kernel/energy minimization results.
 -/
@@ -1010,8 +1014,8 @@ theorem wristbandEquivalence
     wristbandLaw d Q = wristbandUniform d hDim1 ↔ Q = gaussianNZ d hDim1 := by
   constructor
   · intro hUniform
-    exact wristbandEquivalence_backward d hDim hDim1 Q hUniform
+    exact wristbandEquivalence_forward d hDim hDim1 Q hUniform
   · intro hGaussian
-    simpa [hGaussian] using wristbandEquivalence_forward d hDim hDim1
+    simpa [hGaussian] using wristbandEquivalence_backward d hDim hDim1
 
 end WristbandLossProofs
