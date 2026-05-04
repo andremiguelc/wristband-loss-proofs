@@ -114,4 +114,30 @@ noncomputable def spectralEnergyRadialTruncated
   ∑' j : ℕ, ∑ k ∈ Finset.range (K + 1),
     lambdaV j * radialCoeff a0 a k * (modeProj φ j k P) ^ 2
 
+/-- Joint-(L, K) truncated spectral energy: both angular and radial axes
+truncated to finite ranges.
+
+  - `L` = highest angular Mercer mode index kept (so modes `j ∈ {0, 1, …, L}`,
+    i.e. `L + 1` angular modes total).
+  - `K` = highest radial mode index kept (so modes `k ∈ {0, 1, …, K}`, i.e.
+    `K + 1` radial modes total).
+
+Naming convention: in Python (`python/spectral/kernel.py`) and the math docs
+(`docs/working/_spectral_what_and_why.md`) the cutoff is "number of modes kept",
+so Python's `k_modes = 6, ell ≤ 1` corresponds here to `K = 5, L = 1`.
+
+Both axes are finite sums, so no summability assumption is needed. The
+truncation-error bound `spectralEnergyTruncated_error_le` decomposes
+`|spectralEnergy − spectralEnergyTruncated L K|` into an angular-tail piece
+(j > L) and a radial-tail piece (k > K, j ≤ L). -/
+noncomputable def spectralEnergyTruncated
+    {d : ℕ}
+    (φ : ℕ → Sphere d → ℝ)
+    (lambdaV : ℕ → ℝ)
+    (a0 : ℝ) (a : ℕ → ℝ)
+    (L K : ℕ)
+    (P : Distribution (Wristband d)) : ℝ :=
+  ∑ j ∈ Finset.range (L + 1), ∑ k ∈ Finset.range (K + 1),
+    lambdaV j * radialCoeff a0 a k * (modeProj φ j k P) ^ 2
+
 end WristbandLossProofs
