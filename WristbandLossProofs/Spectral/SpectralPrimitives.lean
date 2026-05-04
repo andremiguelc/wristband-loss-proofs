@@ -99,4 +99,19 @@ noncomputable def spectralEnergy
   ∑' j : ℕ, ∑' k : ℕ,
     lambdaV j * radialCoeff a0 a k * (modeProj φ j k P) ^ 2
 
+/-- Spectral energy with the radial axis truncated to modes `k ≤ K`.
+
+The outer angular sum stays infinite (`∑'`) because no decay rate on
+`lambdaV` is assumed; only the radial axis is truncated. Used in the
+truncation-error bound `spectralEnergyRadialTruncated_error_le`. -/
+noncomputable def spectralEnergyRadialTruncated
+    {d : ℕ}
+    (φ : ℕ → Sphere d → ℝ)
+    (lambdaV : ℕ → ℝ)
+    (a0 : ℝ) (a : ℕ → ℝ)
+    (K : ℕ)
+    (P : Distribution (Wristband d)) : ℝ :=
+  ∑' j : ℕ, ∑ k ∈ Finset.range (K + 1),
+    lambdaV j * radialCoeff a0 a k * (modeProj φ j k P) ^ 2
+
 end WristbandLossProofs
