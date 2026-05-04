@@ -40,20 +40,21 @@ lemma one_le_of_two_le {d : ℕ} (hDim : 2 ≤ d) : 1 ≤ d :=
     Proof: `spectralEnergy_nonneg_excess` from `SpectralFoundations`. -/
 theorem spectralEnergy_minimized_at_uniform
     (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α)
-    (P : Distribution (Wristband d)) :
+    (P : Distribution (Wristband d))
+    (hDim1 : 1 ≤ d := by omega) :
     spectralEnergy
         (mercerEigenfun d β α hDim hβ hα)
         (mercerEigenval d β α hDim hβ hα)
         (neumannConstantCoeff β hβ)
         (neumannCosineCoeff β hβ)
-        (wristbandUniform d) ≤
+        (wristbandUniform d hDim1) ≤
       spectralEnergy
         (mercerEigenfun d β α hDim hβ hα)
         (mercerEigenval d β α hDim hβ hα)
         (neumannConstantCoeff β hβ)
         (neumannCosineCoeff β hβ)
         P :=
-  spectralEnergy_nonneg_excess d β α hDim hβ hα P
+  spectralEnergy_nonneg_excess (d := d) β α hDim hβ hα P
 
 /-- **Uniqueness**: `spectralEnergy P = spectralEnergy μ₀` implies `P = μ₀`.
 
@@ -64,6 +65,7 @@ theorem spectralEnergy_minimized_at_uniform
 theorem spectralEnergy_minimizer_unique
     (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α)
     (P : Distribution (Wristband d))
+    (hDim1 : 1 ≤ d := by omega)
     (hEq :
       spectralEnergy
           (mercerEigenfun d β α hDim hβ hα)
@@ -76,17 +78,17 @@ theorem spectralEnergy_minimizer_unique
           (mercerEigenval d β α hDim hβ hα)
           (neumannConstantCoeff β hβ)
           (neumannCosineCoeff β hβ)
-          (wristbandUniform d)) :
-    P = wristbandUniform d := by
+          (wristbandUniform d hDim1)) :
+    P = wristbandUniform d hDim1 := by
   -- Translate spectral equality to kernel energy equality via the main identity.
   have hKernelEq :
       kernelEnergy (wristbandKernelNeumann (d := d) β α) P =
-        kernelEnergy (wristbandKernelNeumann (d := d) β α) (wristbandUniform d) := by
-    rw [← spectralEnergy_eq_kernelEnergy d β α hDim hβ hα P,
-        ← spectralEnergy_eq_kernelEnergy d β α hDim hβ hα (wristbandUniform d)]
+        kernelEnergy (wristbandKernelNeumann (d := d) β α) (wristbandUniform d hDim1) := by
+    rw [← spectralEnergy_eq_kernelEnergy (d := d) β α hDim hβ hα P,
+        ← spectralEnergy_eq_kernelEnergy (d := d) β α hDim hβ hα (wristbandUniform d hDim1)]
     exact hEq
   -- Apply uniqueness from KernelMinimization.
-  exact kernelEnergy_minimizer_unique d hDim β α hβ hα P hKernelEq
+  exact kernelEnergy_minimizer_unique d hDim β α hβ hα P (hEq := hKernelEq)
 
 /-- **Gaussian characterization (spectral form)**: `Q ~ N(0, I)` iff the spectral
     energy of the wristband law of `Q` equals the minimum `spectralEnergy μ₀`.
@@ -114,7 +116,7 @@ theorem spectralEnergy_wristband_gaussian_iff
           (mercerEigenval d β α hDim hβ hα)
           (neumannConstantCoeff β hβ)
           (neumannCosineCoeff β hβ)
-          (wristbandUniform d) := by
+          (wristbandUniform d (one_le_of_two_le hDim)) := by
   have hDim1 : 1 ≤ d := one_le_of_two_le hDim
   constructor
   · -- Forward: Q = gaussianNZ → wristbandLaw Q = μ₀ → spectral energy equal.
@@ -124,8 +126,8 @@ theorem spectralEnergy_wristband_gaussian_iff
     exact wristbandEquivalence_backward d hDim hDim1
   · -- Backward: spectral energy equality → wristbandLaw Q = μ₀ → Q = gaussianNZ.
     intro hSpectral
-    have hUniform : wristbandLaw d Q = wristbandUniform d :=
-      spectralEnergy_minimizer_unique d hDim β α hβ hα (wristbandLaw d Q) hSpectral
+    have hUniform : wristbandLaw d Q = wristbandUniform d hDim1 :=
+      spectralEnergy_minimizer_unique d hDim β α hβ hα (wristbandLaw d Q) (hEq := hSpectral)
     exact (wristbandEquivalence d hDim hDim1 Q).mp hUniform
 
 end WristbandLossProofs

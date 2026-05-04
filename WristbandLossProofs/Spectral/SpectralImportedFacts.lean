@@ -75,13 +75,14 @@ or imported below as an explicit closure bridge.
     - Schoenberg, I.J. (1942). "Positive definite functions on spheres."
       *Duke Math. J.*, 9(1), 96–108. -/
 axiom kernelAngChordal_mercerExpansion
-    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) :
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (hDim1 : 1 ≤ d := by omega) :
     ∃ (φ : ℕ → Sphere d → ℝ) (lambdaV : ℕ → ℝ),
       -- (1) Nonnegativity of eigenvalues
       (∀ j : ℕ, 0 ≤ lambdaV j) ∧
       -- (2) Orthonormality in L²(sphereUniform d)
       (∀ j j' : ℕ,
-        ∫ u, φ j u * φ j' u ∂(sphereUniform d : Measure (Sphere d)) =
+        ∫ u, φ j u * φ j' u ∂(sphereUniform d hDim1 : Measure (Sphere d)) =
           if j = j' then 1 else 0) ∧
       -- (3) Pointwise kernel expansion as a tsum
       (∀ u v : Sphere d,

@@ -36,10 +36,10 @@ lemma mercerEigenval_nonneg
 
 lemma mercerEigenfun_orthonormal
     (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
-    (j j' : ℕ) :
+    (j j' : ℕ) (hDim1 : 1 ≤ d := by omega) :
     ∫ u, mercerEigenfun d β α hDim hβ hα j u *
            mercerEigenfun d β α hDim hβ hα j' u
-        ∂(sphereUniform d : Measure (Sphere d)) =
+        ∂(sphereUniform d hDim1 : Measure (Sphere d)) =
       if j = j' then 1 else 0 :=
   (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.2.1 j j'
 
@@ -335,9 +335,9 @@ lemma pointwiseRadialSummable_of_summable_neumannCosineCoeff
     the inner-product calculation `⟨φ_j, 1⟩_{L²} = 0`. -/
 lemma angularEigenfun_integral_zero
     {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
-    (j : ℕ) (hj : 0 < j) :
+    (j : ℕ) (hj : 0 < j) (hDim1 : 1 ≤ d := by omega) :
     ∫ u, mercerEigenfun d β α hDim hβ hα j u
-        ∂(sphereUniform d : Measure (Sphere d)) = 0 := by
+        ∂(sphereUniform d hDim1 : Measure (Sphere d)) = 0 := by
   -- Strategy: use orthonormality with j' = 0:
   --   ∫ φ_j · φ_0 dσ = 0  (since j ≠ 0)
   -- Then substitute φ_0 = 1.
@@ -398,8 +398,8 @@ lemma modeProj_zero_zero_eq_one
     zero-mean lemmas. -/
 lemma modeProj_vanishes_at_uniform
     {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
-    (j k : ℕ) (hjk : j ≠ 0 ∨ k ≠ 0) :
-    modeProj (mercerEigenfun d β α hDim hβ hα) j k (wristbandUniform d) = 0 := by
+    (j k : ℕ) (hjk : j ≠ 0 ∨ k ≠ 0) (hDim1 : 1 ≤ d := by omega) :
+    modeProj (mercerEigenfun d β α hDim hβ hα) j k (wristbandUniform d hDim1) = 0 := by
   -- Unfold modeProj and wristbandUniform = productLaw sphereUniform uniform01.
   -- Apply integral_prod_mul to factor into angular × radial integrals.
   -- For k = 0 and j > 0: angular factor = ∫ φ_j dσ = 0.
@@ -412,41 +412,41 @@ lemma modeProj_vanishes_at_uniform
         | inr hk0 => cases hk0 rfl
       have hjPos : 0 < j := Nat.pos_of_ne_zero hj
       have hFactor :
-          modeProj (mercerEigenfun d β α hDim hβ hα) j 0 (wristbandUniform d) =
+          modeProj (mercerEigenfun d β α hDim hβ hα) j 0 (wristbandUniform d hDim1) =
             (∫ u, mercerEigenfun d β α hDim hβ hα j u
-              ∂(sphereUniform d : Measure (Sphere d))) *
+              ∂(sphereUniform d hDim1 : Measure (Sphere d))) *
             (∫ t : UnitInterval, radialFeature 0 t
               ∂(uniform01 : Measure UnitInterval)) := by
         unfold modeProj wristbandUniform productLaw
         simpa using
           (integral_prod_mul
-            (μ := (sphereUniform d : Measure (Sphere d)))
+            (μ := (sphereUniform d hDim1 : Measure (Sphere d)))
             (ν := (uniform01 : Measure UnitInterval))
             (f := fun u : Sphere d => mercerEigenfun d β α hDim hβ hα j u)
             (g := fun t : UnitInterval => radialFeature 0 t))
       have hAng :
           ∫ u, mercerEigenfun d β α hDim hβ hα j u
-            ∂(sphereUniform d : Measure (Sphere d)) = 0 :=
+            ∂(sphereUniform d hDim1 : Measure (Sphere d)) = 0 :=
         angularEigenfun_integral_zero β α hDim hβ hα j hjPos
       calc
-        modeProj (mercerEigenfun d β α hDim hβ hα) j 0 (wristbandUniform d)
+        modeProj (mercerEigenfun d β α hDim hβ hα) j 0 (wristbandUniform d hDim1)
             =
           (∫ u, mercerEigenfun d β α hDim hβ hα j u
-            ∂(sphereUniform d : Measure (Sphere d))) *
+            ∂(sphereUniform d hDim1 : Measure (Sphere d))) *
           (∫ t : UnitInterval, radialFeature 0 t
             ∂(uniform01 : Measure UnitInterval)) := hFactor
         _ = 0 := by simp [hAng, radialFeature_constant_integral_one]
   | succ k =>
       have hFactor :
-          modeProj (mercerEigenfun d β α hDim hβ hα) j (k + 1) (wristbandUniform d) =
+          modeProj (mercerEigenfun d β α hDim hβ hα) j (k + 1) (wristbandUniform d hDim1) =
             (∫ u, mercerEigenfun d β α hDim hβ hα j u
-              ∂(sphereUniform d : Measure (Sphere d))) *
+              ∂(sphereUniform d hDim1 : Measure (Sphere d))) *
             (∫ t : UnitInterval, radialFeature (k + 1) t
               ∂(uniform01 : Measure UnitInterval)) := by
         unfold modeProj wristbandUniform productLaw
         simpa using
           (integral_prod_mul
-            (μ := (sphereUniform d : Measure (Sphere d)))
+            (μ := (sphereUniform d hDim1 : Measure (Sphere d)))
             (ν := (uniform01 : Measure UnitInterval))
             (f := fun u : Sphere d => mercerEigenfun d β α hDim hβ hα j u)
             (g := fun t : UnitInterval => radialFeature (k + 1) t))
@@ -455,10 +455,10 @@ lemma modeProj_vanishes_at_uniform
             ∂(uniform01 : Measure UnitInterval) = 0 :=
         radialFeature_cosine_integral_zero k
       calc
-        modeProj (mercerEigenfun d β α hDim hβ hα) j (k + 1) (wristbandUniform d)
+        modeProj (mercerEigenfun d β α hDim hβ hα) j (k + 1) (wristbandUniform d hDim1)
             =
           (∫ u, mercerEigenfun d β α hDim hβ hα j u
-            ∂(sphereUniform d : Measure (Sphere d))) *
+            ∂(sphereUniform d hDim1 : Measure (Sphere d))) *
           (∫ t : UnitInterval, radialFeature (k + 1) t
             ∂(uniform01 : Measure UnitInterval)) := hFactor
         _ = 0 := by simp [hRad]
@@ -2246,20 +2246,21 @@ lemma spectralEnergy_term_nonneg
 
 /-- Spectral energy at `wristbandUniform` equals the `(0,0)` mode contribution. -/
 lemma spectralEnergy_uniform_eq_mode00
-    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) :
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (hDim1 : 1 ≤ d := by omega) :
     spectralEnergy
         (mercerEigenfun d β α hDim hβ hα)
         (mercerEigenval d β α hDim hβ hα)
         (neumannConstantCoeff β hβ)
         (neumannCosineCoeff β hβ)
-        (wristbandUniform d)
+        (wristbandUniform d hDim1)
       =
     mercerEigenval d β α hDim hβ hα 0 * neumannRadialCoeff β hβ 0 := by
   let termU : ℕ → ℕ → ℝ :=
     fun j k =>
       mercerEigenval d β α hDim hβ hα j *
         neumannRadialCoeff β hβ k *
-        (modeProj (mercerEigenfun d β α hDim hβ hα) j k (wristbandUniform d)) ^ 2
+        (modeProj (mercerEigenfun d β α hDim hβ hα) j k (wristbandUniform d hDim1)) ^ 2
   have hUniformInner :
       ∀ j : ℕ,
         (∑' k : ℕ, termU j k) =
@@ -2272,18 +2273,18 @@ lemma spectralEnergy_uniform_eq_mode00
       have hZeroTail : ∀ k : ℕ, k ≠ 0 → termU 0 k = 0 := by
         intro k hk
         have hMode :
-            modeProj (mercerEigenfun d β α hDim hβ hα) 0 k (wristbandUniform d) = 0 :=
+            modeProj (mercerEigenfun d β α hDim hβ hα) 0 k (wristbandUniform d hDim1) = 0 :=
           modeProj_vanishes_at_uniform β α hDim hβ hα 0 k (Or.inr hk)
         simp [termU, hMode]
       calc
         (∑' k : ℕ, termU 0 k)
             = termU 0 0 := tsum_eq_single 0 hZeroTail
         _ = mercerEigenval d β α hDim hβ hα 0 * neumannRadialCoeff β hβ 0 := by
-              simp [termU, modeProj_zero_zero_eq_one β α hDim hβ hα (wristbandUniform d)]
+              simp [termU, modeProj_zero_zero_eq_one β α hDim hβ hα (wristbandUniform d hDim1)]
     · have hAllZero : ∀ k : ℕ, termU j k = 0 := by
         intro k
         have hMode :
-            modeProj (mercerEigenfun d β α hDim hβ hα) j k (wristbandUniform d) = 0 :=
+            modeProj (mercerEigenfun d β α hDim hβ hα) j k (wristbandUniform d hDim1) = 0 :=
           modeProj_vanishes_at_uniform β α hDim hβ hα j k (Or.inl hj)
         simp [termU, hMode]
       have hZeroTail : ∀ k : ℕ, k ≠ 0 → termU j k = 0 := by
@@ -2301,7 +2302,7 @@ lemma spectralEnergy_uniform_eq_mode00
         (mercerEigenval d β α hDim hβ hα)
         (neumannConstantCoeff β hβ)
         (neumannCosineCoeff β hβ)
-        (wristbandUniform d)
+        (wristbandUniform d hDim1)
         = ∑' j : ℕ, ∑' k : ℕ, termU j k := by
               rfl
     _ = ∑' j : ℕ,
@@ -2406,13 +2407,14 @@ lemma spectralEnergy_nonneg_excess_of_summable
           ∑' k : ℕ,
             mercerEigenval d β α hDim hβ hα j *
               neumannRadialCoeff β hβ k *
-              (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2)) :
+              (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2))
+    (hDim1 : 1 ≤ d := by omega) :
     spectralEnergy
         (mercerEigenfun d β α hDim hβ hα)
         (mercerEigenval d β α hDim hβ hα)
         (neumannConstantCoeff β hβ)
         (neumannCosineCoeff β hβ)
-        (wristbandUniform d) ≤
+        (wristbandUniform d hDim1) ≤
       spectralEnergy
         (mercerEigenfun d β α hDim hβ hα)
         (mercerEigenval d β α hDim hβ hα)
@@ -2425,7 +2427,7 @@ lemma spectralEnergy_nonneg_excess_of_summable
         (mercerEigenval d β α hDim hβ hα)
         (neumannConstantCoeff β hβ)
         (neumannCosineCoeff β hβ)
-        (wristbandUniform d)
+        (wristbandUniform d hDim1)
         = mercerEigenval d β α hDim hβ hα 0 * neumannRadialCoeff β hβ 0 :=
           spectralEnergy_uniform_eq_mode00 β α hDim hβ hα
     _ ≤
@@ -2453,13 +2455,14 @@ lemma spectralEnergy_nonneg_excess_of_summable
     Mathlib route: `tsum_nonneg` + pointwise non-negativity of each term. -/
 lemma spectralEnergy_nonneg_excess
     {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
-    (P : Distribution (Wristband d)) :
+    (P : Distribution (Wristband d))
+    (hDim1 : 1 ≤ d := by omega) :
     spectralEnergy
         (mercerEigenfun d β α hDim hβ hα)
         (mercerEigenval d β α hDim hβ hα)
         (neumannConstantCoeff β hβ)
         (neumannCosineCoeff β hβ)
-        (wristbandUniform d) ≤
+        (wristbandUniform d hDim1) ≤
       spectralEnergy
         (mercerEigenfun d β α hDim hβ hα)
         (mercerEigenval d β α hDim hβ hα)
@@ -2467,7 +2470,7 @@ lemma spectralEnergy_nonneg_excess
         (neumannCosineCoeff β hβ)
         P := by
   have hKernelMin :
-      kernelEnergy (wristbandKernelNeumann (d := d) β α) (wristbandUniform d) ≤
+      kernelEnergy (wristbandKernelNeumann (d := d) β α) (wristbandUniform d hDim1) ≤
         kernelEnergy (wristbandKernelNeumann (d := d) β α) P := by
     exact kernelEnergy_minimized_at_uniform d hDim β α hβ hα P
   calc
@@ -2476,10 +2479,10 @@ lemma spectralEnergy_nonneg_excess
         (mercerEigenval d β α hDim hβ hα)
         (neumannConstantCoeff β hβ)
         (neumannCosineCoeff β hβ)
-        (wristbandUniform d)
-        = kernelEnergy (wristbandKernelNeumann (d := d) β α) (wristbandUniform d) := by
+        (wristbandUniform d hDim1)
+        = kernelEnergy (wristbandKernelNeumann (d := d) β α) (wristbandUniform d hDim1) := by
           exact
-            spectralEnergy_eq_kernelEnergy (d := d) β α hDim hβ hα (wristbandUniform d)
+            spectralEnergy_eq_kernelEnergy (d := d) β α hDim hβ hα (wristbandUniform d hDim1)
     _ ≤ kernelEnergy (wristbandKernelNeumann (d := d) β α) P := hKernelMin
     _ = spectralEnergy
           (mercerEigenfun d β α hDim hβ hα)
