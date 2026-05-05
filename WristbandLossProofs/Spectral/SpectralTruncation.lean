@@ -1752,4 +1752,138 @@ theorem spectralEnergyTruncatedByDegree_error_le_explicit
   unfold spectralTruncationClosedForm
   linarith [hAngTailBound, hRadTailBoundClosed]
 
+/-- Kernel-energy form of the closed-form joint truncation error bound. -/
+theorem kernelEnergy_truncationByDegree_error_le_explicit
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) (L K : ℕ) :
+    |kernelEnergy (wristbandKernelNeumann (d := d) β α) P
+      - spectralEnergyTruncatedByDegree
+        (mercerEigenfun d β α hDim hβ hα)
+        (mercerEigenval d β α hDim hβ hα)
+        (mercerDegAt d β α hDim hβ hα)
+        (neumannConstantCoeff β hβ)
+        (neumannCosineCoeff β hβ)
+        L K P|
+      ≤ spectralTruncationClosedForm d β α hDim hβ hα L K := by
+  rw [← spectralEnergy_eq_kernelEnergy (d := d) β α hDim hβ hα P]
+  exact spectralEnergyTruncatedByDegree_error_le_explicit β α hDim hβ hα P L K
+
+/-- The closed-form angular prefix mass is at most 1 (since prefix + tail = 1
+and tail ≥ 0). -/
+lemma angularPrefixMass_closedForm_le_one
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (L : ℕ) :
+    angularPrefixMass_closedForm d β α hDim hβ hα L ≤ 1 := by
+  have hSum := angularPrefixMass_add_tailMass_closedForm d β α hDim hβ hα L
+  have hTailNonneg : 0 ≤ angularTailMass_closedForm d β α hDim hβ hα L := by
+    unfold angularTailMass_closedForm
+    exact tsum_nonneg (fun n => mercerDegreeMass_nonneg d β α hDim hβ hα _)
+  linarith
+
+/-- The closed-form joint truncation bound tends to `0` as `(L, K) → ∞`
+jointly on `atTop ×ˢ atTop`. -/
+theorem tendsto_spectralTruncationClosedForm
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) :
+    Tendsto (fun p : ℕ × ℕ =>
+        spectralTruncationClosedForm d β α hDim hβ hα p.1 p.2)
+      (atTop ×ˢ atTop) (𝓝 0) := by
+  -- Angular-tail piece a(L) → 0 (depends only on L).
+  have hAng : Tendsto (fun L : ℕ =>
+      angularTailMass_closedForm d β α hDim hβ hα L * radialTotalMass β hβ)
+      atTop (𝓝 0) := by
+    have h := (tendsto_angularTailMass_closedForm d β α hDim hβ hα).mul_const
+      (radialTotalMass β hβ)
+    simpa using h
+  have hAngProd : Tendsto (fun p : ℕ × ℕ =>
+      angularTailMass_closedForm d β α hDim hβ hα p.1 * radialTotalMass β hβ)
+      (atTop ×ˢ atTop) (𝓝 0) :=
+    hAng.comp (tendsto_fst (f := atTop) (g := atTop))
+  -- Radial-tail piece b(L, K) → 0: dominated by radialTailMass_closedForm K.
+  have hRadProd : Tendsto (fun p : ℕ × ℕ =>
+      radialTailMass_closedForm β p.2) (atTop ×ˢ atTop) (𝓝 0) :=
+    (tendsto_radialTailMass_closedForm β hβ).comp
+      (tendsto_snd (f := atTop) (g := atTop))
+  have hPrefixBound : ∀ p : ℕ × ℕ,
+      |angularPrefixMass_closedForm d β α hDim hβ hα p.1 *
+        radialTailMass_closedForm β p.2| ≤
+        radialTailMass_closedForm β p.2 := by
+    intro p
+    have hPrefixNonneg : 0 ≤ angularPrefixMass_closedForm d β α hDim hβ hα p.1 := by
+      unfold angularPrefixMass_closedForm
+      exact Finset.sum_nonneg
+        (fun ℓ _ => mercerDegreeMass_nonneg d β α hDim hβ hα ℓ)
+    have hPrefixLe : angularPrefixMass_closedForm d β α hDim hβ hα p.1 ≤ 1 :=
+      angularPrefixMass_closedForm_le_one d β α hDim hβ hα p.1
+    have hRadNonneg : 0 ≤ radialTailMass_closedForm β p.2 := by
+      have h := radialTailMass_le_closedForm β hβ p.2
+      have h2 := radialTailMass_nonneg β hβ p.2
+      linarith
+    rw [abs_of_nonneg (mul_nonneg hPrefixNonneg hRadNonneg)]
+    calc angularPrefixMass_closedForm d β α hDim hβ hα p.1 *
+            radialTailMass_closedForm β p.2
+        ≤ 1 * radialTailMass_closedForm β p.2 :=
+          mul_le_mul_of_nonneg_right hPrefixLe hRadNonneg
+      _ = radialTailMass_closedForm β p.2 := by ring
+  have hRad : Tendsto (fun p : ℕ × ℕ =>
+      angularPrefixMass_closedForm d β α hDim hβ hα p.1 *
+        radialTailMass_closedForm β p.2) (atTop ×ˢ atTop) (𝓝 0) := by
+    refine squeeze_zero_norm hPrefixBound ?_
+    simpa [Real.norm_eq_abs] using hRadProd
+  -- Sum tends to 0.
+  have hSum := hAngProd.add hRad
+  simpa [spectralTruncationClosedForm] using hSum
+
+/-- **Joint convergence of the truncated spectral energy** on `atTop ×ˢ atTop`.
+
+As `(L, K) → ∞` jointly (highest angular degree and highest radial mode),
+`spectralEnergyTruncatedByDegree L K P → spectralEnergy P` for any
+distribution `P`.  Squeeze argument using the closed-form joint bound. -/
+theorem spectralEnergyTruncatedByDegree_tendsto_full
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) :
+    Tendsto (fun p : ℕ × ℕ =>
+        spectralEnergyTruncatedByDegree
+          (mercerEigenfun d β α hDim hβ hα)
+          (mercerEigenval d β α hDim hβ hα)
+          (mercerDegAt d β α hDim hβ hα)
+          (neumannConstantCoeff β hβ)
+          (neumannCosineCoeff β hβ)
+          p.1 p.2 P)
+      (atTop ×ˢ atTop)
+      (𝓝 (spectralEnergy
+            (mercerEigenfun d β α hDim hβ hα)
+            (mercerEigenval d β α hDim hβ hα)
+            (neumannConstantCoeff β hβ)
+            (neumannCosineCoeff β hβ) P)) := by
+  -- Squeeze on the closed-form bound: |truncated - full| ≤ closedForm → 0.
+  set Espec := spectralEnergy
+        (mercerEigenfun d β α hDim hβ hα)
+        (mercerEigenval d β α hDim hβ hα)
+        (neumannConstantCoeff β hβ)
+        (neumannCosineCoeff β hβ) P
+  have hBound : ∀ p : ℕ × ℕ,
+      |spectralEnergyTruncatedByDegree
+          (mercerEigenfun d β α hDim hβ hα)
+          (mercerEigenval d β α hDim hβ hα)
+          (mercerDegAt d β α hDim hβ hα)
+          (neumannConstantCoeff β hβ)
+          (neumannCosineCoeff β hβ)
+          p.1 p.2 P - Espec|
+        ≤ spectralTruncationClosedForm d β α hDim hβ hα p.1 p.2 := by
+    intro p
+    rw [abs_sub_comm]
+    exact spectralEnergyTruncatedByDegree_error_le_explicit β α hDim hβ hα P p.1 p.2
+  have hClosed := tendsto_spectralTruncationClosedForm d β α hDim hβ hα
+  have hDiff : Tendsto (fun p : ℕ × ℕ =>
+      spectralEnergyTruncatedByDegree
+          (mercerEigenfun d β α hDim hβ hα)
+          (mercerEigenval d β α hDim hβ hα)
+          (mercerDegAt d β α hDim hβ hα)
+          (neumannConstantCoeff β hβ)
+          (neumannCosineCoeff β hβ)
+          p.1 p.2 P - Espec) (atTop ×ˢ atTop) (𝓝 0) := by
+    refine squeeze_zero_norm hBound ?_
+    simpa [Real.norm_eq_abs] using hClosed
+  have := hDiff.add (tendsto_const_nhds (x := Espec) (f := atTop ×ˢ atTop))
+  simpa using this
+
 end WristbandLossProofs
