@@ -1486,4 +1486,270 @@ lemma spectralAngularTail_le_closedForm
     rfl
   exact hMono.trans_eq hRHS_eval
 
+/-! ### Combined closed-form joint truncation error bound -/
+
+/-- The closed-form upper bound on the joint truncation deviation.
+
+Sum of:
+- angular tail piece: `angularTailMass_closedForm L · radialTotalMass`
+- radial-tail-at-prefix piece: `angularPrefixMass_closedForm L · radialTailMass_closedForm K`
+
+P-uniform; explicit in `(β, α, d, L, K)`. -/
+noncomputable def spectralTruncationClosedForm
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (L K : ℕ) : ℝ :=
+  angularTailMass_closedForm d β α hDim hβ hα L * radialTotalMass β hβ +
+    angularPrefixMass_closedForm d β α hDim hβ hα L * radialTailMass_closedForm β K
+
+set_option maxHeartbeats 1600000 in
+/-- **Closed-form joint truncation error bound** (degree-indexed).
+
+The deviation between the full spectral energy and its joint angular-and-radial
+truncation `spectralEnergyTruncatedByDegree` (where `L` is the highest angular
+degree kept and `K` the highest radial mode kept) is bounded by an explicit
+closed-form expression in `(β, α, d, L, K)`. P-uniform.
+
+Proof outline:
+- Per-j: `∑' k, term j k` decomposes (case-split on `degAt j ≤ L`) as
+  `truncated_j + radial-tail-at-prefix_j + angular-tail_j`, where the three
+  pieces are exactly the integrands of `spectralEnergyTruncatedByDegree`,
+  the closed-form radial-tail bound, and the closed-form angular-tail bound.
+- Outer linearity of tsum (with bridge-axiom-derived summabilities) gives
+  `spectralEnergy = spectralEnergyTruncatedByDegree + radial-tail + angular-tail`.
+- Hence the absolute deviation equals `radial-tail + angular-tail`, which is
+  bounded by the closed-form expression. -/
+theorem spectralEnergyTruncatedByDegree_error_le_explicit
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) (L K : ℕ) :
+    |spectralEnergy
+        (mercerEigenfun d β α hDim hβ hα)
+        (mercerEigenval d β α hDim hβ hα)
+        (neumannConstantCoeff β hβ)
+        (neumannCosineCoeff β hβ) P
+      - spectralEnergyTruncatedByDegree
+        (mercerEigenfun d β α hDim hβ hα)
+        (mercerEigenval d β α hDim hβ hα)
+        (mercerDegAt d β α hDim hβ hα)
+        (neumannConstantCoeff β hβ)
+        (neumannCosineCoeff β hβ)
+        L K P|
+      ≤ spectralTruncationClosedForm d β α hDim hβ hα L K := by
+  obtain ⟨M, _hMNonneg, _hModeInt, hModeL1Bound, hAngMajor⟩ :=
+    spectral_modeL1_factorized_bridge_imported β α hDim hβ hα P
+  have hLamNonneg : ∀ j, 0 ≤ mercerEigenval d β α hDim hβ hα j :=
+    mercerEigenval_nonneg d β α hDim hβ hα
+  have hRadSumm : Summable (neumannRadialCoeff β hβ) :=
+    summable_neumannRadialCoeff_of_summable_neumannCosineCoeff β hβ
+      (summable_neumannCosineCoeff_imported β hβ)
+  set A : ℕ → ℝ := fun j => mercerEigenval d β α hDim hβ hα j * (M j) ^ 2
+  have hA_nonneg : ∀ j, 0 ≤ A j := fun j => mul_nonneg (hLamNonneg j) (sq_nonneg _)
+  have hA_summable : Summable A := by
+    refine hAngMajor.congr ?_
+    intro j
+    show ‖mercerEigenval d β α hDim hβ hα j‖ * (M j) ^ 2 = A j
+    simp only [A, Real.norm_eq_abs, abs_of_nonneg (hLamNonneg j)]
+  set term : ℕ → ℕ → ℝ := fun j k =>
+    mercerEigenval d β α hDim hβ hα j * neumannRadialCoeff β hβ k *
+      (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2
+  have hterm_nonneg : ∀ j k, 0 ≤ term j k :=
+    spectralEnergy_term_nonneg β α hDim hβ hα P
+  have hterm_le : ∀ j k,
+      term j k ≤ mercerEigenval d β α hDim hβ hα j *
+                  neumannRadialCoeff β hβ k * (M j) ^ 2 := by
+    intro j k
+    apply mul_le_mul_of_nonneg_left
+    · exact modeProj_sq_le_M_sq β α hDim hβ hα P M hModeL1Bound j k
+    · exact mul_nonneg (hLamNonneg _) (neumannRadialCoeff_nonneg β hβ _)
+  have hInner_summ : ∀ j, Summable (fun k => term j k) := by
+    intro j
+    apply Summable.of_nonneg_of_le (fun k => hterm_nonneg j k) (hterm_le j)
+    have h1 := hRadSumm.mul_left (mercerEigenval d β α hDim hβ hα j)
+    exact h1.mul_right ((M j) ^ 2)
+  have hF_le : ∀ j, (∑' k, term j k) ≤ A j * radialTotalMass β hβ := by
+    intro j
+    have hRHSSumm : Summable (fun k =>
+        mercerEigenval d β α hDim hβ hα j *
+          neumannRadialCoeff β hβ k * (M j) ^ 2) := by
+      have h1 := hRadSumm.mul_left (mercerEigenval d β α hDim hβ hα j)
+      exact h1.mul_right ((M j) ^ 2)
+    have hMono := (hInner_summ j).tsum_le_tsum (hterm_le j) hRHSSumm
+    have hRHS_eval : (∑' k, mercerEigenval d β α hDim hβ hα j *
+                      neumannRadialCoeff β hβ k * (M j) ^ 2) =
+        A j * radialTotalMass β hβ := by
+      have hRew : (fun k => mercerEigenval d β α hDim hβ hα j *
+                  neumannRadialCoeff β hβ k * (M j) ^ 2) =
+                (fun k => A j * neumannRadialCoeff β hβ k) := by
+        funext k; simp only [A]; ring
+      rw [hRew, tsum_mul_left]
+      rfl
+    exact hMono.trans_eq hRHS_eval
+  -- Outer summability: F j = ∑' k, term j k is summable in j.
+  have hOuterSumm : Summable (fun j => ∑' k, term j k) :=
+    Summable.of_nonneg_of_le
+      (fun j => tsum_nonneg (fun k => hterm_nonneg j k))
+      hF_le (hA_summable.mul_right (radialTotalMass β hβ))
+  -- Each piece (truncated, radial-tail-at-prefix, angular-tail) is summable in j.
+  have hTruncSumm : Summable (fun j =>
+      if mercerDegAt d β α hDim hβ hα j ≤ L then
+        ∑ k ∈ Finset.range (K + 1), term j k else 0) := by
+    refine Summable.of_nonneg_of_le ?_ ?_ hOuterSumm
+    · intro j
+      by_cases h : mercerDegAt d β α hDim hβ hα j ≤ L
+      · simp only [if_pos h]
+        exact Finset.sum_nonneg (fun k _ => hterm_nonneg j k)
+      · simp only [if_neg h]; exact le_refl _
+    · intro j
+      by_cases h : mercerDegAt d β α hDim hβ hα j ≤ L
+      · simp only [if_pos h]
+        exact (hInner_summ j).sum_le_tsum (Finset.range (K + 1))
+          (fun k _ => hterm_nonneg j k)
+      · simp only [if_neg h]
+        exact tsum_nonneg (fun k => hterm_nonneg j k)
+  have hRadTailAtPrefixSumm : Summable (fun j =>
+      if mercerDegAt d β α hDim hβ hα j ≤ L then
+        ∑' n, term j (n + (K + 1)) else 0) := by
+    refine Summable.of_nonneg_of_le ?_ ?_ hOuterSumm
+    · intro j
+      by_cases h : mercerDegAt d β α hDim hβ hα j ≤ L
+      · simp only [if_pos h]
+        exact tsum_nonneg (fun n => hterm_nonneg j (n + (K + 1)))
+      · simp only [if_neg h]; exact le_refl _
+    · intro j
+      by_cases h : mercerDegAt d β α hDim hβ hα j ≤ L
+      · simp only [if_pos h]
+        have hShiftSumm : Summable (fun n => term j (n + (K + 1))) :=
+          (summable_nat_add_iff (K + 1)).mpr (hInner_summ j)
+        have hShifted_le : ∀ n, term j (n + (K + 1)) ≤ term j (n + (K + 1)) :=
+          fun n => le_refl _
+        have hSplit := (hInner_summ j).sum_add_tsum_nat_add (K + 1)
+        have hPrefixNonneg : 0 ≤ ∑ k ∈ Finset.range (K + 1), term j k :=
+          Finset.sum_nonneg (fun k _ => hterm_nonneg j k)
+        linarith
+      · simp only [if_neg h]
+        exact tsum_nonneg (fun k => hterm_nonneg j k)
+  have hAngTailSumm : Summable (fun j =>
+      if mercerDegAt d β α hDim hβ hα j ≤ L then 0 else ∑' k, term j k) := by
+    refine Summable.of_nonneg_of_le ?_ ?_ hOuterSumm
+    · intro j
+      by_cases h : mercerDegAt d β α hDim hβ hα j ≤ L
+      · simp only [if_pos h]; exact le_refl _
+      · simp only [if_neg h]; exact tsum_nonneg (fun k => hterm_nonneg j k)
+    · intro j
+      by_cases h : mercerDegAt d β α hDim hβ hα j ≤ L
+      · simp only [if_pos h]; exact tsum_nonneg (fun k => hterm_nonneg j k)
+      · simp only [if_neg h]; exact le_refl _
+  -- Per-j decomposition.
+  have hPerJDecomp : ∀ j,
+      (∑' k, term j k) =
+        (if mercerDegAt d β α hDim hβ hα j ≤ L then
+            ∑ k ∈ Finset.range (K + 1), term j k else 0) +
+        (if mercerDegAt d β α hDim hβ hα j ≤ L then
+            ∑' n, term j (n + (K + 1)) else 0) +
+        (if mercerDegAt d β α hDim hβ hα j ≤ L then 0 else ∑' k, term j k) := by
+    intro j
+    by_cases hLe : mercerDegAt d β α hDim hβ hα j ≤ L
+    · simp only [if_pos hLe]
+      have hSplit := (hInner_summ j).sum_add_tsum_nat_add (K + 1)
+      linarith
+    · simp only [if_neg hLe]
+      ring
+  -- Outer decomposition: spectralEnergy = truncated + radTailAtPrefix + angTail.
+  have hOuterDecomp :
+      (∑' j, ∑' k, term j k) =
+        (∑' j, if mercerDegAt d β α hDim hβ hα j ≤ L then
+            ∑ k ∈ Finset.range (K + 1), term j k else 0) +
+        (∑' j, if mercerDegAt d β α hDim hβ hα j ≤ L then
+            ∑' n, term j (n + (K + 1)) else 0) +
+        (∑' j, if mercerDegAt d β α hDim hβ hα j ≤ L then 0 else ∑' k, term j k) := by
+    rw [tsum_congr hPerJDecomp]
+    rw [Summable.tsum_add (hTruncSumm.add hRadTailAtPrefixSumm) hAngTailSumm,
+        Summable.tsum_add hTruncSumm hRadTailAtPrefixSumm]
+  -- Each piece is non-negative.
+  have hRadTailAtPrefixNonneg :
+      0 ≤ ∑' j, if mercerDegAt d β α hDim hβ hα j ≤ L then
+            ∑' n, term j (n + (K + 1)) else 0 := by
+    apply tsum_nonneg
+    intro j
+    by_cases h : mercerDegAt d β α hDim hβ hα j ≤ L
+    · simp only [if_pos h]; exact tsum_nonneg (fun n => hterm_nonneg j (n + (K + 1)))
+    · simp only [if_neg h]; exact le_refl _
+  have hAngTailNonneg :
+      0 ≤ ∑' j, if mercerDegAt d β α hDim hβ hα j ≤ L then 0 else ∑' k, term j k := by
+    apply tsum_nonneg
+    intro j
+    by_cases h : mercerDegAt d β α hDim hβ hα j ≤ L
+    · simp only [if_pos h]; exact le_refl _
+    · simp only [if_neg h]; exact tsum_nonneg (fun k => hterm_nonneg j k)
+  -- spectralEnergy and spectralEnergyTruncatedByDegree definitional unfolds.
+  have hSpectralUnfold :
+      spectralEnergy
+          (mercerEigenfun d β α hDim hβ hα)
+          (mercerEigenval d β α hDim hβ hα)
+          (neumannConstantCoeff β hβ)
+          (neumannCosineCoeff β hβ) P =
+        ∑' j, ∑' k, term j k := rfl
+  have hTruncUnfold :
+      spectralEnergyTruncatedByDegree
+          (mercerEigenfun d β α hDim hβ hα)
+          (mercerEigenval d β α hDim hβ hα)
+          (mercerDegAt d β α hDim hβ hα)
+          (neumannConstantCoeff β hβ)
+          (neumannCosineCoeff β hβ)
+          L K P =
+        ∑' j, if mercerDegAt d β α hDim hβ hα j ≤ L then
+          ∑ k ∈ Finset.range (K + 1), term j k else 0 := rfl
+  -- spectralEnergy - truncated = radTailAtPrefix + angTail.
+  have hDiffEq :
+      spectralEnergy
+          (mercerEigenfun d β α hDim hβ hα)
+          (mercerEigenval d β α hDim hβ hα)
+          (neumannConstantCoeff β hβ)
+          (neumannCosineCoeff β hβ) P
+        - spectralEnergyTruncatedByDegree
+          (mercerEigenfun d β α hDim hβ hα)
+          (mercerEigenval d β α hDim hβ hα)
+          (mercerDegAt d β α hDim hβ hα)
+          (neumannConstantCoeff β hβ)
+          (neumannCosineCoeff β hβ)
+          L K P
+        =
+      (∑' j, if mercerDegAt d β α hDim hβ hα j ≤ L then
+          ∑' n, term j (n + (K + 1)) else 0) +
+      (∑' j, if mercerDegAt d β α hDim hβ hα j ≤ L then 0 else ∑' k, term j k) := by
+    rw [hSpectralUnfold, hTruncUnfold, hOuterDecomp]; ring
+  -- |...| = ...
+  have hDiffNonneg :
+      0 ≤ spectralEnergy
+          (mercerEigenfun d β α hDim hβ hα)
+          (mercerEigenval d β α hDim hβ hα)
+          (neumannConstantCoeff β hβ)
+          (neumannCosineCoeff β hβ) P
+        - spectralEnergyTruncatedByDegree
+          (mercerEigenfun d β α hDim hβ hα)
+          (mercerEigenval d β α hDim hβ hα)
+          (mercerDegAt d β α hDim hβ hα)
+          (neumannConstantCoeff β hβ)
+          (neumannCosineCoeff β hβ)
+          L K P := by
+    rw [hDiffEq]
+    linarith
+  rw [abs_of_nonneg hDiffNonneg, hDiffEq]
+  -- Bound each piece via the closed-form lemmas, then chain via radialTailMass ≤ closedForm.
+  have hAngTailBound :=
+    spectralAngularTail_le_closedForm β α hDim hβ hα P L
+  have hRadTailBound :=
+    spectralRadialTailAtPrefix_le_closedForm β α hDim hβ hα P L K
+  have hRadTailClosed := radialTailMass_le_closedForm β hβ K
+  have hPrefixNonneg : 0 ≤ angularPrefixMass_closedForm d β α hDim hβ hα L := by
+    unfold angularPrefixMass_closedForm
+    exact Finset.sum_nonneg (fun ℓ _ => mercerDegreeMass_nonneg d β α hDim hβ hα ℓ)
+  have hRadTailBoundClosed :
+      (∑' j, if mercerDegAt d β α hDim hβ hα j ≤ L then
+          ∑' n, term j (n + (K + 1)) else 0)
+        ≤ angularPrefixMass_closedForm d β α hDim hβ hα L *
+          radialTailMass_closedForm β K := by
+    refine hRadTailBound.trans ?_
+    exact mul_le_mul_of_nonneg_left hRadTailClosed hPrefixNonneg
+  unfold spectralTruncationClosedForm
+  linarith [hAngTailBound, hRadTailBoundClosed]
+
 end WristbandLossProofs
