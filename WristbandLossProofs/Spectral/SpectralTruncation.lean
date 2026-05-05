@@ -767,4 +767,104 @@ theorem tendsto_radialTailMass_closedForm (β : ℝ) (hβ : 0 < β) :
   rw [zero_div] at hDiv
   exact hDiv
 
+/-! ### Phase 7: closed-form angular tail bound
+
+Upgrades the bridge-axiom-based `angularTailMass(P, L)` to a P-uniform
+closed-form bound via the Mercer per-degree weights `λ_ℓ · N(d, ℓ)`.
+
+Key ingredients:
+- `mercerDegreeMass ℓ = Σ_{j : degAt j = ℓ} λv j` (= `λ_ℓ · N(d, ℓ)`).
+- Diagonal-Mercer constraint: `Σ_ℓ mercerDegreeMass ℓ = 1` (axiom).
+- Addition theorem: `Σ_{j : degAt j = ℓ} φ_j(u)² = N(d, ℓ)` (axiom).
+- λv constancy on `degAt`-fibres (clause of augmented Mercer axiom).
+
+The closed-form bound is `Σ_{n} mercerDegreeMass (n + L + 1)`
+= `Σ_{ℓ > L} λ_ℓ · N(d, ℓ)`, equivalent to `1 − Σ_{ℓ ≤ L} λ_ℓ · N(d, ℓ)`
+via diagonal-Mercer. -/
+
+/-- Per-degree mass: sum of `λv j` over the `mercerDegAt`-fibre of degree `ℓ`.
+
+Mathematically equals `λ_ℓ · N(d, ℓ)`, where `λ_ℓ` is the common eigenvalue
+shared by all degree-`ℓ` eigenmodes (`mercerEigenval_const_on_degree_fiber`)
+and `N(d, ℓ) = sphericalHarmonicDim d ℓ` is the multiplicity. -/
+noncomputable def mercerDegreeMass
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (ℓ : ℕ) : ℝ :=
+  ∑' j : ℕ, if mercerDegAt d β α hDim hβ hα j = ℓ
+    then mercerEigenval d β α hDim hβ hα j else 0
+
+/-- Closed-form angular tail mass: `Σ_{ℓ > L} λ_ℓ · N(d, ℓ)`, expressed via
+the nat-shift form `Σ' n, mercerDegreeMass (n + L + 1)`.
+
+P-uniform — does not depend on `P`. Equals `1 − angularPrefixMass_closedForm L`
+by the diagonal-Mercer axiom. -/
+noncomputable def angularTailMass_closedForm
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (L : ℕ) : ℝ :=
+  ∑' n : ℕ, mercerDegreeMass d β α hDim hβ hα (n + (L + 1))
+
+/-- Closed-form angular prefix mass: `Σ_{ℓ ≤ L} λ_ℓ · N(d, ℓ)`. Finite sum. -/
+noncomputable def angularPrefixMass_closedForm
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (L : ℕ) : ℝ :=
+  ∑ ℓ ∈ Finset.range (L + 1), mercerDegreeMass d β α hDim hβ hα ℓ
+
+/-- Each per-degree mass is non-negative (since `λv j ≥ 0`). -/
+lemma mercerDegreeMass_nonneg
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (ℓ : ℕ) :
+    0 ≤ mercerDegreeMass d β α hDim hβ hα ℓ := by
+  unfold mercerDegreeMass
+  refine tsum_nonneg ?_
+  intro j
+  split_ifs with h
+  · exact mercerEigenval_nonneg d β α hDim hβ hα j
+  · exact le_refl 0
+
+/-- The per-degree masses are summable (their tsum equals 1). -/
+lemma mercerDegreeMass_summable
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) :
+    Summable (mercerDegreeMass d β α hDim hβ hα) := by
+  by_contra h
+  have htsum : (∑' ℓ : ℕ, mercerDegreeMass d β α hDim hβ hα ℓ) = 0 :=
+    tsum_eq_zero_of_not_summable h
+  have hone := mercerDegreeMass_total_eq_one d β α hDim hβ hα
+  -- Axiom unfolds to ∑' ℓ, mercerDegreeMass ℓ = 1 by `rfl` on the def.
+  have heq : (∑' ℓ : ℕ,
+        ∑' j : ℕ, if mercerDegAt d β α hDim hβ hα j = ℓ then
+            mercerEigenval d β α hDim hβ hα j else 0) =
+      (∑' ℓ : ℕ, mercerDegreeMass d β α hDim hβ hα ℓ) := rfl
+  rw [heq, htsum] at hone
+  exact zero_ne_one hone
+
+/-- The diagonal-Mercer total in terms of `mercerDegreeMass`. -/
+lemma tsum_mercerDegreeMass_eq_one
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) :
+    (∑' ℓ : ℕ, mercerDegreeMass d β α hDim hβ hα ℓ) = 1 :=
+  mercerDegreeMass_total_eq_one d β α hDim hβ hα
+
+/-- `prefix + tail = 1`: closed-form complement identity, via the diagonal
+Mercer axiom + the standard `Σ + tail = total` decomposition. -/
+lemma angularPrefixMass_add_tailMass_closedForm
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (L : ℕ) :
+    angularPrefixMass_closedForm d β α hDim hβ hα L
+      + angularTailMass_closedForm d β α hDim hβ hα L = 1 := by
+  have hSumm := mercerDegreeMass_summable d β α hDim hβ hα
+  have hTotal := tsum_mercerDegreeMass_eq_one d β α hDim hβ hα
+  -- Σ_{ℓ < L+1} f ℓ + Σ' n, f(n + L + 1) = Σ' ℓ, f ℓ = 1
+  have hSumAdd := Summable.sum_add_tsum_nat_add (L + 1) hSumm
+  unfold angularPrefixMass_closedForm angularTailMass_closedForm
+  rw [hSumAdd, hTotal]
+
+/-- Closed-form tail tends to zero as `L → ∞`. Direct from
+`tendsto_sum_nat_add` (the partial-tail tsum tends to 0 as the shift grows). -/
+theorem tendsto_angularTailMass_closedForm
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) :
+    Tendsto (angularTailMass_closedForm d β α hDim hβ hα) atTop (𝓝 0) := by
+  -- `tendsto_sum_nat_add f : Tendsto (fun i ↦ ∑' k, f (k + i)) atTop (𝓝 0)`
+  -- (no summability needed; if not summable, all such tails are 0).
+  -- Compose with `i = L + 1` (which is atTop in L).
+  have h := tendsto_sum_nat_add (mercerDegreeMass d β α hDim hβ hα)
+  -- h : Tendsto (fun i => ∑' k, f (k + i)) atTop (𝓝 0)
+  have hShift : Tendsto (fun L : ℕ => L + 1) atTop atTop := by
+    refine tendsto_atTop_mono (fun _ => Nat.le_succ _) ?_
+    exact tendsto_id
+  exact h.comp hShift
+
 end WristbandLossProofs
