@@ -26,19 +26,19 @@ modes kept", so Python's `k_modes = 6, ell ≤ 1` corresponds here to
 `summable_neumannCosineCoeff_imported`, plus `kernelAngChordal_mercerExpansion`
 indirectly via the witness-extraction defs in `SpectralImportedFacts`.
 
-### Phase 2: containment
+### Containment
 
   - `spectralEnergyTruncated_nonneg`            : `0 ≤ E_{L,K}(P)`
   - `spectralEnergyTruncated_le_spectralEnergy` : `E_{L,K}(P) ≤ spectralEnergy P`
 
-### Phase 3: error bound (in progress)
+### Error bound
 
 The error `|spectralEnergy − spectralEnergyTruncated L K|` decomposes as
 `angularTailMass · radialTotalMass + angularPrefixMass · radialTailMass`,
 where the four mass quantities are defined below.
 -/
 
-/-! ### Phase 3: mass definitions -/
+/-! ### Mass definitions (flat-indexed, bridge-axiom witness) -/
 
 /-- Total radial mass: `∑' k, neumannRadialCoeff k`.  Finite because the
 cosine coefficients are summable (and so is the extended `radialCoeff`). -/
@@ -219,7 +219,7 @@ theorem spectralEnergyTruncated_le_spectralEnergy
           Finset.sum_le_sum (fun j _ => hInnerLe j)
     _ ≤ ∑' j : ℕ, ∑' k : ℕ, f j k := hOuterLe
 
-/-! ### Phase 3: joint truncation error bound -/
+/-! ### Qualitative joint truncation error bound (bridge-axiom witness) -/
 
 set_option maxHeartbeats 400000 in
 /-- Joint-(L, K) truncation error bound, qualitative form (no closed-form
@@ -229,9 +229,8 @@ The error decomposes naturally into an **angular tail** (modes `j > L`, all `k`)
 plus a **radial tail at the kept angular range** (modes `j ≤ L`, `k > K`).
 
 Both pieces use the bridge axiom's `k`-uniform `L¹` majorant `M`.  The
-qualitative bound holds for any choice of `(L, K)`; combined with
-`spectralEnergyTruncated_tendsto_full` (Phase 4), this certifies the
-truncated energy converges to the full spectral energy as `(L, K) → ∞`.
+qualitative bound holds for any choice of `(L, K)` and certifies that
+the truncated energy converges to the full spectral energy as `(L, K) → ∞`.
 
 No new axioms needed beyond the existing `kernelAngChordal_mercerExpansion`,
 `summable_neumannCosineCoeff_imported`, and
@@ -458,7 +457,7 @@ theorem spectralEnergyTruncated_error_le
   rw [hAbsEq]
   linarith [hRadialTailAtLBound, hAngularTailBound]
 
-/-! ### Phase 3: kernel-side corollaries -/
+/-! ### Kernel-side corollaries of the qualitative bound -/
 
 /-- Joint-truncated spectral energy is bounded by the underlying kernel
 energy.  Direct corollary of `spectralEnergyTruncated_le_spectralEnergy` plus
@@ -526,13 +525,13 @@ theorem spectralEnergyTruncated_mem_Icc
   ⟨spectralEnergyTruncated_nonneg β α hDim hβ hα P L K,
    spectralEnergyTruncated_le_spectralEnergy β α hDim hβ hα P L K⟩
 
-/-! ### Phase 4: degree-indexed truncation (user-facing closed-form API)
+/-! ### Degree-indexed truncation (user-facing closed-form API)
 
-The flat-indexed `spectralEnergyTruncated` above is a stepping stone:
-the qualitative bound is stated against it, but the user-facing closed-form
-bound (`Step 5`) targets `spectralEnergyTruncatedByDegree` from
-`SpectralPrimitives`, where the angular cutoff `L` means "highest angular
-degree kept" (not "highest flat eigenmode index"). -/
+The flat-indexed `spectralEnergyTruncated` above is an internal stepping stone:
+the qualitative bound is stated against it, but the closed-form
+bound targets `spectralEnergyTruncatedByDegree` from `SpectralPrimitives`,
+where the angular cutoff `L` means "highest angular degree kept" (not
+"highest flat eigenmode index"). -/
 
 /-- The degree-indexed truncated spectral energy is non-negative. -/
 theorem spectralEnergyTruncatedByDegree_nonneg
@@ -557,7 +556,7 @@ theorem spectralEnergyTruncatedByDegree_nonneg
   · simp only [if_neg h]
     exact le_refl 0
 
-/-! ### Phase 6: closed-form radial tail bound
+/-! ### Closed-form radial tail bound
 
 Upgrades the opaque `radialTailMass β hβ K` (`∑' n, neumannRadialCoeff β hβ
 (n + K + 1)`) to an explicit, closed-form upper bound in `(β, K)` using
@@ -767,7 +766,7 @@ theorem tendsto_radialTailMass_closedForm (β : ℝ) (hβ : 0 < β) :
   rw [zero_div] at hDiv
   exact hDiv
 
-/-! ### Phase 7: closed-form angular tail bound
+/-! ### Closed-form angular tail bound (P-uniform)
 
 Upgrades the bridge-axiom-based `angularTailMass(P, L)` to a P-uniform
 closed-form bound via the Mercer per-degree weights `λ_ℓ · N(d, ℓ)`.
@@ -866,5 +865,625 @@ theorem tendsto_angularTailMass_closedForm
     refine tendsto_atTop_mono (fun _ => Nat.le_succ _) ?_
     exact tendsto_id
   exact h.comp hShift
+
+/-! ### Angular strip bounds via the per-fibre Cauchy–Schwarz axiom
+
+Two bounds on the truncation deviation, both P-uniform:
+
+- **Angular tail** (`Σ_{j: degAt j > L} Σ' k, term j k`):
+  contribution from angular modes outside the kept degree range.
+- **Radial tail at the kept angular range**
+  (`Σ_{j: degAt j ≤ L} Σ' n, term j (n+K+1)`):
+  contribution from radial modes beyond `K` at kept angular degrees.
+
+Closed-form bounds:
+- Angular tail ≤ `angularTailMass_closedForm L · radialTotalMass`
+- Radial tail at prefix ≤ `angularPrefixMass_closedForm L · radialTailMass K`
+
+Both bounds are derived from the per-fibre weighted Cauchy-Schwarz axiom
+(`mercer_modeProjSqSum_per_degree_le_mass`) applied per radial mode `k`,
+combined with bridge-axiom-derived summabilities for the Fubini-style
+swaps. -/
+
+/-- **Per-fibre weighted bound** (axiom 7 wrapper, naming via
+`mercerDegreeMass`).  The λ-weighted sum of squared mode projections over
+the `degAt`-fibre of degree `ℓ` is bounded by `mercerDegreeMass ℓ`. -/
+lemma weightedFibreSum_le_mercerDegreeMass
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) (ℓ k : ℕ) :
+    (∑' j : ℕ, if mercerDegAt d β α hDim hβ hα j = ℓ then
+        mercerEigenval d β α hDim hβ hα j *
+        (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2 else 0)
+      ≤ mercerDegreeMass d β α hDim hβ hα ℓ :=
+  mercer_modeProjSqSum_per_degree_le_mass d β α hDim hβ hα P ℓ k
+
+/-- **Per-`(ℓ, k)` weighted bound**: factoring out the radial coefficient
+`c_k` from the per-fibre weighted bound. -/
+lemma fibreSumWeighted_le
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) (ℓ k : ℕ) :
+    (∑' j : ℕ, if mercerDegAt d β α hDim hβ hα j = ℓ then
+        mercerEigenval d β α hDim hβ hα j *
+          neumannRadialCoeff β hβ k *
+          (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2 else 0)
+      ≤ neumannRadialCoeff β hβ k * mercerDegreeMass d β α hDim hβ hα ℓ := by
+  have hcNonneg : 0 ≤ neumannRadialCoeff β hβ k := neumannRadialCoeff_nonneg β hβ k
+  have hRewrite : ∀ j,
+      (if mercerDegAt d β α hDim hβ hα j = ℓ then
+          mercerEigenval d β α hDim hβ hα j *
+            neumannRadialCoeff β hβ k *
+            (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2 else 0)
+        = neumannRadialCoeff β hβ k *
+          (if mercerDegAt d β α hDim hβ hα j = ℓ then
+              mercerEigenval d β α hDim hβ hα j *
+                (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2 else 0) := by
+    intro j
+    by_cases h : mercerDegAt d β α hDim hβ hα j = ℓ
+    · simp only [if_pos h]; ring
+    · simp only [if_neg h]; ring
+  rw [tsum_congr hRewrite, tsum_mul_left]
+  exact mul_le_mul_of_nonneg_left
+    (weightedFibreSum_le_mercerDegreeMass β α hDim hβ hα P ℓ k) hcNonneg
+
+/-- Bridge-derived `M`-uniform bound on `(modeProj j k P)^2`, used as the
+pair-summability majorant for the Fubini swap on the angular strips. -/
+private lemma modeProj_sq_le_M_sq
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d))
+    (M : ℕ → ℝ)
+    (hModeL1Bound : ∀ j k,
+        ∫ w, ‖mercerEigenfun d β α hDim hβ hα j w.1 *
+          radialFeature k w.2‖ ∂(P : Measure (Wristband d)) ≤ M j)
+    (j k : ℕ) :
+    (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2 ≤ (M j) ^ 2 := by
+  have h₁ :
+      ‖∫ w, mercerEigenfun d β α hDim hβ hα j w.1 * radialFeature k w.2
+          ∂(P : Measure (Wristband d))‖ ≤
+        ∫ w, ‖mercerEigenfun d β α hDim hβ hα j w.1 * radialFeature k w.2‖
+          ∂(P : Measure (Wristband d)) :=
+    norm_integral_le_integral_norm _
+  have h₂ : |modeProj (mercerEigenfun d β α hDim hβ hα) j k P| ≤ M j := by
+    have h₃ := h₁.trans (hModeL1Bound j k)
+    simpa [modeProj, Real.norm_eq_abs] using h₃
+  have habs_sq : |modeProj (mercerEigenfun d β α hDim hβ hα) j k P| ^ 2 ≤ (M j) ^ 2 := by
+    have := mul_self_le_mul_self (abs_nonneg _) h₂
+    simpa [pow_two] using this
+  simpa [sq_abs] using habs_sq
+
+-- The closed-form per-degree bounds need a `maxHeartbeats` bump because the
+-- bridge-axiom unpacking + Fubini-style swap + per-n bound chain elaborates
+-- through several non-trivial `Summable` instances.
+set_option maxHeartbeats 600000 in
+/-- **Per-degree weighted-radial-sum bound** (generic shape).
+
+For any radial reindexing `h : ℕ → ℕ` whose pulled-back coefficients are
+summable, the weighted sum at angular degree `ℓ` is bounded by
+`mercerDegreeMass ℓ` times the shifted radial mass `Σ' n, c (h n)`.
+
+Specializes to the radial-tail (`h = · + (K + 1)`) and full-radial-sum
+(`h = id`) bounds used in the closed-form truncation theorems. -/
+lemma fibreShiftedRadialSum_le_mercerDegreeMass_mass
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) (ℓ : ℕ) (h : ℕ → ℕ)
+    (hRadShiftSumm : Summable (fun n => neumannRadialCoeff β hβ (h n))) :
+    (∑' j : ℕ, if mercerDegAt d β α hDim hβ hα j = ℓ then
+        ∑' n : ℕ,
+          mercerEigenval d β α hDim hβ hα j *
+          neumannRadialCoeff β hβ (h n) *
+          (modeProj (mercerEigenfun d β α hDim hβ hα) j (h n) P) ^ 2
+        else 0)
+      ≤ mercerDegreeMass d β α hDim hβ hα ℓ *
+          ∑' n : ℕ, neumannRadialCoeff β hβ (h n) := by
+  obtain ⟨M, _hMNonneg, _hModeInt, hModeL1Bound, hAngMajor⟩ :=
+    spectral_modeL1_factorized_bridge_imported β α hDim hβ hα P
+  have hLamNonneg : ∀ j, 0 ≤ mercerEigenval d β α hDim hβ hα j :=
+    mercerEigenval_nonneg d β α hDim hβ hα
+  -- Indicator-weighted (j, n)-pair function.
+  set F : ℕ × ℕ → ℝ := fun p =>
+    if mercerDegAt d β α hDim hβ hα p.1 = ℓ then
+      mercerEigenval d β α hDim hβ hα p.1 *
+        neumannRadialCoeff β hβ (h p.2) *
+        (modeProj (mercerEigenfun d β α hDim hβ hα) p.1 (h p.2) P) ^ 2
+    else 0
+  -- Pair-summable majorant: A j = lamV j * M_j², G(j, n) = A j * c_{h n}.
+  set A : ℕ → ℝ := fun j => mercerEigenval d β α hDim hβ hα j * (M j) ^ 2
+  set G : ℕ × ℕ → ℝ := fun p => A p.1 * neumannRadialCoeff β hβ (h p.2)
+  have hA_nonneg : ∀ j, 0 ≤ A j := fun j =>
+    mul_nonneg (hLamNonneg j) (sq_nonneg _)
+  have hCNonneg : ∀ n, 0 ≤ neumannRadialCoeff β hβ (h n) :=
+    fun n => neumannRadialCoeff_nonneg β hβ (h n)
+  have hF_nonneg : ∀ p, 0 ≤ F p := by
+    intro p
+    by_cases hp : mercerDegAt d β α hDim hβ hα p.1 = ℓ
+    · simp only [F, if_pos hp]
+      exact spectralEnergy_term_nonneg β α hDim hβ hα P p.1 (h p.2)
+    · simp only [F, if_neg hp]; exact le_refl _
+  have hF_le_G : ∀ p, F p ≤ G p := by
+    intro p
+    by_cases hp : mercerDegAt d β α hDim hβ hα p.1 = ℓ
+    · simp only [F, G, A, if_pos hp]
+      have hCommon : 0 ≤ mercerEigenval d β α hDim hβ hα p.1 *
+          neumannRadialCoeff β hβ (h p.2) :=
+        mul_nonneg (hLamNonneg _) (hCNonneg _)
+      have hModeSq := modeProj_sq_le_M_sq β α hDim hβ hα P M hModeL1Bound p.1 (h p.2)
+      calc mercerEigenval d β α hDim hβ hα p.1 *
+              neumannRadialCoeff β hβ (h p.2) *
+              (modeProj (mercerEigenfun d β α hDim hβ hα) p.1 (h p.2) P) ^ 2
+          ≤ mercerEigenval d β α hDim hβ hα p.1 *
+              neumannRadialCoeff β hβ (h p.2) * (M p.1) ^ 2 :=
+            mul_le_mul_of_nonneg_left hModeSq hCommon
+        _ = mercerEigenval d β α hDim hβ hα p.1 * (M p.1) ^ 2 *
+              neumannRadialCoeff β hβ (h p.2) := by ring
+    · simp only [F, if_neg hp]
+      exact mul_nonneg (hA_nonneg p.1) (hCNonneg _)
+  -- A is summable (from hAngMajor, after stripping ‖·‖).
+  have hA_summable : Summable A := by
+    refine hAngMajor.congr ?_
+    intro j
+    show ‖mercerEigenval d β α hDim hβ hα j‖ * (M j) ^ 2 = A j
+    simp only [A, Real.norm_eq_abs, abs_of_nonneg (hLamNonneg j)]
+  -- Pair-summability of G, then F by domination.
+  have hG_summable : Summable G :=
+    Summable.mul_of_nonneg hA_summable hRadShiftSumm hA_nonneg hCNonneg
+  have hF_summable : Summable F :=
+    Summable.of_nonneg_of_le hF_nonneg hF_le_G hG_summable
+  -- Fubini swap.
+  have hSwap :
+      (∑' j : ℕ, ∑' n : ℕ, F (j, n)) = ∑' n : ℕ, ∑' j : ℕ, F (j, n) := by
+    have h2 := Summable.tsum_comm (f := fun j n => F (j, n)) hF_summable
+    exact h2.symm
+  -- Per-n bound via fibreSumWeighted_le.
+  have hPer_n : ∀ n,
+      (∑' j : ℕ, F (j, n)) ≤
+        neumannRadialCoeff β hβ (h n) * mercerDegreeMass d β α hDim hβ hα ℓ := by
+    intro n
+    show (∑' j : ℕ, if mercerDegAt d β α hDim hβ hα j = ℓ then
+            mercerEigenval d β α hDim hβ hα j *
+              neumannRadialCoeff β hβ (h n) *
+              (modeProj (mercerEigenfun d β α hDim hβ hα) j (h n) P) ^ 2 else 0) ≤ _
+    exact fibreSumWeighted_le β α hDim hβ hα P ℓ (h n)
+  have hColSumm : Summable (fun n : ℕ => ∑' j : ℕ, F (j, n)) :=
+    (hF_summable.prod_symm).prod
+  have hRHS_summable :
+      Summable (fun n : ℕ => neumannRadialCoeff β hβ (h n) *
+                              mercerDegreeMass d β α hDim hβ hα ℓ) :=
+    hRadShiftSumm.mul_right _
+  have hMono := Summable.tsum_le_tsum hPer_n hColSumm hRHS_summable
+  have hRadEval :
+      (∑' n : ℕ, neumannRadialCoeff β hβ (h n) *
+                  mercerDegreeMass d β α hDim hβ hα ℓ) =
+        mercerDegreeMass d β α hDim hβ hα ℓ *
+          ∑' n : ℕ, neumannRadialCoeff β hβ (h n) := by
+    rw [tsum_mul_right, mul_comm]
+  have hPushIf : ∀ j,
+      (if mercerDegAt d β α hDim hβ hα j = ℓ then
+          ∑' n : ℕ,
+            mercerEigenval d β α hDim hβ hα j *
+              neumannRadialCoeff β hβ (h n) *
+              (modeProj (mercerEigenfun d β α hDim hβ hα) j (h n) P) ^ 2
+          else 0) = ∑' n : ℕ, F (j, n) := by
+    intro j
+    by_cases hp : mercerDegAt d β α hDim hβ hα j = ℓ
+    · simp only [F, if_pos hp]
+    · simp only [F, if_neg hp, tsum_zero]
+  rw [tsum_congr hPushIf, hSwap]
+  exact hMono.trans_eq hRadEval
+
+/-- **Per-degree radial-tail bound** at angular degree `ℓ` (specialization of
+`fibreShiftedRadialSum_le_mercerDegreeMass_mass` to `h = · + (K + 1)`). -/
+lemma fibreRadialTailSum_le_mercerDegreeMass_radialTailMass
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) (ℓ K : ℕ) :
+    (∑' j : ℕ, if mercerDegAt d β α hDim hβ hα j = ℓ then
+        ∑' n : ℕ,
+          mercerEigenval d β α hDim hβ hα j *
+          neumannRadialCoeff β hβ (n + (K + 1)) *
+          (modeProj (mercerEigenfun d β α hDim hβ hα) j (n + (K + 1)) P) ^ 2
+        else 0)
+      ≤ mercerDegreeMass d β α hDim hβ hα ℓ * radialTailMass β hβ K := by
+  have hRadSumm : Summable (neumannRadialCoeff β hβ) :=
+    summable_neumannRadialCoeff_of_summable_neumannCosineCoeff β hβ
+      (summable_neumannCosineCoeff_imported β hβ)
+  have hRadShiftSumm : Summable (fun n : ℕ => neumannRadialCoeff β hβ (n + (K + 1))) :=
+    (summable_nat_add_iff (K + 1)).mpr hRadSumm
+  exact fibreShiftedRadialSum_le_mercerDegreeMass_mass β α hDim hβ hα P ℓ
+    (fun n => n + (K + 1)) hRadShiftSumm
+
+/-- **Per-degree full-radial-sum bound** at angular degree `ℓ`: the full
+radial-sum energy at angular degree `ℓ` is bounded by `mercerDegreeMass ℓ ·
+radialTotalMass`.
+
+Specialization of `fibreShiftedRadialSum_le_mercerDegreeMass_mass` to `h = id`. -/
+lemma fibreRadialFullSum_le_mercerDegreeMass_radialTotalMass
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) (ℓ : ℕ) :
+    (∑' j : ℕ, if mercerDegAt d β α hDim hβ hα j = ℓ then
+        ∑' k : ℕ,
+          mercerEigenval d β α hDim hβ hα j *
+          neumannRadialCoeff β hβ k *
+          (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2
+        else 0)
+      ≤ mercerDegreeMass d β α hDim hβ hα ℓ * radialTotalMass β hβ := by
+  have hRadSumm : Summable (neumannRadialCoeff β hβ) :=
+    summable_neumannRadialCoeff_of_summable_neumannCosineCoeff β hβ
+      (summable_neumannCosineCoeff_imported β hβ)
+  have hRadIdSumm : Summable (fun n : ℕ => neumannRadialCoeff β hβ (id n)) := by
+    simpa using hRadSumm
+  exact fibreShiftedRadialSum_le_mercerDegreeMass_mass β α hDim hβ hα P ℓ id hRadIdSumm
+
+/-- The radial total mass is non-negative. -/
+lemma radialTotalMass_nonneg (β : ℝ) (hβ : 0 < β) : 0 ≤ radialTotalMass β hβ :=
+  tsum_nonneg (neumannRadialCoeff_nonneg β hβ)
+
+/-- The radial tail mass is non-negative. -/
+lemma radialTailMass_nonneg (β : ℝ) (hβ : 0 < β) (K : ℕ) :
+    0 ≤ radialTailMass β hβ K :=
+  tsum_nonneg (fun n => neumannRadialCoeff_nonneg β hβ (n + (K + 1)))
+
+set_option maxHeartbeats 800000 in
+/-- **Closed-form bound on the radial tail at the kept angular range**: the
+radial-tail energy at angular degrees `ℓ ≤ L` is bounded by
+`angularPrefixMass_closedForm L · radialTailMass K`.
+
+Decomposition pattern:
+- Pointwise identity at each `j`: `(if degAt j ≤ L then F j else 0) =
+  Σ_{ℓ ∈ range (L+1)} (if degAt j = ℓ then F j else 0)`.
+- Swap the finite Σ with the outer ∑' (using `Summable.tsum_finsetSum` after
+  proving per-ℓ summability via the bridge majorant `lamV j · M_j²`).
+- Apply the per-degree radial-tail bound summed over ℓ. -/
+lemma spectralRadialTailAtPrefix_le_closedForm
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) (L K : ℕ) :
+    (∑' j : ℕ, if mercerDegAt d β α hDim hβ hα j ≤ L then
+        ∑' n : ℕ,
+          mercerEigenval d β α hDim hβ hα j *
+          neumannRadialCoeff β hβ (n + (K + 1)) *
+          (modeProj (mercerEigenfun d β α hDim hβ hα) j (n + (K + 1)) P) ^ 2
+        else 0)
+      ≤ angularPrefixMass_closedForm d β α hDim hβ hα L * radialTailMass β hβ K := by
+  obtain ⟨M, _hMNonneg, _hModeInt, hModeL1Bound, hAngMajor⟩ :=
+    spectral_modeL1_factorized_bridge_imported β α hDim hβ hα P
+  have hLamNonneg : ∀ j, 0 ≤ mercerEigenval d β α hDim hβ hα j :=
+    mercerEigenval_nonneg d β α hDim hβ hα
+  have hRadSumm : Summable (neumannRadialCoeff β hβ) :=
+    summable_neumannRadialCoeff_of_summable_neumannCosineCoeff β hβ
+      (summable_neumannCosineCoeff_imported β hβ)
+  have hRadShiftSumm : Summable (fun n : ℕ => neumannRadialCoeff β hβ (n + (K + 1))) :=
+    (summable_nat_add_iff (K + 1)).mpr hRadSumm
+  -- Bridge majorant.
+  set A : ℕ → ℝ := fun j => mercerEigenval d β α hDim hβ hα j * (M j) ^ 2
+  have hA_nonneg : ∀ j, 0 ≤ A j := fun j => mul_nonneg (hLamNonneg j) (sq_nonneg _)
+  have hA_summable : Summable A := by
+    refine hAngMajor.congr ?_
+    intro j
+    show ‖mercerEigenval d β α hDim hβ hα j‖ * (M j) ^ 2 = A j
+    simp only [A, Real.norm_eq_abs, abs_of_nonneg (hLamNonneg j)]
+  -- Per-j inner non-negativity.
+  have hInner_nonneg : ∀ j n,
+      0 ≤ mercerEigenval d β α hDim hβ hα j *
+            neumannRadialCoeff β hβ (n + (K + 1)) *
+            (modeProj (mercerEigenfun d β α hDim hβ hα) j (n + (K + 1)) P) ^ 2 :=
+    fun j n => spectralEnergy_term_nonneg β α hDim hβ hα P j (n + (K + 1))
+  -- Per-(j, n) bridge bound.
+  have hInner_le : ∀ j n,
+      mercerEigenval d β α hDim hβ hα j *
+        neumannRadialCoeff β hβ (n + (K + 1)) *
+        (modeProj (mercerEigenfun d β α hDim hβ hα) j (n + (K + 1)) P) ^ 2 ≤
+      mercerEigenval d β α hDim hβ hα j *
+        neumannRadialCoeff β hβ (n + (K + 1)) * (M j) ^ 2 := by
+    intro j n
+    apply mul_le_mul_of_nonneg_left
+    · exact modeProj_sq_le_M_sq β α hDim hβ hα P M hModeL1Bound j (n + (K + 1))
+    · exact mul_nonneg (hLamNonneg _) (neumannRadialCoeff_nonneg β hβ _)
+  -- Per-j: F j ≤ A j * radialTailMass K, where F j = ∑' n, term j (n+K+1).
+  have hF_le : ∀ j,
+      (∑' n, mercerEigenval d β α hDim hβ hα j *
+              neumannRadialCoeff β hβ (n + (K + 1)) *
+              (modeProj (mercerEigenfun d β α hDim hβ hα) j (n + (K + 1)) P) ^ 2)
+        ≤ A j * radialTailMass β hβ K := by
+    intro j
+    have hRHSSumm : Summable (fun n =>
+        mercerEigenval d β α hDim hβ hα j *
+          neumannRadialCoeff β hβ (n + (K + 1)) * (M j) ^ 2) := by
+      have h1 := hRadShiftSumm.mul_left (mercerEigenval d β α hDim hβ hα j)
+      exact h1.mul_right ((M j) ^ 2)
+    have hLHSSumm : Summable (fun n =>
+        mercerEigenval d β α hDim hβ hα j *
+          neumannRadialCoeff β hβ (n + (K + 1)) *
+          (modeProj (mercerEigenfun d β α hDim hβ hα) j (n + (K + 1)) P) ^ 2) :=
+      Summable.of_nonneg_of_le (hInner_nonneg j) (hInner_le j) hRHSSumm
+    have hMono := hLHSSumm.tsum_le_tsum (hInner_le j) hRHSSumm
+    have hRHS_eval : (∑' n, mercerEigenval d β α hDim hβ hα j *
+                      neumannRadialCoeff β hβ (n + (K + 1)) * (M j) ^ 2) =
+        A j * radialTailMass β hβ K := by
+      have hRew : (fun n => mercerEigenval d β α hDim hβ hα j *
+                  neumannRadialCoeff β hβ (n + (K + 1)) * (M j) ^ 2) =
+                (fun n => A j * neumannRadialCoeff β hβ (n + (K + 1))) := by
+        funext n; simp only [A]; ring
+      rw [hRew, tsum_mul_left]
+      rfl
+    exact hMono.trans_eq hRHS_eval
+  -- Per-ℓ summability of the if-fibre version.
+  have hG_summable : ∀ ℓ : ℕ,
+      Summable (fun j => if mercerDegAt d β α hDim hβ hα j = ℓ then
+          ∑' n, mercerEigenval d β α hDim hβ hα j *
+                neumannRadialCoeff β hβ (n + (K + 1)) *
+                (modeProj (mercerEigenfun d β α hDim hβ hα) j (n + (K + 1)) P) ^ 2
+          else 0) := by
+    intro ℓ
+    refine Summable.of_nonneg_of_le ?_ ?_ (hA_summable.mul_right (radialTailMass β hβ K))
+    · intro j
+      by_cases h : mercerDegAt d β α hDim hβ hα j = ℓ
+      · simp only [if_pos h]; exact tsum_nonneg (hInner_nonneg j)
+      · simp only [if_neg h]; exact le_refl _
+    · intro j
+      by_cases h : mercerDegAt d β α hDim hβ hα j = ℓ
+      · simp only [if_pos h]; exact hF_le j
+      · simp only [if_neg h]
+        exact mul_nonneg (hA_nonneg j) (radialTailMass_nonneg β hβ K)
+  -- Pointwise identity at each j.
+  have hPointwise : ∀ j,
+      (if mercerDegAt d β α hDim hβ hα j ≤ L then
+          ∑' n, mercerEigenval d β α hDim hβ hα j *
+                neumannRadialCoeff β hβ (n + (K + 1)) *
+                (modeProj (mercerEigenfun d β α hDim hβ hα) j (n + (K + 1)) P) ^ 2
+          else 0) =
+        ∑ ℓ ∈ Finset.range (L + 1),
+          (if mercerDegAt d β α hDim hβ hα j = ℓ then
+              ∑' n, mercerEigenval d β α hDim hβ hα j *
+                    neumannRadialCoeff β hβ (n + (K + 1)) *
+                    (modeProj (mercerEigenfun d β α hDim hβ hα) j (n + (K + 1)) P) ^ 2
+            else 0) := by
+    intro j
+    by_cases hLe : mercerDegAt d β α hDim hβ hα j ≤ L
+    · rw [if_pos hLe]
+      rw [Finset.sum_eq_single (mercerDegAt d β α hDim hβ hα j)]
+      · rw [if_pos rfl]
+      · intro ℓ' _ hne
+        rw [if_neg (fun h => hne h.symm)]
+      · intro hNotMem
+        exfalso; apply hNotMem
+        rw [Finset.mem_range]
+        exact Nat.lt_succ_of_le hLe
+    · rw [if_neg hLe]
+      symm
+      apply Finset.sum_eq_zero
+      intro ℓ hℓ
+      rw [Finset.mem_range, Nat.lt_succ_iff] at hℓ
+      rw [if_neg]
+      intro h; exact hLe (h ▸ hℓ)
+  -- Apply to outer tsum: ∑' j, [pointwise LHS] = ∑' j, [Σ ...].
+  rw [tsum_congr hPointwise]
+  -- Swap finite Σ with ∑'.
+  rw [Summable.tsum_finsetSum (fun ℓ _ => hG_summable ℓ)]
+  -- Per-degree radial-tail bound, summed over ℓ ∈ range (L+1).
+  have hPer_ℓ : ∀ ℓ ∈ Finset.range (L + 1),
+      (∑' j, if mercerDegAt d β α hDim hβ hα j = ℓ then
+            ∑' n, mercerEigenval d β α hDim hβ hα j *
+                  neumannRadialCoeff β hβ (n + (K + 1)) *
+                  (modeProj (mercerEigenfun d β α hDim hβ hα) j (n + (K + 1)) P) ^ 2
+          else 0) ≤
+        mercerDegreeMass d β α hDim hβ hα ℓ * radialTailMass β hβ K :=
+    fun ℓ _ => fibreRadialTailSum_le_mercerDegreeMass_radialTailMass β α hDim hβ hα P ℓ K
+  calc ∑ ℓ ∈ Finset.range (L + 1),
+          (∑' j, if mercerDegAt d β α hDim hβ hα j = ℓ then
+                ∑' n, mercerEigenval d β α hDim hβ hα j *
+                      neumannRadialCoeff β hβ (n + (K + 1)) *
+                      (modeProj (mercerEigenfun d β α hDim hβ hα) j (n + (K + 1)) P) ^ 2
+              else 0)
+      ≤ ∑ ℓ ∈ Finset.range (L + 1),
+          mercerDegreeMass d β α hDim hβ hα ℓ * radialTailMass β hβ K :=
+        Finset.sum_le_sum hPer_ℓ
+    _ = (∑ ℓ ∈ Finset.range (L + 1), mercerDegreeMass d β α hDim hβ hα ℓ) *
+          radialTailMass β hβ K := by rw [← Finset.sum_mul]
+    _ = angularPrefixMass_closedForm d β α hDim hβ hα L * radialTailMass β hβ K := rfl
+
+set_option maxHeartbeats 1200000 in
+/-- **Closed-form bound on the angular tail**: the energy at angular modes `j`
+with `degAt j > L` (over all radial `k`) is bounded by
+`angularTailMass_closedForm L · radialTotalMass`.
+
+Decomposition pattern:
+- Pointwise identity at each `j`: `(if degAt j ≤ L then 0 else F j) =
+  ∑' i, (if degAt j = i + (L + 1) then F j else 0)` (at most one nonzero
+  term, at `i = degAt j - (L + 1)`).
+- Pair-summability of `H : ℕ × ℕ → ℝ` via `summable_prod_of_nonneg`:
+  per-row `H (j, ·)` is finite-supported, sum-of-row-tsums dominated by the
+  bridge majorant.
+- Fubini swap `∑' j (∑' i, H) = ∑' i (∑' j, H)` then per-degree
+  full-radial-sum bound. -/
+lemma spectralAngularTail_le_closedForm
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) (L : ℕ) :
+    (∑' j : ℕ, if mercerDegAt d β α hDim hβ hα j ≤ L then 0 else
+        ∑' k : ℕ,
+          mercerEigenval d β α hDim hβ hα j *
+          neumannRadialCoeff β hβ k *
+          (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2)
+      ≤ angularTailMass_closedForm d β α hDim hβ hα L * radialTotalMass β hβ := by
+  obtain ⟨M, _hMNonneg, _hModeInt, hModeL1Bound, hAngMajor⟩ :=
+    spectral_modeL1_factorized_bridge_imported β α hDim hβ hα P
+  have hLamNonneg : ∀ j, 0 ≤ mercerEigenval d β α hDim hβ hα j :=
+    mercerEigenval_nonneg d β α hDim hβ hα
+  have hRadSumm : Summable (neumannRadialCoeff β hβ) :=
+    summable_neumannRadialCoeff_of_summable_neumannCosineCoeff β hβ
+      (summable_neumannCosineCoeff_imported β hβ)
+  set A : ℕ → ℝ := fun j => mercerEigenval d β α hDim hβ hα j * (M j) ^ 2
+  have hA_nonneg : ∀ j, 0 ≤ A j := fun j => mul_nonneg (hLamNonneg j) (sq_nonneg _)
+  have hA_summable : Summable A := by
+    refine hAngMajor.congr ?_
+    intro j
+    show ‖mercerEigenval d β α hDim hβ hα j‖ * (M j) ^ 2 = A j
+    simp only [A, Real.norm_eq_abs, abs_of_nonneg (hLamNonneg j)]
+  have hInner_nonneg : ∀ j k,
+      0 ≤ mercerEigenval d β α hDim hβ hα j *
+            neumannRadialCoeff β hβ k *
+            (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2 :=
+    spectralEnergy_term_nonneg β α hDim hβ hα P
+  have hInner_le : ∀ j k,
+      mercerEigenval d β α hDim hβ hα j *
+        neumannRadialCoeff β hβ k *
+        (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2 ≤
+      mercerEigenval d β α hDim hβ hα j *
+        neumannRadialCoeff β hβ k * (M j) ^ 2 := by
+    intro j k
+    apply mul_le_mul_of_nonneg_left
+    · exact modeProj_sq_le_M_sq β α hDim hβ hα P M hModeL1Bound j k
+    · exact mul_nonneg (hLamNonneg _) (neumannRadialCoeff_nonneg β hβ _)
+  have hF_nonneg : ∀ j,
+      0 ≤ ∑' k, mercerEigenval d β α hDim hβ hα j *
+              neumannRadialCoeff β hβ k *
+              (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2 :=
+    fun j => tsum_nonneg (hInner_nonneg j)
+  have hF_le : ∀ j,
+      (∑' k, mercerEigenval d β α hDim hβ hα j *
+              neumannRadialCoeff β hβ k *
+              (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2)
+        ≤ A j * radialTotalMass β hβ := by
+    intro j
+    have hLHSSumm : Summable (fun k =>
+        mercerEigenval d β α hDim hβ hα j *
+          neumannRadialCoeff β hβ k *
+          (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2) := by
+      apply Summable.of_nonneg_of_le (fun k => hInner_nonneg j k) (hInner_le j)
+      have h1 := hRadSumm.mul_left (mercerEigenval d β α hDim hβ hα j)
+      exact h1.mul_right ((M j) ^ 2)
+    have hRHSSumm : Summable (fun k =>
+        mercerEigenval d β α hDim hβ hα j *
+          neumannRadialCoeff β hβ k * (M j) ^ 2) := by
+      have h1 := hRadSumm.mul_left (mercerEigenval d β α hDim hβ hα j)
+      exact h1.mul_right ((M j) ^ 2)
+    have hMono := hLHSSumm.tsum_le_tsum (hInner_le j) hRHSSumm
+    have hRHS_eval : (∑' k, mercerEigenval d β α hDim hβ hα j *
+                      neumannRadialCoeff β hβ k * (M j) ^ 2) =
+        A j * radialTotalMass β hβ := by
+      have hRew : (fun k => mercerEigenval d β α hDim hβ hα j *
+                  neumannRadialCoeff β hβ k * (M j) ^ 2) =
+                (fun k => A j * neumannRadialCoeff β hβ k) := by
+        funext k; simp only [A]; ring
+      rw [hRew, tsum_mul_left]
+      rfl
+    exact hMono.trans_eq hRHS_eval
+  -- Define H : ℕ × ℕ → ℝ.
+  set H : ℕ × ℕ → ℝ := fun p =>
+    if mercerDegAt d β α hDim hβ hα p.1 = p.2 + (L + 1) then
+      ∑' k, mercerEigenval d β α hDim hβ hα p.1 *
+            neumannRadialCoeff β hβ k *
+            (modeProj (mercerEigenfun d β α hDim hβ hα) p.1 k P) ^ 2
+    else 0
+  have hH_nonneg : ∀ p, 0 ≤ H p := by
+    intro p
+    by_cases h : mercerDegAt d β α hDim hβ hα p.1 = p.2 + (L + 1)
+    · simp only [H, if_pos h]; exact hF_nonneg p.1
+    · simp only [H, if_neg h]; exact le_refl _
+  -- Per-row summability of H: support contained in {i | i + L + 1 = degAt j} ⊆ range (degAt j).
+  have hH_row_summ : ∀ j, Summable (fun i => H (j, i)) := by
+    intro j
+    apply summable_of_ne_finset_zero
+      (s := Finset.range (mercerDegAt d β α hDim hβ hα j + 1))
+    intro i hi
+    rw [Finset.mem_range] at hi
+    simp only [H]
+    rw [if_neg]
+    intro hEq
+    apply hi
+    omega
+  -- Per-row tsum: ∑' i, H (j, i) = if degAt j ≤ L then 0 else F j.
+  have hH_row_tsum : ∀ j,
+      (∑' i, H (j, i)) =
+        if mercerDegAt d β α hDim hβ hα j ≤ L then 0 else
+          ∑' k, mercerEigenval d β α hDim hβ hα j *
+                neumannRadialCoeff β hβ k *
+                (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2 := by
+    intro j
+    by_cases hLe : mercerDegAt d β α hDim hβ hα j ≤ L
+    · rw [if_pos hLe]
+      have hAllZero : ∀ i, H (j, i) = 0 := by
+        intro i
+        simp only [H]
+        rw [if_neg]
+        intro hEq
+        omega
+      rw [tsum_congr hAllZero]
+      exact tsum_zero
+    · rw [if_neg hLe]
+      have hL_lt : L + 1 ≤ mercerDegAt d β α hDim hβ hα j := by omega
+      let i₀ := mercerDegAt d β α hDim hβ hα j - (L + 1)
+      have hi₀_eq : mercerDegAt d β α hDim hβ hα j = i₀ + (L + 1) := by omega
+      have hOnly : ∀ i', i' ≠ i₀ → H (j, i') = 0 := by
+        intro i' hne
+        simp only [H]
+        rw [if_neg]
+        intro hEq
+        apply hne
+        omega
+      have hAt : H (j, i₀) =
+          ∑' k, mercerEigenval d β α hDim hβ hα j *
+                neumannRadialCoeff β hβ k *
+                (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2 := by
+        simp only [H]
+        rw [if_pos hi₀_eq]
+      rw [tsum_eq_single i₀ hOnly, hAt]
+  -- Sum-of-row-tsums summability: bounded by F j ≤ A j · radTotal.
+  have hRowTsum_summ : Summable (fun j => ∑' i, H (j, i)) := by
+    apply Summable.of_nonneg_of_le _ _ (hA_summable.mul_right (radialTotalMass β hβ))
+    · intro j
+      rw [hH_row_tsum]
+      by_cases hLe : mercerDegAt d β α hDim hβ hα j ≤ L
+      · rw [if_pos hLe]
+      · rw [if_neg hLe]; exact hF_nonneg j
+    · intro j
+      rw [hH_row_tsum]
+      by_cases hLe : mercerDegAt d β α hDim hβ hα j ≤ L
+      · rw [if_pos hLe]
+        exact mul_nonneg (hA_nonneg j) (radialTotalMass_nonneg β hβ)
+      · rw [if_neg hLe]; exact hF_le j
+  -- Pair-summability of H.
+  have hH_summable : Summable H := by
+    rw [summable_prod_of_nonneg hH_nonneg]
+    exact ⟨hH_row_summ, hRowTsum_summ⟩
+  -- Pointwise identity: (if degAt ≤ L then 0 else F j) = ∑' i, H (j, i).
+  have hPointwise : ∀ j,
+      (if mercerDegAt d β α hDim hβ hα j ≤ L then 0 else
+          ∑' k, mercerEigenval d β α hDim hβ hα j *
+                neumannRadialCoeff β hβ k *
+                (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2) =
+        ∑' i, H (j, i) := fun j => (hH_row_tsum j).symm
+  -- Apply tsum_congr.
+  rw [tsum_congr hPointwise]
+  -- Fubini swap.
+  have hSwap :
+      (∑' j : ℕ, ∑' i : ℕ, H (j, i)) = ∑' i : ℕ, ∑' j : ℕ, H (j, i) := by
+    have h := Summable.tsum_comm (f := fun j i => H (j, i)) hH_summable
+    exact h.symm
+  rw [hSwap]
+  -- Per-i bound: ∑' j, H (j, i) ≤ mercerDegreeMass (i + L + 1) · radialTotalMass.
+  have hPer_i : ∀ i,
+      (∑' j, H (j, i)) ≤
+        mercerDegreeMass d β α hDim hβ hα (i + (L + 1)) * radialTotalMass β hβ := by
+    intro i
+    show (∑' j, if mercerDegAt d β α hDim hβ hα j = i + (L + 1) then
+            ∑' k, mercerEigenval d β α hDim hβ hα j *
+                  neumannRadialCoeff β hβ k *
+                  (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2 else 0) ≤ _
+    exact fibreRadialFullSum_le_mercerDegreeMass_radialTotalMass β α hDim hβ hα P
+      (i + (L + 1))
+  -- Tsum monotonicity.
+  have hColSumm : Summable (fun i : ℕ => ∑' j : ℕ, H (j, i)) :=
+    (hH_summable.prod_symm).prod
+  have hRHS_summable :
+      Summable (fun i : ℕ => mercerDegreeMass d β α hDim hβ hα (i + (L + 1)) *
+                              radialTotalMass β hβ) := by
+    have hMass_summable := mercerDegreeMass_summable d β α hDim hβ hα
+    have hShifted : Summable (fun i => mercerDegreeMass d β α hDim hβ hα (i + (L + 1))) :=
+      (summable_nat_add_iff (L + 1)).mpr hMass_summable
+    exact hShifted.mul_right _
+  have hMono := Summable.tsum_le_tsum hPer_i hColSumm hRHS_summable
+  have hRHS_eval :
+      (∑' i, mercerDegreeMass d β α hDim hβ hα (i + (L + 1)) * radialTotalMass β hβ) =
+        angularTailMass_closedForm d β α hDim hβ hα L * radialTotalMass β hβ := by
+    rw [tsum_mul_right]
+    rfl
+  exact hMono.trans_eq hRHS_eval
 
 end WristbandLossProofs

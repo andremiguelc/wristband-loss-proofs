@@ -150,8 +150,8 @@ accessor (typically `mercerDegAt d β α …`) so the user-facing `L` means
 "highest angular *degree* kept" — matching the Python convention
 `ℓ ≤ L_python` ↔ Lean `L = L_python`.  The radial `K` already aligns this way.
 
-The closed-form truncation error bound (`Phase 4`/`Step 5`) is stated against
-this wrapper, not the flat-indexed version. -/
+The closed-form truncation error bound is stated against this wrapper, not
+the flat-indexed version. -/
 
 /-- Degree-indexed joint truncation of `spectralEnergy`: keeps angular
 eigenmodes with `degAt j ≤ L` and radial modes `k ≤ K`. -/

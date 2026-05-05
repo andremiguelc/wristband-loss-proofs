@@ -221,8 +221,7 @@ spectral identity `tr(T_K) = Σ_j λv j`.
 into degree fibres) using a Fubini-style sigma swap on nonneg `tsum`s.
 The Lean derivation is deferred to a future cleanup pass; the statement
 is included here as an axiom so the closed-form angular tail bound
-(`Step 4h`) can be stated with the elegant complementary form
-`T_ang(L) + S_ang(L) = 1`.
+can be stated with the elegant complementary form `T_ang(L) + S_ang(L) = 1`.
 
 References (for the math derivation): Mercer (1909); Atkinson-Han Thm 2.9. -/
 axiom mercerDegreeMass_total_eq_one
