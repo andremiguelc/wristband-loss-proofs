@@ -231,6 +231,45 @@ axiom mercerDegreeMass_total_eq_one
       (∑' j : ℕ, if mercerDegAt d β α hDim hβ hα j = ℓ then
           mercerEigenval d β α hDim hβ hα j else 0) = 1
 
+/-- **P-uniform λ-weighted per-fibre bound on mode projections.**
+
+For each angular degree `ℓ` and radial mode `k`, the **λ-weighted** sum of
+squared mode projections over the `degAt`-fibre of degree `ℓ` is bounded by
+the per-degree mass `Σ_{j : degAt j = ℓ} λv j` (= `λ_ℓ · N(d, ℓ)` by
+constancy + multiplicity), uniformly in the distribution `P`:
+
+  `Σ_{j : degAt j = ℓ} λ_j · (E_P[φ_j(U) · f_k(T)])²
+     ≤ Σ_{j : degAt j = ℓ} λ_j`.
+
+This is the closed-form-ready version of the per-fibre Cauchy-Schwarz bound:
+the angular-strip energy is bounded by the per-degree mass (which sums to
+`1` by `mercerDegreeMass_total_eq_one`).
+
+**Derivable from** `mercerEigenfun_addition_theorem` + λv non-negativity +
+λv-on-fibre constancy (clauses of `kernelAngChordal_mercerExpansion`) +
+Cauchy-Schwarz on integrals + |radialFeature k| ≤ 1:
+- C-S per `j` (with `λ_j ≥ 0`): `λ_j · (E_P[X_j])² ≤ λ_j · E_P[X_j²]`.
+- Sum over fibre, linearity:
+  `Σ_j λ_j · (E_P[X_j])² ≤ E_P[(Σ_j λ_j · φ_j(U)²) · f_k(T)²]`.
+- λ-constancy + addition theorem: `Σ_{j : degAt = ℓ} λ_j · φ_j(u)²
+  = λ_ℓ · Σ_{j : degAt = ℓ} φ_j(u)² = λ_ℓ · N(d, ℓ)`.
+- `λ_ℓ · N(d, ℓ) = Σ_{j : degAt = ℓ} λ_j` (constancy + cardinality).
+- `|f_k| ≤ 1` and `E_P[c] = c` for probability `P`.
+
+The Lean derivation involves measure-theoretic Cauchy-Schwarz, Fubini-style
+swap, and a tsum-cardinality identity for the fibre; deferred to a future
+cleanup pass.
+
+Reference: Atkinson-Han Thm 2.9 (addition theorem); standard C-S identity. -/
+axiom mercer_modeProjSqSum_per_degree_le_mass
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) (ℓ k : ℕ) :
+    (∑' j : ℕ, if mercerDegAt d β α hDim hβ hα j = ℓ then
+        mercerEigenval d β α hDim hβ hα j *
+        (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2 else 0)
+      ≤ ∑' j : ℕ, if mercerDegAt d β α hDim hβ hα j = ℓ then
+          mercerEigenval d β α hDim hβ hα j else 0
+
 /-- Imported factorized `L¹` bridge on raw mode features
 `w ↦ φ_j(w.1) * radialFeature k w.2`, specialized in
 `SpectralFoundations` to `modeTerm` using `φ = mercerEigenfun`.
