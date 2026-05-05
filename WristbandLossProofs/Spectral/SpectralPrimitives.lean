@@ -140,4 +140,27 @@ noncomputable def spectralEnergyTruncated
   ∑ j ∈ Finset.range (L + 1), ∑ k ∈ Finset.range (K + 1),
     lambdaV j * radialCoeff a0 a k * (modeProj φ j k P) ^ 2
 
+/-! ### Spherical-harmonic multiplicity
+
+The dimension of the space of degree-`ℓ` spherical harmonics on `S^{d-1}`
+(`ℓ ≥ 0`, `d ≥ 2`).  Closed-form binomial-difference formula:
+`N(d, ℓ) = C(ℓ + d − 1, d − 1) − C(ℓ + d − 3, d − 1)`.
+
+Special case `d = 2`: `N(2, 0) = 1`, `N(2, ℓ) = 2` for `ℓ ≥ 1`
+(the two `sin(ℓ θ), cos(ℓ θ)` modes).
+For general `d ≥ 2` and `ℓ ≥ 1`: `N(d, ℓ) = (2ℓ + d − 2)·C(ℓ + d − 3, ℓ − 1)`,
+which equals the binomial difference above. -/
+
+/-- Number of linearly independent spherical harmonics of degree `ℓ` on `S^{d−1}`.
+Used as the multiplicity factor in the Mercer block decomposition. -/
+def sphericalHarmonicDim (d ℓ : ℕ) : ℕ :=
+  Nat.choose (ℓ + d - 1) (d - 1) - Nat.choose (ℓ + d - 3) (d - 1)
+
+@[simp] lemma sphericalHarmonicDim_zero (d : ℕ) (hd : 2 ≤ d) :
+    sphericalHarmonicDim d 0 = 1 := by
+  unfold sphericalHarmonicDim
+  have h1 : (0 : ℕ) + d - 1 = d - 1 := by omega
+  have h2 : (0 : ℕ) + d - 3 < d - 1 := by omega
+  rw [h1, Nat.choose_self, Nat.choose_eq_zero_of_lt h2]
+
 end WristbandLossProofs

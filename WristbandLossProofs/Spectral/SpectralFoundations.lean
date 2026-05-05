@@ -32,7 +32,7 @@ Local lemmas for the spectral energy branch.
 lemma mercerEigenval_nonneg
     (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (j : ℕ) :
     0 ≤ mercerEigenval d β α hDim hβ hα j :=
-  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.1 j
+  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.1 j
 
 lemma mercerEigenfun_orthonormal
     (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
@@ -41,13 +41,28 @@ lemma mercerEigenfun_orthonormal
            mercerEigenfun d β α hDim hβ hα j' u
         ∂(sphereUniform d hDim1 : Measure (Sphere d)) =
       if j = j' then 1 else 0 :=
-  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.2.1 j j'
+  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.2.1 j j'
 
 lemma mercerEigenfun_zero_eq_one
     (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
     (u : Sphere d) :
     mercerEigenfun d β α hDim hβ hα 0 u = 1 :=
-  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.2.2.2 u
+  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.2.2.2.1 u
+
+/-- Block multiplicity: each angular degree `ℓ` has exactly
+`sphericalHarmonicDim d ℓ` flat eigenmodes. -/
+lemma mercerDegAt_card_fiber
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (ℓ : ℕ) :
+    Set.ncard {j : ℕ | mercerDegAt d β α hDim hβ hα j = ℓ} = sphericalHarmonicDim d ℓ :=
+  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.2.2.2.2.1 ℓ
+
+/-- Eigenvalue is constant on each `mercerDegAt`-fibre: all eigenmodes of the
+same angular degree share the same eigenvalue. -/
+lemma mercerEigenval_const_on_degree_fiber
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (j j' : ℕ)
+    (h : mercerDegAt d β α hDim hβ hα j = mercerDegAt d β α hDim hβ hα j') :
+    mercerEigenval d β α hDim hβ hα j = mercerEigenval d β α hDim hβ hα j' :=
+  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.2.2.2.2.2 j j' h
 
 lemma neumannConstantCoeff_nonneg (β : ℝ) (hβ : 0 < β) :
     0 ≤ neumannConstantCoeff β hβ :=
@@ -75,7 +90,7 @@ lemma kernelAngChordal_mercerExpansion_witness
         mercerEigenval d β α hDim hβ hα j *
           mercerEigenfun d β α hDim hβ hα j u *
           mercerEigenfun d β α hDim hβ hα j v :=
-  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.2.2.1 u v
+  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.2.2.1 u v
 
 /-- Summability of the diagonal Mercer series at a fixed point `u`. -/
 lemma mercerDiagonalSeries_summable

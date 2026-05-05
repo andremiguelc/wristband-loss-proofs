@@ -38,7 +38,9 @@ or imported below as an explicit closure bridge.
 /-- **Mercer decomposition of `kernelAngChordal`.**
 
     For any `d ≥ 2`, `β > 0`, `α > 0`, there exist angular eigenfunctions
-    `φ : ℕ → Sphere d → ℝ` and eigenvalues `λv : ℕ → ℝ` satisfying:
+    `φ : ℕ → Sphere d → ℝ`, eigenvalues `λv : ℕ → ℝ`, and a degree-accessor
+    `degAt : ℕ → ℕ` (mapping each flat eigenmode to its angular degree)
+    satisfying:
 
     1. **(Nonnegativity)** `λv j ≥ 0` for all `j`.
     2. **(Orthonormality)** `{φ j}` is orthonormal in `L²(sphereUniform d)`:
@@ -48,6 +50,11 @@ or imported below as an explicit closure bridge.
     4. **(Constant-mode identification)** `φ 0 = fun _ => 1`:
        the zeroth eigenfunction is the constant function equal to 1
        (valid since `sphereUniform d` is a probability measure).
+    5. **(Block multiplicity)** Each angular degree `ℓ` has exactly
+       `sphericalHarmonicDim d ℓ` flat eigenmodes mapped to it
+       (equal to the dimension of degree-`ℓ` spherical harmonics on `S^{d-1}`).
+    6. **(Constancy on fibres)** `λv` is constant on each `degAt`-fibre:
+       all eigenmodes of the same angular degree share the same eigenvalue.
 
     **Source**: Mercer (1909); Steinwart–Christmann (2008), Theorem 4.49.
     The chain of reasoning is:
@@ -77,7 +84,7 @@ or imported below as an explicit closure bridge.
 axiom kernelAngChordal_mercerExpansion
     (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
     (hDim1 : 1 ≤ d := by omega) :
-    ∃ (φ : ℕ → Sphere d → ℝ) (lambdaV : ℕ → ℝ),
+    ∃ (φ : ℕ → Sphere d → ℝ) (lambdaV : ℕ → ℝ) (degAt : ℕ → ℕ),
       -- (1) Nonnegativity of eigenvalues
       (∀ j : ℕ, 0 ≤ lambdaV j) ∧
       -- (2) Orthonormality in L²(sphereUniform d)
@@ -89,7 +96,14 @@ axiom kernelAngChordal_mercerExpansion
         kernelAngChordal β α u v =
           ∑' j : ℕ, lambdaV j * φ j u * φ j v) ∧
       -- (4) Constant-mode identification
-      (∀ u : Sphere d, φ 0 u = 1)
+      (∀ u : Sphere d, φ 0 u = 1) ∧
+      -- (5) Block multiplicity: each angular degree `ℓ` has exactly
+      -- `sphericalHarmonicDim d ℓ` flat eigenmodes mapped to it.
+      (∀ ℓ : ℕ,
+        Set.ncard {j : ℕ | degAt j = ℓ} = sphericalHarmonicDim d ℓ) ∧
+      -- (6) `lambdaV` is constant on each `degAt`-fibre: all flat eigenmodes
+      -- of the same angular degree share the same eigenvalue `λ_ℓ`.
+      (∀ j j' : ℕ, degAt j = degAt j' → lambdaV j = lambdaV j')
 
 /-! ### Witness extraction from imported expansion axioms -/
 
@@ -104,6 +118,15 @@ noncomputable def mercerEigenval
     (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) :
     ℕ → ℝ :=
   (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose
+
+/-- Degree accessor extracted from the Mercer axiom: `mercerDegAt … j` is the
+angular degree `ℓ` of the `j`-th flat eigenmode.  Together with
+`mercerDegAt_card_fiber` and `mercerEigenval_const_on_degree_fiber`, this
+exposes the block structure used by the closed-form angular tail bound. -/
+noncomputable def mercerDegAt
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) :
+    ℕ → ℕ :=
+  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose
 
 /-- Constant-mode radial coefficient (`a0`) extracted from the Neumann cosine axiom. -/
 noncomputable def neumannConstantCoeff (β : ℝ) (hβ : 0 < β) : ℝ :=
