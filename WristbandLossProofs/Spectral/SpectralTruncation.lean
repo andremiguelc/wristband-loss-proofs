@@ -7,7 +7,7 @@ noncomputable section
 namespace WristbandLossProofs
 
 open MeasureTheory Filter
-open scoped BigOperators
+open scoped BigOperators Topology
 
 /-! ## Spectral Truncation — joint (L, K) bounds
 
@@ -525,5 +525,215 @@ theorem spectralEnergyTruncated_mem_Icc
           P :=
   ⟨spectralEnergyTruncated_nonneg β α hDim hβ hα P L K,
    spectralEnergyTruncated_le_spectralEnergy β α hDim hβ hα P L K⟩
+
+/-! ### Phase 6: closed-form radial tail bound
+
+Upgrades the opaque `radialTailMass β hβ K` (`∑' n, neumannRadialCoeff β hβ
+(n + K + 1)`) to an explicit, closed-form upper bound in `(β, K)` using
+axiom `neumannCosineCoeff_le_gaussianBound` from `SpectralImportedFacts`.
+
+The shape is the *simple geometric* majorant of `Σ_{m=K+1}^∞ ã_m` with
+`ã_m = 2√(π/β)·exp(−π²m²/(4β))`:
+`(n+K+1)² ≥ (K+1)² + (K+1)·n` ⟹ Gaussian-times-geometric tail
+⟹ `radialTailMass β hβ K ≤ 2√(π/β)·exp(−a(K+1)²)/(1 − exp(−a(K+1)))`
+with `a = π²/(4β)`. -/
+
+/-- Closed-form upper bound for the radial tail mass.
+
+Simple geometric majorant: with `a = π²/(4β)`,
+`radialTailMass_closedForm β K = 2√(π/β) · exp(−a(K+1)²) / (1 − exp(−a(K+1)))`. -/
+noncomputable def radialTailMass_closedForm (β : ℝ) (K : ℕ) : ℝ :=
+  2 * Real.sqrt (Real.pi / β) *
+    Real.exp (-(Real.pi ^ 2) * ((K : ℝ) + 1) ^ 2 / (4 * β)) /
+      (1 - Real.exp (-(Real.pi ^ 2) * ((K : ℝ) + 1) / (4 * β)))
+
+/-- The radial tail mass is bounded by the closed form.
+
+Proof outline (`a := π²/(4β)`, `r := exp(−a(K+1))`, `C := 2√(π/β)·exp(−a(K+1)²)`):
+1. `radialTailMass β hβ K = ∑' n, neumannCosineCoeff β hβ (n + K)` (def. unfolding).
+2. Pointwise: axiom (R) gives `neumannCosineCoeff β hβ (n + K) ≤
+   2√(π/β)·exp(−π²(n+K+1)²/(4β))`.
+3. Square inequality: `(n+(K+1))² ≥ (K+1)² + (K+1)·n` (since the
+   missing term `n² + (K+1)n` is nonneg).
+4. exp monotonicity + factoring: `exp(−a(n+(K+1))²) ≤ exp(−a(K+1)²) · r^n`.
+5. Sum: `∑' n, C · r^n = C / (1 − r)` via `tsum_geometric_of_lt_one`. -/
+theorem radialTailMass_le_closedForm (β : ℝ) (hβ : 0 < β) (K : ℕ) :
+    radialTailMass β hβ K ≤ radialTailMass_closedForm β K := by
+  -- Constants
+  set a : ℝ := Real.pi ^ 2 / (4 * β) with ha_def
+  have ha_pos : 0 < a := by
+    refine div_pos ?_ (by linarith)
+    positivity
+  have hKp1_pos : (0 : ℝ) < (K : ℝ) + 1 := by
+    have : (0 : ℝ) ≤ (K : ℝ) := Nat.cast_nonneg _
+    linarith
+  set r : ℝ := Real.exp (-(a * ((K : ℝ) + 1))) with hr_def
+  have hr_pos : 0 < r := Real.exp_pos _
+  have hr_lt_one : r < 1 := by
+    rw [hr_def]
+    refine Real.exp_lt_one_iff.mpr ?_
+    have := mul_pos ha_pos hKp1_pos
+    linarith
+  set C : ℝ := 2 * Real.sqrt (Real.pi / β) * Real.exp (-(a * ((K : ℝ) + 1) ^ 2))
+    with hC_def
+  have hSqrt_nonneg : 0 ≤ Real.sqrt (Real.pi / β) := Real.sqrt_nonneg _
+  -- Pointwise bound on each tail term
+  have hPointBound : ∀ n : ℕ,
+      neumannCosineCoeff β hβ (n + K) ≤ C * r ^ n := by
+    intro n
+    have hAx := neumannCosineCoeff_le_gaussianBound β hβ (n + K)
+    -- Reindex the cast
+    have hCastK : ((n + K : ℕ) : ℝ) + 1 = (n : ℝ) + ((K : ℝ) + 1) := by push_cast; ring
+    rw [hCastK] at hAx
+    -- Rewrite the exponent argument as -(a * (...))
+    have hAxExp_form : -(Real.pi ^ 2) * ((n : ℝ) + ((K : ℝ) + 1)) ^ 2 / (4 * β) =
+        -(a * ((n : ℝ) + ((K : ℝ) + 1)) ^ 2) := by
+      rw [ha_def]; field_simp
+    rw [hAxExp_form] at hAx
+    -- Square inequality: (K+1)² + (K+1)·n ≤ (n + (K+1))²
+    have hSq : ((K : ℝ) + 1) ^ 2 + ((K : ℝ) + 1) * (n : ℝ) ≤
+        ((n : ℝ) + ((K : ℝ) + 1)) ^ 2 := by
+      have hK : (0 : ℝ) ≤ (K : ℝ) + 1 := hKp1_pos.le
+      have hn : (0 : ℝ) ≤ (n : ℝ) := Nat.cast_nonneg _
+      nlinarith [sq_nonneg ((n : ℝ)), mul_nonneg hK hn]
+    -- exp monotonicity gives exp(−a · big) ≤ exp(−a · small)
+    have hExpMono : Real.exp (-(a * ((n : ℝ) + ((K : ℝ) + 1)) ^ 2)) ≤
+        Real.exp (-(a * (((K : ℝ) + 1) ^ 2 + ((K : ℝ) + 1) * (n : ℝ)))) := by
+      refine Real.exp_le_exp.mpr ?_
+      have := mul_le_mul_of_nonneg_left hSq ha_pos.le
+      linarith
+    -- exp split: exp(−a(α + β·n)) = exp(−a·α) · r^n
+    have hExpSplit : Real.exp (-(a * (((K : ℝ) + 1) ^ 2 + ((K : ℝ) + 1) * (n : ℝ)))) =
+        Real.exp (-(a * ((K : ℝ) + 1) ^ 2)) * r ^ n := by
+      rw [hr_def,
+          show -(a * (((K : ℝ) + 1) ^ 2 + ((K : ℝ) + 1) * (n : ℝ))) =
+              -(a * ((K : ℝ) + 1) ^ 2) + (n : ℝ) * (-(a * ((K : ℝ) + 1))) by ring,
+          Real.exp_add, Real.exp_nat_mul]
+    -- Combine: chain hAx → hExpMono → hExpSplit and re-associate to C * r^n
+    have hChain :
+        neumannCosineCoeff β hβ (n + K) ≤
+          2 * Real.sqrt (Real.pi / β) *
+            (Real.exp (-(a * ((K : ℝ) + 1) ^ 2)) * r ^ n) := by
+      calc neumannCosineCoeff β hβ (n + K)
+          ≤ 2 * Real.sqrt (Real.pi / β) *
+              Real.exp (-(a * ((n : ℝ) + ((K : ℝ) + 1)) ^ 2)) := hAx
+        _ ≤ 2 * Real.sqrt (Real.pi / β) *
+              Real.exp (-(a * (((K : ℝ) + 1) ^ 2 + ((K : ℝ) + 1) * (n : ℝ)))) := by
+            refine mul_le_mul_of_nonneg_left hExpMono ?_
+            exact mul_nonneg (by norm_num) hSqrt_nonneg
+        _ = 2 * Real.sqrt (Real.pi / β) *
+              (Real.exp (-(a * ((K : ℝ) + 1) ^ 2)) * r ^ n) := by rw [hExpSplit]
+    have hReassoc :
+        2 * Real.sqrt (Real.pi / β) *
+            (Real.exp (-(a * ((K : ℝ) + 1) ^ 2)) * r ^ n) = C * r ^ n := by
+      rw [hC_def]; ring
+    exact hReassoc ▸ hChain
+  -- Summability of the geometric majorant and the cosine tail
+  have hSummableGeom : Summable (fun n : ℕ => r ^ n) :=
+    summable_geometric_of_lt_one hr_pos.le hr_lt_one
+  have hMajSumm : Summable (fun n : ℕ => C * r ^ n) := hSummableGeom.mul_left C
+  have hOrigSumm : Summable (fun n : ℕ => neumannCosineCoeff β hβ (n + K)) :=
+    (summable_nat_add_iff K).mpr (summable_neumannCosineCoeff_imported β hβ)
+  -- Rewrite radialTailMass via neumannCosineCoeff
+  have hRewrite :
+      radialTailMass β hβ K = ∑' n : ℕ, neumannCosineCoeff β hβ (n + K) := by
+    unfold radialTailMass
+    refine tsum_congr ?_
+    intro n
+    show neumannRadialCoeff β hβ (n + (K + 1)) = neumannCosineCoeff β hβ (n + K)
+    rfl
+  -- Bundle the pointwise bound into a tsum bound
+  have hStep1 :
+      ∑' n : ℕ, neumannCosineCoeff β hβ (n + K) ≤ ∑' n : ℕ, C * r ^ n :=
+    hOrigSumm.tsum_le_tsum hPointBound hMajSumm
+  -- Compute the geometric tsum
+  have hGeom : ∑' n : ℕ, C * r ^ n = C / (1 - r) := by
+    rw [tsum_mul_left, tsum_geometric_of_lt_one hr_pos.le hr_lt_one, div_eq_mul_inv]
+  -- Show C / (1 − r) = radialTailMass_closedForm β K
+  have hUnfold : C / (1 - r) = radialTailMass_closedForm β K := by
+    have hπ2β_sq : -(a * ((K : ℝ) + 1) ^ 2) =
+        -(Real.pi ^ 2) * ((K : ℝ) + 1) ^ 2 / (4 * β) := by
+      rw [ha_def]; field_simp
+    have hπ2β_lin : -(a * ((K : ℝ) + 1)) =
+        -(Real.pi ^ 2) * ((K : ℝ) + 1) / (4 * β) := by
+      rw [ha_def]; field_simp
+    unfold radialTailMass_closedForm
+    rw [hC_def, hr_def, hπ2β_sq, hπ2β_lin]
+  -- Combine
+  rw [hRewrite]
+  calc ∑' n : ℕ, neumannCosineCoeff β hβ (n + K)
+      ≤ ∑' n : ℕ, C * r ^ n := hStep1
+    _ = C / (1 - r) := hGeom
+    _ = radialTailMass_closedForm β K := hUnfold
+
+/-- The closed-form radial tail bound goes to zero as `K → ∞`.
+
+Combines:
+- numerator `2√(π/β) · exp(−π²(K+1)²/(4β)) → 0` (super-exp Gaussian decay),
+- denominator `1 − exp(−π²(K+1)/(4β)) → 1` (exp(...) → 0 in the linear case),
+via `Tendsto.div`. -/
+theorem tendsto_radialTailMass_closedForm (β : ℝ) (hβ : 0 < β) :
+    Tendsto (radialTailMass_closedForm β) atTop (𝓝 0) := by
+  -- Helper: (K : ℝ) + 1 → atTop
+  have hKpO : Tendsto (fun K : ℕ => ((K : ℝ) + 1)) atTop atTop := by
+    apply tendsto_atTop_mono _ tendsto_natCast_atTop_atTop
+    intro K; exact le_of_lt (lt_add_one _)
+  -- (K+1)² → atTop (squeeze: (K+1)² ≥ K+1 when K+1 ≥ 1)
+  have hSq : Tendsto (fun K : ℕ => ((K : ℝ) + 1) ^ 2) atTop atTop := by
+    apply tendsto_atTop_mono _ hKpO
+    intro K
+    have h1 : (1 : ℝ) ≤ (K : ℝ) + 1 := by
+      have : (0 : ℝ) ≤ (K : ℝ) := Nat.cast_nonneg _
+      linarith
+    nlinarith
+  -- Positivity of π²/(4β)
+  have ha : (0 : ℝ) < Real.pi ^ 2 / (4 * β) := div_pos (by positivity) (by linarith)
+  -- exp(−π²(K+1)²/(4β)) → 0
+  have hExpSq : Tendsto (fun K : ℕ =>
+      Real.exp (-(Real.pi ^ 2) * ((K : ℝ) + 1) ^ 2 / (4 * β))) atTop (𝓝 0) := by
+    have hMul : Tendsto (fun K : ℕ =>
+        (Real.pi ^ 2 / (4 * β)) * ((K : ℝ) + 1) ^ 2) atTop atTop :=
+      Filter.Tendsto.const_mul_atTop ha hSq
+    have hNeg : Tendsto (fun K : ℕ =>
+        -((Real.pi ^ 2 / (4 * β)) * ((K : ℝ) + 1) ^ 2)) atTop atBot :=
+      Filter.tendsto_neg_atTop_atBot.comp hMul
+    have hExp := Real.tendsto_exp_atBot.comp hNeg
+    have hForm : ∀ K : ℕ,
+        -(Real.pi ^ 2) * ((K : ℝ) + 1) ^ 2 / (4 * β) =
+          -((Real.pi ^ 2 / (4 * β)) * ((K : ℝ) + 1) ^ 2) := by
+      intro K; field_simp
+    simp_rw [hForm]
+    exact hExp
+  -- exp(−π²(K+1)/(4β)) → 0
+  have hExpLin : Tendsto (fun K : ℕ =>
+      Real.exp (-(Real.pi ^ 2) * ((K : ℝ) + 1) / (4 * β))) atTop (𝓝 0) := by
+    have hMul : Tendsto (fun K : ℕ =>
+        (Real.pi ^ 2 / (4 * β)) * ((K : ℝ) + 1)) atTop atTop :=
+      Filter.Tendsto.const_mul_atTop ha hKpO
+    have hNeg : Tendsto (fun K : ℕ =>
+        -((Real.pi ^ 2 / (4 * β)) * ((K : ℝ) + 1))) atTop atBot :=
+      Filter.tendsto_neg_atTop_atBot.comp hMul
+    have hExp := Real.tendsto_exp_atBot.comp hNeg
+    have hForm : ∀ K : ℕ,
+        -(Real.pi ^ 2) * ((K : ℝ) + 1) / (4 * β) =
+          -((Real.pi ^ 2 / (4 * β)) * ((K : ℝ) + 1)) := by
+      intro K; field_simp
+    simp_rw [hForm]
+    exact hExp
+  -- Numerator: 2√(π/β) · exp(...) → 0
+  have hNumer : Tendsto (fun K : ℕ =>
+      2 * Real.sqrt (Real.pi / β) *
+        Real.exp (-(Real.pi ^ 2) * ((K : ℝ) + 1) ^ 2 / (4 * β))) atTop (𝓝 0) := by
+    have h := hExpSq.const_mul (2 * Real.sqrt (Real.pi / β))
+    rwa [mul_zero] at h
+  -- Denominator: 1 − exp(...) → 1
+  have hDenom : Tendsto (fun K : ℕ =>
+      1 - Real.exp (-(Real.pi ^ 2) * ((K : ℝ) + 1) / (4 * β))) atTop (𝓝 1) := by
+    have h := (tendsto_const_nhds : Tendsto (fun _ : ℕ => (1 : ℝ)) atTop (𝓝 1)).sub hExpLin
+    rwa [sub_zero] at h
+  -- Quotient → 0/1 = 0; the 0/1 simplification + def-unfold finishes the goal
+  have hDiv := hNumer.div hDenom one_ne_zero
+  rw [zero_div] at hDiv
+  exact hDiv
 
 end WristbandLossProofs

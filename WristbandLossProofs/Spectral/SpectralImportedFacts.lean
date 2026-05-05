@@ -135,6 +135,29 @@ axiom summable_neumannCosineCoeff_imported
     (β : ℝ) (hβ : 0 < β) :
     Summable (neumannCosineCoeff β hβ)
 
+/-- Explicit Gaussian upper bound on Neumann cosine coefficients.
+
+The cosine-mode weight on `cos((k+1)π t)·cos((k+1)π t')` in the
+`kernelRadNeumann β` expansion satisfies the closed-form bound
+`ã_{k+1} ≤ 2√(π/β) · exp(−π²(k+1)²/(4β))`.  Indexing matches
+`kernelRadNeumann_hasCosineExpansion` (Lean `k` ↔ math `m = k + 1`).
+
+This is strictly more informative than `summable_neumannCosineCoeff_imported`
+(which only asserts summability) — it gives the explicit Gaussian rate used
+in the closed-form radial-tail bound.
+
+References:
+- Teplyaev, A. (1995). *Spectral Analysis of Heat Kernels on Compact
+  Manifolds*; *Heat kernels on the unit circle and on intervals*,
+  Eq. (0.6)–(0.7) — direct interval-Neumann formula.
+- Stein, E.M. & Weiss, G. (1971). *Introduction to Fourier Analysis on
+  Euclidean Spaces*, Ch. VII §2 (Poisson summation). -/
+axiom neumannCosineCoeff_le_gaussianBound
+    (β : ℝ) (hβ : 0 < β) (k : ℕ) :
+    neumannCosineCoeff β hβ k ≤
+      2 * Real.sqrt (Real.pi / β) *
+        Real.exp (-(Real.pi ^ 2) * ((k : ℝ) + 1) ^ 2 / (4 * β))
+
 /-- Imported factorized `L¹` bridge on raw mode features
 `w ↦ φ_j(w.1) * radialFeature k w.2`, specialized in
 `SpectralFoundations` to `modeTerm` using `φ = mercerEigenfun`.
