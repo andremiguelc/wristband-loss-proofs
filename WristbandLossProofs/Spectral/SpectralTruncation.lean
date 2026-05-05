@@ -526,6 +526,37 @@ theorem spectralEnergyTruncated_mem_Icc
   ⟨spectralEnergyTruncated_nonneg β α hDim hβ hα P L K,
    spectralEnergyTruncated_le_spectralEnergy β α hDim hβ hα P L K⟩
 
+/-! ### Phase 4: degree-indexed truncation (user-facing closed-form API)
+
+The flat-indexed `spectralEnergyTruncated` above is a stepping stone:
+the qualitative bound is stated against it, but the user-facing closed-form
+bound (`Step 5`) targets `spectralEnergyTruncatedByDegree` from
+`SpectralPrimitives`, where the angular cutoff `L` means "highest angular
+degree kept" (not "highest flat eigenmode index"). -/
+
+/-- The degree-indexed truncated spectral energy is non-negative. -/
+theorem spectralEnergyTruncatedByDegree_nonneg
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) (L K : ℕ) :
+    0 ≤
+      spectralEnergyTruncatedByDegree
+        (mercerEigenfun d β α hDim hβ hα)
+        (mercerEigenval d β α hDim hβ hα)
+        (mercerDegAt d β α hDim hβ hα)
+        (neumannConstantCoeff β hβ)
+        (neumannCosineCoeff β hβ)
+        L K P := by
+  unfold spectralEnergyTruncatedByDegree
+  refine tsum_nonneg ?_
+  intro j
+  by_cases h : mercerDegAt d β α hDim hβ hα j ≤ L
+  · simp only [if_pos h]
+    refine Finset.sum_nonneg ?_
+    intro k _
+    exact spectralEnergy_term_nonneg β α hDim hβ hα P j k
+  · simp only [if_neg h]
+    exact le_refl 0
+
 /-! ### Phase 6: closed-form radial tail bound
 
 Upgrades the opaque `radialTailMass β hβ K` (`∑' n, neumannRadialCoeff β hβ

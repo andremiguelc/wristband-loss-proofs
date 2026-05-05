@@ -140,6 +140,34 @@ noncomputable def spectralEnergyTruncated
   ∑ j ∈ Finset.range (L + 1), ∑ k ∈ Finset.range (K + 1),
     lambdaV j * radialCoeff a0 a k * (modeProj φ j k P) ^ 2
 
+/-! ### Degree-indexed truncated spectral energy (user-facing closed-form API)
+
+The flat-indexed `spectralEnergyTruncated` above takes `L` = "highest flat
+eigenmode index kept", which is convenient for the qualitative bound but
+does not align with how Python/math docs index angular truncation by
+**degree**.  The degree-indexed wrapper below threads a `degAt : ℕ → ℕ`
+accessor (typically `mercerDegAt d β α …`) so the user-facing `L` means
+"highest angular *degree* kept" — matching the Python convention
+`ℓ ≤ L_python` ↔ Lean `L = L_python`.  The radial `K` already aligns this way.
+
+The closed-form truncation error bound (`Phase 4`/`Step 5`) is stated against
+this wrapper, not the flat-indexed version. -/
+
+/-- Degree-indexed joint truncation of `spectralEnergy`: keeps angular
+eigenmodes with `degAt j ≤ L` and radial modes `k ≤ K`. -/
+noncomputable def spectralEnergyTruncatedByDegree
+    {d : ℕ}
+    (φ : ℕ → Sphere d → ℝ)
+    (lambdaV : ℕ → ℝ)
+    (degAt : ℕ → ℕ)
+    (a0 : ℝ) (a : ℕ → ℝ)
+    (L K : ℕ)
+    (P : Distribution (Wristband d)) : ℝ :=
+  ∑' j : ℕ, if degAt j ≤ L then
+    ∑ k ∈ Finset.range (K + 1),
+      lambdaV j * radialCoeff a0 a k * (modeProj φ j k P) ^ 2
+  else 0
+
 /-! ### Spherical-harmonic multiplicity
 
 The dimension of the space of degree-`ℓ` spherical harmonics on `S^{d-1}`

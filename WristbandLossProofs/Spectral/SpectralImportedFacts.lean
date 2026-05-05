@@ -181,6 +181,56 @@ axiom neumannCosineCoeff_le_gaussianBound
       2 * Real.sqrt (Real.pi / β) *
         Real.exp (-(Real.pi ^ 2) * ((k : ℝ) + 1) ^ 2 / (4 * β))
 
+/-- **Addition theorem** for spherical harmonics under probability normalization.
+
+For each angular degree `ℓ ≥ 0` and each unit vector `u`, the sum of squares
+of all `mercerEigenfun`s of degree `ℓ` equals the multiplicity `N(d, ℓ)`:
+`Σ_{j : degAt j = ℓ} φ_j(u)² = N(d, ℓ)`.
+
+The constant `N(d, ℓ) = sphericalHarmonicDim d ℓ` (no `|S^{d-1}|` factor)
+because `sphereUniform` is the **probability** uniform measure under which
+the harmonics are orthonormal.  The flat-index `tsum`-with-indicator form
+matches the Mercer expansion's flat indexing.
+
+This is one of the two pillars of the closed-form angular tail bound:
+combined with the diagonal Mercer constraint
+`k_ang(u, u) = Σ_j λv j · φ_j(u)² = 1`, it gives `Σ_ℓ λ_ℓ · N(d, ℓ) = 1`
+(derived without an additional axiom).
+
+Reference: Atkinson, K. & Han, W. (2012). *Spherical Harmonics and
+Approximations on the Unit Sphere*, Theorem 2.9. Springer. -/
+axiom mercerEigenfun_addition_theorem
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (ℓ : ℕ) (u : Sphere d) :
+    ∑' j : ℕ, (if mercerDegAt d β α hDim hβ hα j = ℓ then
+        (mercerEigenfun d β α hDim hβ hα j u) ^ 2 else 0)
+      = (sphericalHarmonicDim d ℓ : ℝ)
+
+/-- **Diagonal Mercer constraint** under our normalization.
+
+The total angular mass per degree-block equals `1`:
+`Σ_ℓ Σ_{j : degAt j = ℓ} λv j = Σ_ℓ λ_ℓ · N(d, ℓ) = 1`.
+
+Equivalently, this is the L²(σ)-trace of the angular Mercer integral
+operator: `tr(T_K) = ∫ k_ang(u, u) dσ(u) = ∫ 1 dσ = 1` (where `σ` is
+the **probability** uniform measure on `S^{d-1}`), combined with the
+spectral identity `tr(T_K) = Σ_j λv j`.
+
+**Derivable from** `kernelAngChordal_mercerExpansion` (clauses 2 + 3 + 6) +
+`mercerEigenfun_addition_theorem` (regrouping of `Σ_j λv j · φ_j(u)² = 1`
+into degree fibres) using a Fubini-style sigma swap on nonneg `tsum`s.
+The Lean derivation is deferred to a future cleanup pass; the statement
+is included here as an axiom so the closed-form angular tail bound
+(`Step 4h`) can be stated with the elegant complementary form
+`T_ang(L) + S_ang(L) = 1`.
+
+References (for the math derivation): Mercer (1909); Atkinson-Han Thm 2.9. -/
+axiom mercerDegreeMass_total_eq_one
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) :
+    ∑' ℓ : ℕ,
+      (∑' j : ℕ, if mercerDegAt d β α hDim hβ hα j = ℓ then
+          mercerEigenval d β α hDim hβ hα j else 0) = 1
+
 /-- Imported factorized `L¹` bridge on raw mode features
 `w ↦ φ_j(w.1) * radialFeature k w.2`, specialized in
 `SpectralFoundations` to `modeTerm` using `φ = mercerEigenfun`.
