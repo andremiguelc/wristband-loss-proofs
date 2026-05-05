@@ -453,29 +453,31 @@ theorem wristbandKernelNeumann_characteristic
 /-- Angular potential is constant under spherical uniform law
 (deferred local theorem). -/
 theorem angularPotential_constant
-    (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α) :
+    (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α)
+    (hDim1 : 1 ≤ d := by omega) :
     ∃ c : ℝ,
       HasConstantPotential
-        (kernelAngChordal (d := d) β α) (sphereUniform d) c := by
+        (kernelAngChordal (d := d) β α) (sphereUniform d hDim1) c := by
   have _hβ : 0 < β := hβ
   have _hα : 0 < α := hα
   have hRotatePotential :
       ∀ (O : (Vec d) ≃ₗᵢ[ℝ] Vec d) (u : Sphere d),
-        kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) (rotateSphere O u)
-          = kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) u := by
+        kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d hDim1) (rotateSphere O u)
+          = kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d hDim1) u := by
     intro O u
     have hMapDistDist :
-        pushforward (rotateSphere O) (sphereUniform d) (measurable_rotateSphere O) = sphereUniform d :=
-      sphereUniform_rotationInvariant d O
+        pushforward (rotateSphere O) (sphereUniform d hDim1) (measurable_rotateSphere O)
+            = sphereUniform d hDim1 :=
+      sphereUniform_rotationInvariant d hDim1 O
     have hMapDist :
-        Measure.map (rotateSphere O) (sphereUniform d : Measure (Sphere d))
-          = (sphereUniform d : Measure (Sphere d)) := by
+        Measure.map (rotateSphere O) (sphereUniform d hDim1 : Measure (Sphere d))
+          = (sphereUniform d hDim1 : Measure (Sphere d)) := by
       simpa [pushforward] using
         congrArg (fun ν : Distribution (Sphere d) => (ν : Measure (Sphere d))) hMapDistDist
     let g : Sphere d → ℝ := fun v => kernelAngChordal (d := d) β α (rotateSphere O u) v
     have hgAEStrong :
         MeasureTheory.AEStronglyMeasurable g
-          (Measure.map (rotateSphere O) (sphereUniform d : Measure (Sphere d))) := by
+          (Measure.map (rotateSphere O) (sphereUniform d hDim1 : Measure (Sphere d))) := by
       have hgMeas : Measurable g := by
         have hPair : Measurable (fun v : Sphere d => (rotateSphere O u, v)) :=
           measurable_const.prodMk measurable_id
@@ -483,39 +485,42 @@ theorem angularPotential_constant
       exact hgMeas.aestronglyMeasurable
     unfold kernelPotential
     calc
-      (∫ v, kernelAngChordal (d := d) β α (rotateSphere O u) v ∂(sphereUniform d : Measure (Sphere d)))
-          = ∫ v, g v ∂(Measure.map (rotateSphere O) (sphereUniform d : Measure (Sphere d))) := by
+      (∫ v, kernelAngChordal (d := d) β α (rotateSphere O u) v
+            ∂(sphereUniform d hDim1 : Measure (Sphere d)))
+          = ∫ v, g v
+              ∂(Measure.map (rotateSphere O) (sphereUniform d hDim1 : Measure (Sphere d))) := by
               simp [g, hMapDist]
-      _ = ∫ v, g (rotateSphere O v) ∂(sphereUniform d : Measure (Sphere d)) := by
+      _ = ∫ v, g (rotateSphere O v) ∂(sphereUniform d hDim1 : Measure (Sphere d)) := by
             simpa [g] using
               (MeasureTheory.integral_map
-                (μ := (sphereUniform d : Measure (Sphere d)))
+                (μ := (sphereUniform d hDim1 : Measure (Sphere d)))
                 (φ := rotateSphere O)
                 (f := g)
                 (hφ := (measurable_rotateSphere O).aemeasurable)
                 (hfm := hgAEStrong))
-      _ = ∫ v, kernelAngChordal (d := d) β α u v ∂(sphereUniform d : Measure (Sphere d)) := by
+      _ = ∫ v, kernelAngChordal (d := d) β α u v
+            ∂(sphereUniform d hDim1 : Measure (Sphere d)) := by
             refine integral_congr_ae ?_
             filter_upwards with v
             simpa [g] using kernelAngChordal_rotationInvariant d β α O u v
-      _ = kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) u := by
+      _ = kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d hDim1) u := by
             rfl
   have hAllEq :
       ∀ u v : Sphere d,
-        kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) u
-          = kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) v := by
+        kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d hDim1) u
+          = kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d hDim1) v := by
     intro u v
     rcases orthogonal_group_transitive_on_sphere d hDim u v with ⟨O, hO⟩
     have hRot := hRotatePotential O u
     have hEqVU :
-        kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) v
-          = kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) u := by
+        kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d hDim1) v
+          = kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d hDim1) u := by
       simpa [hO] using hRot
     exact hEqVU.symm
   classical
   by_cases hne : Nonempty (Sphere d)
   · rcases hne with ⟨u0⟩
-    refine ⟨kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) u0, ?_⟩
+    refine ⟨kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d hDim1) u0, ?_⟩
     intro w
     exact hAllEq w u0
   · refine ⟨0, ?_⟩

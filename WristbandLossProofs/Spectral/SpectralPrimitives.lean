@@ -99,4 +99,96 @@ noncomputable def spectralEnergy
   ∑' j : ℕ, ∑' k : ℕ,
     lambdaV j * radialCoeff a0 a k * (modeProj φ j k P) ^ 2
 
+/-- Spectral energy with the radial axis truncated to modes `k ≤ K`.
+
+The outer angular sum stays infinite (`∑'`) because no decay rate on
+`lambdaV` is assumed; only the radial axis is truncated. Used in the
+truncation-error bound `spectralEnergyRadialTruncated_error_le`. -/
+noncomputable def spectralEnergyRadialTruncated
+    {d : ℕ}
+    (φ : ℕ → Sphere d → ℝ)
+    (lambdaV : ℕ → ℝ)
+    (a0 : ℝ) (a : ℕ → ℝ)
+    (K : ℕ)
+    (P : Distribution (Wristband d)) : ℝ :=
+  ∑' j : ℕ, ∑ k ∈ Finset.range (K + 1),
+    lambdaV j * radialCoeff a0 a k * (modeProj φ j k P) ^ 2
+
+/-- Joint-(L, K) truncated spectral energy: both angular and radial axes
+truncated to finite ranges.
+
+  - `L` = highest angular Mercer mode index kept (so modes `j ∈ {0, 1, …, L}`,
+    i.e. `L + 1` angular modes total).
+  - `K` = highest radial mode index kept (so modes `k ∈ {0, 1, …, K}`, i.e.
+    `K + 1` radial modes total).
+
+Naming convention: in Python (`python/spectral/kernel.py`) and the math docs
+(`docs/working/_spectral_what_and_why.md`) the cutoff is "number of modes kept",
+so Python's `k_modes = 6, ell ≤ 1` corresponds here to `K = 5, L = 1`.
+
+Both axes are finite sums, so no summability assumption is needed. The
+truncation-error bound `spectralEnergyTruncated_error_le` decomposes
+`|spectralEnergy − spectralEnergyTruncated L K|` into an angular-tail piece
+(j > L) and a radial-tail piece (k > K, j ≤ L). -/
+noncomputable def spectralEnergyTruncated
+    {d : ℕ}
+    (φ : ℕ → Sphere d → ℝ)
+    (lambdaV : ℕ → ℝ)
+    (a0 : ℝ) (a : ℕ → ℝ)
+    (L K : ℕ)
+    (P : Distribution (Wristband d)) : ℝ :=
+  ∑ j ∈ Finset.range (L + 1), ∑ k ∈ Finset.range (K + 1),
+    lambdaV j * radialCoeff a0 a k * (modeProj φ j k P) ^ 2
+
+/-! ### Degree-indexed truncated spectral energy (user-facing closed-form API)
+
+The flat-indexed `spectralEnergyTruncated` above takes `L` = "highest flat
+eigenmode index kept", which is convenient for the qualitative bound but
+does not align with how Python/math docs index angular truncation by
+**degree**.  The degree-indexed wrapper below threads a `degAt : ℕ → ℕ`
+accessor (typically `mercerDegAt d β α …`) so the user-facing `L` means
+"highest angular *degree* kept" — matching the Python convention
+`ℓ ≤ L_python` ↔ Lean `L = L_python`.  The radial `K` already aligns this way.
+
+The closed-form truncation error bound is stated against this wrapper, not
+the flat-indexed version. -/
+
+/-- Degree-indexed joint truncation of `spectralEnergy`: keeps angular
+eigenmodes with `degAt j ≤ L` and radial modes `k ≤ K`. -/
+noncomputable def spectralEnergyTruncatedByDegree
+    {d : ℕ}
+    (φ : ℕ → Sphere d → ℝ)
+    (lambdaV : ℕ → ℝ)
+    (degAt : ℕ → ℕ)
+    (a0 : ℝ) (a : ℕ → ℝ)
+    (L K : ℕ)
+    (P : Distribution (Wristband d)) : ℝ :=
+  ∑' j : ℕ, if degAt j ≤ L then
+    ∑ k ∈ Finset.range (K + 1),
+      lambdaV j * radialCoeff a0 a k * (modeProj φ j k P) ^ 2
+  else 0
+
+/-! ### Spherical-harmonic multiplicity
+
+The dimension of the space of degree-`ℓ` spherical harmonics on `S^{d-1}`
+(`ℓ ≥ 0`, `d ≥ 2`).  Closed-form binomial-difference formula:
+`N(d, ℓ) = C(ℓ + d − 1, d − 1) − C(ℓ + d − 3, d − 1)`.
+
+Special case `d = 2`: `N(2, 0) = 1`, `N(2, ℓ) = 2` for `ℓ ≥ 1`
+(the two `sin(ℓ θ), cos(ℓ θ)` modes).
+For general `d ≥ 2` and `ℓ ≥ 1`: `N(d, ℓ) = (2ℓ + d − 2)·C(ℓ + d − 3, ℓ − 1)`,
+which equals the binomial difference above. -/
+
+/-- Number of linearly independent spherical harmonics of degree `ℓ` on `S^{d−1}`.
+Used as the multiplicity factor in the Mercer block decomposition. -/
+def sphericalHarmonicDim (d ℓ : ℕ) : ℕ :=
+  Nat.choose (ℓ + d - 1) (d - 1) - Nat.choose (ℓ + d - 3) (d - 1)
+
+@[simp] lemma sphericalHarmonicDim_zero (d : ℕ) (hd : 2 ≤ d) :
+    sphericalHarmonicDim d 0 = 1 := by
+  unfold sphericalHarmonicDim
+  have h1 : (0 : ℕ) + d - 1 = d - 1 := by omega
+  have h2 : (0 : ℕ) + d - 3 < d - 1 := by omega
+  rw [h1, Nat.choose_self, Nat.choose_eq_zero_of_lt h2]
+
 end WristbandLossProofs

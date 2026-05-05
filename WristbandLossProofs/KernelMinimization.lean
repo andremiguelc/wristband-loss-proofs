@@ -91,11 +91,12 @@ theorem productPotential_factors
     Combines: angular constant potential + Neumann constant potential +
     product factorization. -/
 theorem wristbandKernelNeumann_constantPotential
-    (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α) :
+    (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α)
+    (hDim1 : 1 ≤ d := by omega) :
     ∃ c : ℝ,
       HasConstantPotential
         (wristbandKernelNeumann (d := d) β α)
-        (wristbandUniform d) c := by
+        (wristbandUniform d hDim1) c := by
   rcases angularPotential_constant d hDim β α hβ hα with ⟨cAng, hAngConst⟩
   rcases neumannPotential_constant β hβ with ⟨cRad, hRadConst⟩
   refine ⟨cAng * cRad, ?_⟩
@@ -104,20 +105,20 @@ theorem wristbandKernelNeumann_constantPotential
     productPotential_factors
       (Kx := kernelAngChordal (d := d) β α)
       (Ky := kernelRadNeumann β)
-      (μ := sphereUniform d)
+      (μ := sphereUniform d hDim1)
       (ν := uniform01)
       w
   calc
     kernelPotential
         (wristbandKernelNeumann (d := d) β α)
-        (wristbandUniform d) w
+        (wristbandUniform d hDim1) w
       = kernelPotential
           (fun (p q : Sphere d × UnitInterval) =>
             kernelAngChordal (d := d) β α p.1 q.1 *
               kernelRadNeumann β p.2 q.2)
-          (productLaw (sphereUniform d) uniform01) w := by
+          (productLaw (sphereUniform d hDim1) uniform01) w := by
             rfl
-    _ = kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d) w.1 *
+    _ = kernelPotential (kernelAngChordal (d := d) β α) (sphereUniform d hDim1) w.1 *
           kernelPotential (kernelRadNeumann β) uniform01 w.2 := by
             simpa [wristbandUniform] using hFactor
     _ = cAng * cRad := by
@@ -132,21 +133,22 @@ This is **Hypothesis K** from the proof plan. -/
     `E(P) ≥ E(μ₀)` for all distributions `P` on wristband space. -/
 theorem kernelEnergy_minimized_at_uniform
     (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α)
-    (P : Distribution (Wristband d)) :
+    (P : Distribution (Wristband d))
+    (hDim1 : 1 ≤ d := by omega) :
     kernelEnergy (wristbandKernelNeumann β α) P ≥
       kernelEnergy (wristbandKernelNeumann β α)
-        (wristbandUniform d) := by
+        (wristbandUniform d hDim1) := by
   rcases wristbandKernelNeumann_constantPotential d hDim β α hβ hα with ⟨c, hConst⟩
   have hEq :=
     energy_eq_mmdSq_of_constantPotential
       (K := wristbandKernelNeumann (d := d) β α)
-      (μ₀ := wristbandUniform d)
+      (μ₀ := wristbandUniform d hDim1)
       (c := c)
       hConst P
-  have hMMD : 0 ≤ mmdSq (wristbandKernelNeumann (d := d) β α) P (wristbandUniform d) := by
+  have hMMD : 0 ≤ mmdSq (wristbandKernelNeumann (d := d) β α) P (wristbandUniform d hDim1) := by
     exact mmdSq_nonneg _ (wristbandKernelNeumann_posSemiDef d β α hβ hα) _ _
   have hDiff : 0 ≤ kernelEnergy (wristbandKernelNeumann (d := d) β α) P -
-      kernelEnergy (wristbandKernelNeumann (d := d) β α) (wristbandUniform d) := by
+      kernelEnergy (wristbandKernelNeumann (d := d) β α) (wristbandUniform d hDim1) := by
     linarith [hEq, hMMD]
   linarith [hDiff]
 
@@ -155,21 +157,23 @@ theorem kernelEnergy_minimized_at_uniform
 theorem kernelEnergy_minimizer_unique
     (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α)
     (P : Distribution (Wristband d))
+    (hDim1 : 1 ≤ d := by omega)
     (hEq : kernelEnergy (wristbandKernelNeumann β α) P =
       kernelEnergy (wristbandKernelNeumann β α)
-        (wristbandUniform d)) :
-    P = wristbandUniform d := by
+        (wristbandUniform d hDim1)) :
+    P = wristbandUniform d hDim1 := by
   rcases wristbandKernelNeumann_constantPotential d hDim β α hβ hα with ⟨c, hConst⟩
-  have hMmdEq : mmdSq (wristbandKernelNeumann (d := d) β α) P (wristbandUniform d) = 0 := by
+  have hMmdEq :
+      mmdSq (wristbandKernelNeumann (d := d) β α) P (wristbandUniform d hDim1) = 0 := by
     have hEnergy :=
       energy_eq_mmdSq_of_constantPotential
         (K := wristbandKernelNeumann (d := d) β α)
-        (μ₀ := wristbandUniform d)
+        (μ₀ := wristbandUniform d hDim1)
         (c := c)
         hConst P
     linarith [hEq, hEnergy]
   exact (wristbandKernelNeumann_characteristic d hDim β α hβ hα)
-    P (wristbandUniform d) hMmdEq
+    P (wristbandUniform d hDim1) hMmdEq
 
 /-! ### 3-image truncation bound
 
@@ -661,6 +665,7 @@ lemma threeImageNeumannErrorBound_nonneg
     positivity
   exact div_nonneg hnum (le_of_lt hden)
 
+set_option maxHeartbeats 1200000 in
 /-- The 3-image kernel is within `threeImageNeumannErrorBound β` of the
 Neumann kernel pointwise. -/
 theorem threeImage_approx_neumann
