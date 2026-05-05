@@ -82,10 +82,11 @@ The spectral branch **does not replace** the existing proofs — it imports them
 
 | File | Contents | Status |
 |------|----------|--------|
-| `SpectralPrimitives.lean` | `radialFeature`, `radialCoeff`, `modeProj`, `spectralEnergy` | Definitions only |
-| `SpectralImportedFacts.lean` | Mercer axiom + imported closure bridges + witness extractions | 3 axioms |
+| `SpectralPrimitives.lean` | `radialFeature`, `radialCoeff`, `modeProj`, `spectralEnergy`, `spectralEnergyTruncated`, `spectralEnergyTruncatedByDegree`, `sphericalHarmonicDim` | Definitions only |
+| `SpectralImportedFacts.lean` | Mercer axiom (with degree structure) + radial summability + L¹ bridge + radial Gaussian-decay + addition theorem + diagonal Mercer + per-fibre Cauchy-Schwarz | 7 axioms |
 | `SpectralFoundations.lean` | Supporting lemmas, bridge consumption, spectral identity | No `sorry` |
-| `SpectralMinimization.lean` | 3 main theorems | All bodies complete |
+| `SpectralMinimization.lean` | 3 main theorems (minimization, uniqueness, Gaussian characterization) | All bodies complete |
+| `SpectralTruncation.lean` | Joint truncation containment, qualitative + closed-form error bounds, joint convergence | All bodies complete |
 
 ---
 
@@ -109,9 +110,29 @@ For code, complexity analysis, and engineering decisions, see
 | Math | Lean | Status |
 |------|------|--------|
 | $\mathcal{E}_\text{sp}(P) = \mathcal{E}(P)$ | `spectralEnergy_eq_kernelEnergy` (`SpectralFoundations.lean`) | Proved |
-| $\mathcal{E}_\text{sp}(\mu_0) \leq \mathcal{E}_\text{sp}(P)$ | `spectralEnergy_minimized_at_uniform` (`SpectralMinimization.lean:38`) | Proved |
-| $\mathcal{E}_\text{sp}(P) = \mathcal{E}_\text{sp}(\mu_0) \Rightarrow P = \mu_0$ | `spectralEnergy_minimizer_unique` (`SpectralMinimization.lean:61`) | Proved |
-| $Q = \gamma \iff \mathcal{E}_\text{sp}(\Phi_\# Q) = \mathcal{E}_\text{sp}(\mu_0)$ | `spectralEnergy_wristband_gaussian_iff` (`SpectralMinimization.lean:98`) | Proved |
+| $\mathcal{E}_\text{sp}(\mu_0) \leq \mathcal{E}_\text{sp}(P)$ | `spectralEnergy_minimized_at_uniform` (`SpectralMinimization.lean`) | Proved |
+| $\mathcal{E}_\text{sp}(P) = \mathcal{E}_\text{sp}(\mu_0) \Rightarrow P = \mu_0$ | `spectralEnergy_minimizer_unique` (`SpectralMinimization.lean`) | Proved |
+| $Q = \gamma \iff \mathcal{E}_\text{sp}(\Phi_\# Q) = \mathcal{E}_\text{sp}(\mu_0)$ | `spectralEnergy_wristband_gaussian_iff` (`SpectralMinimization.lean`) | Proved |
+
+### 4.3 Truncation theorems (`SpectralTruncation.lean`)
+
+The truncation API supports two indexing conventions:
+- **Flat-indexed** (`spectralEnergyTruncated φ λv a₀ a L K P`): `L` is the
+  highest *flat eigenmode index* kept.  Used internally for the qualitative
+  bound.
+- **Degree-indexed** (`spectralEnergyTruncatedByDegree φ λv degAt a₀ a L K P`):
+  `L` is the highest *angular degree* kept (matching the Python convention
+  `ℓ ≤ L_python`).  Used by the closed-form bound.  The radial cutoff `K`
+  aligns with "highest radial mode kept" in both cases.
+
+| Math | Lean | Status |
+|------|------|--------|
+| $0 \leq \mathcal{E}_{L,K}(P) \leq \mathcal{E}_\text{sp}(P)$ | `spectralEnergyTruncated_mem_Icc` | Proved |
+| $|\mathcal{E}_\text{sp}(P) - \mathcal{E}_{L,K}(P)| \leq T_\text{ang}(L)\cdot R_\text{tot} + S_\text{ang}(L)\cdot R_\text{tail}(K)$ (qualitative, flat-indexed, bridge-witnessed mass terms) | `spectralEnergyTruncated_error_le` | Proved |
+| $|\mathcal{E}_\text{sp}(P) - \mathcal{E}^{\deg}_{L,K}(P)| \leq \text{angularTailMass}_\text{cf}(L)\cdot R_\text{tot} + \text{angularPrefixMass}_\text{cf}(L)\cdot R_\text{tail,cf}(K)$ (closed-form, degree-indexed, P-uniform) | `spectralEnergyTruncatedByDegree_error_le_explicit` | Proved |
+| Kernel-side analogue of the closed-form bound | `kernelEnergy_truncationByDegree_error_le_explicit` | Proved |
+| $\mathcal{E}^{\deg}_{L,K}(P) \to \mathcal{E}_\text{sp}(P)$ as $(L, K) \to (\infty, \infty)$ jointly on `atTop ×ˢ atTop` | `spectralEnergyTruncatedByDegree_tendsto_full` | Proved |
+| Closed-form bound itself tends to 0 jointly | `tendsto_spectralTruncationClosedForm` | Proved |
 
 ---
 
@@ -135,31 +156,48 @@ measure.
 
 ### `kernelAngChordal_mercerExpansion` (`SpectralImportedFacts.lean`)
 
-**What it says:**  There exist functions $\varphi_j : S^{d-1} \to \mathbb{R}$
-and scalars $\lambda_j \geq 0$ such that:
+**What it says:**  There exist functions $\varphi_j : S^{d-1} \to \mathbb{R}$,
+scalars $\lambda_j \geq 0$, and a degree map $\deg : \mathbb{N} \to \mathbb{N}$
+such that:
 
 1. $\lambda_j \geq 0$ for all $j$.
 2. $\varphi_j$ are orthonormal: $\int_{S^{d-1}}\varphi_j\varphi_{j'}\,d\sigma = \delta_{jj'}$.
 3. $k_\text{ang}(u,u') = \sum'_j \lambda_j\,\varphi_j(u)\,\varphi_j(u')$ for all $u, u'$.
 4. $\varphi_0 \equiv 1$ (the constant function).
+5. The fibre at angular degree $\ell$ has cardinality $N(d, \ell)$:
+   $\text{ncard}\{j : \deg(j) = \ell\} = N(d, \ell)$, where
+   $N(d, \ell) = \binom{\ell+d-1}{d-1} - \binom{\ell+d-3}{d-1}$.
+6. $\lambda_j$ is constant on each $\deg$-fibre:
+   $\deg(j) = \deg(j') \Rightarrow \lambda_j = \lambda_{j'}$.
+
+Clauses (5) and (6) license the per-degree mass
+$\lambda_\ell \cdot N(d, \ell) = \sum_{j: \deg(j)=\ell} \lambda_j$ used in
+the closed-form angular tail bound.
 
 **Mathematical basis:** Mercer's theorem for continuous PSD kernels on compact
 metric spaces (Steinwart & Christmann, Theorem 4.49).  For zonal kernels on
-$S^{d-1}$, this is Schoenberg's theorem (1942): every continuous PSD zonal
-kernel $k(u\cdot u')$ expands in spherical harmonics with non-negative
-coefficients.
+$S^{d-1}$, Schoenberg's theorem (1942): every continuous PSD zonal kernel
+$k(u\cdot u')$ expands in spherical harmonics with non-negative coefficients.
+The degree-block multiplicity is the standard spherical-harmonic dimension
+formula (Atkinson-Han, Lemma 2.18); the constancy of $\lambda$ on each
+degree-fibre is immediate from the eigenvalue depending only on the
+spherical-harmonic degree.
 
 **Mathlib status:** The spectral theorem for compact self-adjoint operators
 on Hilbert spaces exists in Mathlib (`Analysis.InnerProductSpace.Spectrum`).
-The specific Mercer form with *pointwise* (not just $L^2$) convergence is
-not yet in Mathlib — hence the axiom.
+The specific Mercer form with *pointwise* (not just $L^2$) convergence and
+the degree structure are not yet in Mathlib — hence the axiom.
 
 ### Closure bridge imports (`SpectralImportedFacts.lean`)
 
 | Axiom | Role |
 |------|------|
 | `summable_neumannCosineCoeff_imported` | Radial cosine summability witness |
-| `spectral_modeL1_factorized_bridge_imported` | Factorized mode-`L¹` majorant package for unconditional closure |
+| `spectral_modeL1_factorized_bridge_imported` | Factorized mode-`L¹` majorant package for unconditional closure (used by qualitative truncation bound; not on the closed-form path) |
+| `neumannCosineCoeff_le_gaussianBound` | Pointwise Gaussian-decay bound `ã_k ≤ 2√(π/β) · exp(−π²(k+1)²/(4β))` from the closed-form Neumann heat kernel formula (Teplyaev §0.6) |
+| `mercerEigenfun_addition_theorem` | $\sum_{j : \deg(j) = \ell} \varphi_j(u)^2 = N(d, \ell)$ (Atkinson-Han Theorem 2.9) |
+| `mercerDegreeMass_total_eq_one` | $\sum_\ell \lambda_\ell N(d, \ell) = 1$ (the diagonal-Mercer trace under probability normalization) — *derivable from the Mercer expansion + addition theorem via Fubini, future-cleanup* |
+| `mercer_modeProjSqSum_per_degree_le_mass` | $\sum_{j : \deg(j)=\ell} \lambda_j \cdot \hat{c}_{jk}(P)^2 \leq \sum_{j : \deg(j)=\ell} \lambda_j$, P-uniform — *derivable from the addition theorem + Cauchy-Schwarz on integrals + $|f_k| \leq 1$, future-cleanup* |
 
 **Reused imported axioms (no change):**
 
@@ -225,10 +263,14 @@ Full derivation: `docs/posts/spectral_harmonics.md`.
 
 | Python feature | Mathematical content | Notes |
 |----------------|---------------------|-------|
-| Truncation to $L \leq 1$, $K \leq 6$ | Error bounded by $\sum_{\ell>1}b_\ell + \sum_{k>6}a_k$ | Exponentially small for $\beta=8$ |
 | Angular eigenvalue computation | $\lambda_\ell$ via Bessel functions | Precomputed at runtime, not in Lean |
 | $\ell=2$ correction | $O(Nd^2K)$ cost, relevant for small $d$ | Not yet designed |
 | Gradient analysis | Gradient of mode energy w.r.t. $x_i$ | Not formalized anywhere |
+
+The truncation error bound — both qualitative (bridge-witnessed) and
+closed-form, P-uniform — is now proved.  The closed-form bound makes
+the truncation error explicit in $(\beta, \alpha, d, L, K)$, with the
+Python convention `k_modes = K + 1, ℓ ≤ L` aligned to the Lean parameters.
 
 ---
 
