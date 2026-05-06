@@ -614,6 +614,23 @@ theorem kernelRadNeumann_characteristic
   exact universal_implies_characteristic _
     (kernelRadNeumann_universal β hβ)
 
+/-- Source-form tensor-product universality wrapper.
+
+    Specializes the imported `productKernel_universal_compact_imported`
+    (Blanchard–Lee–Scott 2011 Lemma 5.2) to the compact factor types
+    used in the wristband construction. Kept under this name because
+    consumers in this file invoke it through the conventional
+    `productKernel_universal` shorthand. -/
+theorem productKernel_universal
+    {X : Type*} {Y : Type*}
+    [TopologicalSpace X] [TopologicalSpace Y]
+    [CompactSpace X] [CompactSpace Y]
+    (Kx : X → X → ℝ) (Ky : Y → Y → ℝ)
+    (hKx : IsUniversalKernel Kx)
+    (hKy : IsUniversalKernel Ky) :
+    IsUniversalKernel (fun (p q : X × Y) => Kx p.1 q.1 * Ky p.2 q.2) :=
+  productKernel_universal_compact_imported Kx Ky hKx hKy
+
 /-- Characteristicness of the wristband Neumann product kernel
 (deferred local theorem). -/
 theorem wristbandKernelNeumann_characteristic

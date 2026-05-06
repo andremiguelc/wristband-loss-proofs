@@ -83,10 +83,21 @@ axiom kernelRadNeumann_universal
     (β : ℝ) (hβ : 0 < β) :
     IsUniversalKernel (kernelRadNeumann β)
 
-/-- Tensor-product universality from factor universality. -/
-axiom productKernel_universal
+/-- Tensor-product universality on compact spaces — Blanchard, Lee, Scott
+    (2011), "Generalizing from Several Related Classification Tasks to a
+    New Unlabeled Sample," NeurIPS 24, Lemma 5.2:
+    "Let `Ω, Ω'` be two compact spaces and `k, k'` be kernels on `Ω, Ω'`,
+    respectively. If `k, k'` are both universal, then the product kernel
+    `k̄((x,x'),(y,y')) := k(x,y)·k'(x',y')` is universal on `Ω × Ω'`."
+
+    Source proof: the product RKHS contains tensor products of factor-RKHS
+    functions; Stone–Weierstrass on the compact product `Ω × Ω'` gives
+    uniform density. The compactness hypothesis is essential to the
+    Stone–Weierstrass step. -/
+axiom productKernel_universal_compact_imported
     {X : Type*} {Y : Type*}
     [TopologicalSpace X] [TopologicalSpace Y]
+    [CompactSpace X] [CompactSpace Y]
     (Kx : X → X → ℝ) (Ky : Y → Y → ℝ)
     (hKx : IsUniversalKernel Kx)
     (hKy : IsUniversalKernel Ky) :
