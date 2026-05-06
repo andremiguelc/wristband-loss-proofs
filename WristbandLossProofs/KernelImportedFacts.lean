@@ -25,6 +25,8 @@ References:
 - Sriperumbudur, B.K. et al. (2011). "Universality, characteristic
   kernels and RKHS embedding of measures."
   *J. Mach. Learn. Res.* 12.
+- Stein, E.M.; Shakarchi, R. (2003). *Fourier Analysis: An Introduction.*
+  Princeton Lectures in Analysis, Vol. I. Princeton University Press.
 - Steinwart, I. (2001). "On the influence of the kernel on the
   consistency of support vector machines." *J. Mach. Learn. Res.* 2.
 - Steinwart, I.; Christmann, A. (2008). *Support Vector Machines.* Springer.
@@ -39,20 +41,15 @@ axiom kernelAngChordal_posSemiDef
     (d : ℕ) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α) :
     IsPosSemiDefKernel (kernelAngChordal (d := d) β α)
 
-/-- Cosine-eigenfunction expansion of the Neumann radial kernel with
-    nonnegative weights — Kroese-style heat-kernel expansion. -/
-axiom kernelRadNeumann_hasCosineExpansion
-    (β : ℝ) (hβ : 0 < β) :
-    ∃ (a0 : ℝ) (a : ℕ → ℝ),
-      0 ≤ a0 ∧
-      (∀ k : ℕ, 0 ≤ a k) ∧
-      (∀ t t' : UnitInterval,
-        kernelRadNeumann β t t' =
-          a0 +
-            ∑' k : ℕ,
-              a k *
-                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
-                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ)))
+/-- Real-form Jacobi theta transformation, period 2 — Stein & Shakarchi (2003). -/
+axiom gaussian_periodization_cosine_series_period_two
+    (β z : ℝ) (hβ : 0 < β) :
+    (∑' n : ℤ, Real.exp (-β * (z - 2 * n) ^ 2))
+      =
+    (Real.sqrt (Real.pi / β) / 2) *
+      (1 + 2 * ∑' k : ℕ,
+        Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+          Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * z))
 
 /-- Schur product theorem for kernel functions — product of PSD kernels
     is PSD on the product space. -/

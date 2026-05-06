@@ -240,6 +240,192 @@ lemma aestronglyMeasurable_kernelRadNeumannSummand
       (uniform01 : MeasureTheory.Measure UnitInterval) := by
   exact (measurable_kernelRadNeumannSummand β t n).aestronglyMeasurable
 
+/-! ## Cosine expansion of `kernelRadNeumann`
+
+Cosine-eigenfunction expansion of the Neumann radial kernel.
+Builds on `gaussian_periodization_cosine_series_period_two` in
+`KernelImportedFacts` (real-form Jacobi periodization, period 2)
+plus the decomposition
+`kernelRadNeumann β t t' = G_β(t-t') + G_β(t+t')` and the trig identity
+`cos(A-B) + cos(A+B) = 2 cos A cos B`.
+-/
+
+/-- Decomposition of the Neumann radial kernel into two period-2 Gaussian
+    image sums applied to `t - t'` and `t + t'`. -/
+lemma kernelRadNeumann_eq_imageSum_add
+    (β : ℝ) (hβ : 0 < β) (t t' : UnitInterval) :
+    kernelRadNeumann β t t' =
+      (∑' n : ℤ, Real.exp (-β * ((t : ℝ) - (t' : ℝ) - 2 * n) ^ 2)) +
+      (∑' n : ℤ, Real.exp (-β * ((t : ℝ) + (t' : ℝ) - 2 * n) ^ 2)) := by
+  unfold kernelRadNeumann
+  exact Summable.tsum_add (gaussianImageSum_summable β hβ _)
+                          (gaussianImageSum_summable β hβ _)
+
+/-- Cosine-eigenfunction expansion of the Neumann radial kernel
+    with explicit nonneg coefficients
+    `a0 = √(π/β)`, `a k = 2·√(π/β)·exp(-((k+1)π)²/(4β))`. -/
+theorem kernelRadNeumann_hasCosineExpansion
+    (β : ℝ) (hβ : 0 < β) :
+    ∃ (a0 : ℝ) (a : ℕ → ℝ),
+      0 ≤ a0 ∧
+      (∀ k : ℕ, 0 ≤ a k) ∧
+      (∀ t t' : UnitInterval,
+        kernelRadNeumann β t t' =
+          a0 +
+            ∑' k : ℕ,
+              a k *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))) := by
+  refine ⟨Real.sqrt (Real.pi / β),
+          fun k => 2 * Real.sqrt (Real.pi / β) *
+                    Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)),
+          Real.sqrt_nonneg _, ?_, ?_⟩
+  · intro k
+    have h1 : 0 ≤ (2 : ℝ) := by norm_num
+    have h2 : 0 ≤ Real.sqrt (Real.pi / β) := Real.sqrt_nonneg _
+    have h3 : 0 ≤ Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) :=
+      Real.exp_nonneg _
+    positivity
+  · intro t t'
+    -- Decompose kernelRadNeumann β t t' = G_β(t-t') + G_β(t+t').
+    rw [kernelRadNeumann_eq_imageSum_add β hβ]
+    -- Apply the periodization identity to each Gaussian image sum.
+    rw [gaussian_periodization_cosine_series_period_two β ((t : ℝ) - (t' : ℝ)) hβ]
+    rw [gaussian_periodization_cosine_series_period_two β ((t : ℝ) + (t' : ℝ)) hβ]
+    -- The two cosine series combine via cos(A-B)+cos(A+B) = 2 cos A cos B.
+    -- Summability of `fun k => exp(-(k+1)²π²/(4β))` follows from Gaussian decay;
+    -- the cosine factor is bounded by 1 in absolute value.
+    have h_exp_summable :
+        Summable (fun k : ℕ =>
+          Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β))) := by
+      have hpos_quot : 0 < Real.pi ^ 2 / (4 * β) := by positivity
+      have hc : -(Real.pi ^ 2 / (4 * β)) < 0 := neg_neg_iff_pos.mpr hpos_quot
+      have hf : ∀ i : ℕ, (i : ℝ) ≤ (((i + 1 : ℕ) : ℝ) ^ 2) := by
+        intro i
+        have hpos : (0 : ℝ) ≤ (i : ℝ) := Nat.cast_nonneg _
+        have h1 : (((i + 1 : ℕ) : ℝ) ^ 2) = ((i : ℝ) + 1) ^ 2 := by push_cast; ring
+        rw [h1]
+        nlinarith [hpos, sq_nonneg ((i : ℝ))]
+      have hsum := Real.summable_exp_nat_mul_of_ge hc hf
+      refine hsum.congr (fun i => ?_)
+      ring
+    -- Cosine times exp is summable by domination.
+    have hsum_diff : Summable (fun k : ℕ =>
+        Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+          Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) - (t' : ℝ)))) := by
+      refine h_exp_summable.of_nonneg_of_le (fun k => ?_) (fun k => ?_) |>.of_norm
+      · positivity
+      · rw [Real.norm_eq_abs, abs_mul,
+            abs_of_nonneg (Real.exp_nonneg _)]
+        have hcos : |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) - (t' : ℝ)))| ≤ 1 :=
+          Real.abs_cos_le_one _
+        have hexp : 0 ≤ Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) :=
+          Real.exp_nonneg _
+        nlinarith [hcos, hexp]
+    have hsum_add : Summable (fun k : ℕ =>
+        Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+          Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) + (t' : ℝ)))) := by
+      refine h_exp_summable.of_nonneg_of_le (fun k => ?_) (fun k => ?_) |>.of_norm
+      · positivity
+      · rw [Real.norm_eq_abs, abs_mul,
+            abs_of_nonneg (Real.exp_nonneg _)]
+        have hcos : |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) + (t' : ℝ)))| ≤ 1 :=
+          Real.abs_cos_le_one _
+        have hexp : 0 ≤ Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) :=
+          Real.exp_nonneg _
+        nlinarith [hcos, hexp]
+    -- Combine the two RHSs.
+    have htrig : ∀ k : ℕ,
+        Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+          Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) - (t' : ℝ))) +
+        Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+          Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) + (t' : ℝ))) =
+        2 *
+          (Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+            Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
+            Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))) := by
+      intro k
+      -- cos((k+1)π(t-t')) + cos((k+1)π(t+t')) = 2 cos((k+1)πt) cos((k+1)πt').
+      have hcos :
+          Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) - (t' : ℝ))) +
+            Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) + (t' : ℝ))) =
+          2 * Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
+              Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ)) := by
+        rw [Real.cos_add_cos,
+            show ((((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) - (t' : ℝ)) +
+                    ((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) + (t' : ℝ))) / 2)
+                = (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) from by ring,
+            show ((((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) - (t' : ℝ)) -
+                    ((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) + (t' : ℝ))) / 2)
+                = -(((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ)) from by ring,
+            Real.cos_neg]
+      -- Factor h(k), apply hcos, distribute.
+      have hfactor :
+          Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+            Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) - (t' : ℝ))) +
+          Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+            Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) + (t' : ℝ)))
+            =
+          Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+            (Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) - (t' : ℝ))) +
+             Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) + (t' : ℝ)))) := by ring
+      rw [hfactor, hcos]
+      ring
+    -- Merge ∑'s and apply the trig identity termwise.
+    rw [show (Real.sqrt (Real.pi / β) / 2) *
+            (1 + 2 * ∑' k : ℕ,
+              Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) - (t' : ℝ)))) +
+          (Real.sqrt (Real.pi / β) / 2) *
+            (1 + 2 * ∑' k : ℕ,
+              Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) + (t' : ℝ))))
+        = Real.sqrt (Real.pi / β) +
+            Real.sqrt (Real.pi / β) *
+              ((∑' k : ℕ,
+                  Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+                    Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) - (t' : ℝ)))) +
+               (∑' k : ℕ,
+                  Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+                    Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) + (t' : ℝ)))))
+        from by ring]
+    rw [← Summable.tsum_add hsum_diff hsum_add]
+    rw [tsum_congr htrig]
+    rw [show (∑' k : ℕ,
+              2 *
+                (Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+                  Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
+                  Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))))
+        = 2 * ∑' k : ℕ,
+              Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))
+        from tsum_mul_left]
+    -- Pull the constants `2 * √(π/β)` out of the tsum.
+    rw [show (∑' k : ℕ,
+              2 * Real.sqrt (Real.pi / β) *
+                Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ)))
+        = 2 * Real.sqrt (Real.pi / β) *
+            ∑' k : ℕ,
+              Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))
+        from by
+          rw [show (fun k : ℕ =>
+              2 * Real.sqrt (Real.pi / β) *
+                Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))) =
+              fun k : ℕ => 2 * Real.sqrt (Real.pi / β) *
+                (Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))) from by
+            funext k; ring]
+          exact tsum_mul_left]
+    ring
+
 /-- Rank-one kernels `K(x,y) = φ(x)φ(y)` are PSD. -/
 lemma rankOneKernel_posSemiDef
     {X : Type*} (φ : X → ℝ) :
