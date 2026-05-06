@@ -22,6 +22,8 @@ References:
 - Gretton, A. et al. (2012). "A kernel two-sample test."
   *J. Mach. Learn. Res.* 13.
 - Horn, R.A.; Johnson, C.R. (2013). *Matrix Analysis.* 2nd ed.
+- Micchelli, C.A.; Xu, Y.; Zhang, H. (2006). "Universal Kernels."
+  *J. Mach. Learn. Res.* 7, 2651–2667.
 - Park, J.; Parkkonen, J. *Lecture notes on Riemannian geometry*.
 - Schur, J. (1911). "Bemerkungen zur Theorie der beschränkten
   Bilinearformen mit unendlich vielen Veränderlichen."
@@ -75,19 +77,82 @@ axiom productKernel_posSemiDef_imported
     (hKy : IsPosSemiDefKernel Ky) :
     IsPosSemiDefKernel (fun (p q : X × Y) => Kx p.1 q.1 * Ky p.2 q.2)
 
-/-- Neumann radial kernel has constant potential under `uniform01` —
-    Markov mass conservation under reflecting BC (arXiv:1703.10541). -/
-axiom neumannPotential_constant_imported
-    (β : ℝ) (hβ : 0 < β) :
-    ∃ c : ℝ, HasConstantPotential (kernelRadNeumann β) uniform01 c
+/-- Angular Gaussian kernel is universal on the sphere for `d ≥ 2`.
 
-/-- Angular Gaussian kernel is universal on the sphere for `d ≥ 2` —
-    Steinwart (2001). -/
+    Underlying source theorem:
+    Steinwart, I. (2001). "On the influence of the kernel on the
+    consistency of support vector machines." *J. Mach. Learn. Res.* 2.
+
+    ## Fragilities (this axiom is NOT source-exact verbatim)
+
+    1. **Project-specific shape.** The Lean statement asserts the
+       specialization `IsUniversalKernel (kernelAngChordal ...)`
+       directly, not Steinwart's more general universality theorem.
+
+    2. **Predicate divergence.** The project's `IsUniversalKernel`
+       records **kernel-section density** in `C(X, ℝ)`. The source-side
+       universality story is typically phrased via feature/RKHS density;
+       using the project predicate directly hides that bridge.
+
+    3. **Hidden assumptions.** The source argument relies on the compact
+       sphere domain, continuity of the feature/kernel representation,
+       and uniform convergence/closure properties needed to pass from
+       the representation to density. These hold for `Sphere d` with
+       `d ≥ 2`, but they are not exposed in this axiom signature.
+
+    4. **Blocking gap for derivation.** Replacing this axiom with a
+       derived theorem would require a spherical-harmonics density
+       theorem on `Sphere d`, which the project does not currently
+       formalize. -/
 axiom kernelAngChordal_universal
     (d : ℕ) (hDim : 2 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α) :
     IsUniversalKernel (kernelAngChordal (d := d) β α)
 
-/-- Neumann radial kernel is universal on `[0,1]`. -/
+/-- Neumann radial kernel on `[0,1]` is universal.
+
+    Underlying source theorem:
+    Micchelli, C.A.; Xu, Y.; Zhang, H. (2006). "Universal Kernels."
+    *J. Mach. Learn. Res.* 7, 2651–2667, Theorem 7 — a kernel with
+    uniformly convergent feature expansion `K(x,y) = ∑ⱼ φⱼ(x)·φⱼ(y)`
+    on a compact `X` is universal iff the feature set `{φⱼ}` is
+    universal in `C(X, ℝ)`.
+
+    Specialized here with features `{1, cos(π·), cos(2π·), …}` on
+    `[0,1]` and the cosine-expansion coefficients from
+    `kernelRadNeumann_hasCosineExpansion`.
+
+    ## Fragilities (this axiom is NOT source-exact verbatim)
+
+    1. **Project-specific shape.** The Lean statement asserts the
+       conclusion `IsUniversalKernel (kernelRadNeumann β)` directly,
+       not the source's general iff statement. To match the source
+       verbatim one would import the general theorem and derive the
+       specialization.
+
+    2. **Predicate divergence.** The project's `IsUniversalKernel`
+       (KernelPrimitives.lean) is **kernel-section density** in
+       `C(X, ℝ)`; Micchelli–Xu–Zhang's "universal" is **feature-span
+       density**. These are equivalent on compact `X` via Theorem 7,
+       but the project predicate is consumed in kernel-section form.
+
+    3. **Hidden assumptions.** The source theorem requires (i) compact
+       `X`, (ii) continuous features, (iii) uniform convergence of the
+       expansion on `X × X`. All three hold for `[0,1]` with the
+       cosine features and Gaussian-decay coefficients, but none are
+       exposed in this axiom signature. A derivation would need to
+       discharge them explicitly.
+
+    4. **Blocking sorry for derivation.** Replacing this axiom with a
+       derived theorem requires
+       `cosine_span_uniformly_dense_on_unitInterval` (the existing
+       project `sorry` in `KernelFoundations.lean`) — the
+       Stone–Weierstrass / Chebyshev step that closes feature
+       universality on `[0,1]`.
+
+    Until that sorry is closed, keeping the specialization as an
+    imported fact is consistent with the project's other kernel-specific
+    universality imports (`kernelAngChordal_universal` and
+    `productKernel_universal_compact_imported`). -/
 axiom kernelRadNeumann_universal
     (β : ℝ) (hβ : 0 < β) :
     IsUniversalKernel (kernelRadNeumann β)
@@ -112,8 +177,30 @@ axiom productKernel_universal_compact_imported
     (hKy : IsUniversalKernel Ky) :
     IsUniversalKernel (fun (p q : X × Y) => Kx p.1 q.1 * Ky p.2 q.2)
 
-/-- Universal kernels are characteristic — Gretton (2012);
-    Sriperumbudur (2011). -/
+/-- Universal kernels are characteristic.
+
+    Underlying source theorems:
+    Gretton, A. et al. (2012). "A kernel two-sample test."
+    *J. Mach. Learn. Res.* 13.
+    Sriperumbudur, B.K. et al. (2011). "Universality, characteristic
+    kernels and RKHS embedding of measures." *J. Mach. Learn. Res.* 12.
+
+    ## Fragilities (this axiom is NOT source-exact verbatim)
+
+    1. **Project-specific shape.** The source results are stated in
+       terms of RKHS mean embeddings of measures. The Lean axiom asserts
+       the direct implication `IsUniversalKernel K →
+       IsCharacteristicKernel K` on project predicates.
+
+    2. **Predicate divergence.** The source-side "characteristic"
+       property is injectivity of the kernel mean embedding. The
+       project's `IsCharacteristicKernel` is the surface predicate
+       consumed downstream by `wristbandKernelNeumann_characteristic`
+       and related theorems.
+
+    3. **Blocking gap for derivation.** Discharging this axiom would
+       require a formalized RKHS embedding theory in Lean/Mathlib,
+       which the project does not currently have. -/
 axiom universal_implies_characteristic
     {X : Type*} [TopologicalSpace X] [MeasurableSpace X]
     (K : X → X → ℝ) (hK : IsUniversalKernel K) :
