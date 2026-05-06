@@ -22,8 +22,8 @@ modes kept", so Python's `k_modes = 6, ell ≤ 1` corresponds here to
 `K = 5, L = 1`.
 
 **No new axioms.** All proofs use only the existing imported facts:
-`spectral_modeL1_factorized_bridge_imported` (with its k-uniform majorant),
-`summable_neumannCosineCoeff_imported`, plus `kernelAngChordal_mercerExpansion`
+`spectral_modeL1_factorized_bridge` (with its k-uniform majorant),
+`summable_neumannCosineCoeff`, plus `kernelAngChordal_mercerExpansion`
 indirectly via the witness-extraction defs in `SpectralImportedFacts`.
 
 ### Containment
@@ -59,7 +59,7 @@ noncomputable def angularPrefixMass
     (P : Distribution (Wristband d)) (L : ℕ) : ℝ :=
   ∑ j ∈ Finset.range (L + 1),
     ‖mercerEigenval d β α hDim hβ hα j‖ *
-      ((spectral_modeL1_factorized_bridge_imported β α hDim hβ hα P).choose j) ^ 2
+      ((spectral_modeL1_factorized_bridge β α hDim hβ hα P).choose j) ^ 2
 
 /-- Angular tail mass: `∑' i, ‖λv (i+L+1)‖ · (M (i+L+1))²` over Mercer modes
 `j > L`.  Finite because the bridge gives the unshifted outer summability and
@@ -70,7 +70,7 @@ noncomputable def angularTailMass
     (P : Distribution (Wristband d)) (L : ℕ) : ℝ :=
   ∑' i : ℕ,
     ‖mercerEigenval d β α hDim hβ hα (i + (L + 1))‖ *
-      ((spectral_modeL1_factorized_bridge_imported β α hDim hβ hα P).choose
+      ((spectral_modeL1_factorized_bridge β α hDim hβ hα P).choose
         (i + (L + 1))) ^ 2
 
 /-- The joint-truncated spectral energy is non-negative.  Direct consequence of
@@ -128,7 +128,7 @@ theorem spectralEnergyTruncated_le_spectralEnergy
   have hf_nonneg : ∀ j k, 0 ≤ f j k := fun j k =>
     spectralEnergy_term_nonneg β α hDim hβ hα P j k
   obtain ⟨M, hMNonneg, _hModeInt, hModeL1Bound, hAngMajor⟩ :=
-    spectral_modeL1_factorized_bridge_imported β α hDim hβ hα P
+    spectral_modeL1_factorized_bridge β α hDim hβ hα P
   have hLamNonneg : ∀ j, 0 ≤ lamV j := mercerEigenval_nonneg d β α hDim hβ hα
   have hRadNonneg : ∀ k, 0 ≤ neumannRadialCoeff β hβ k :=
     neumannRadialCoeff_nonneg β hβ
@@ -165,7 +165,7 @@ theorem spectralEnergyTruncated_le_spectralEnergy
     exact hStep.trans_eq hReorder
   have hRadSumm : Summable (neumannRadialCoeff β hβ) :=
     summable_neumannRadialCoeff_of_summable_neumannCosineCoeff β hβ
-      (summable_neumannCosineCoeff_imported β hβ)
+      (summable_neumannCosineCoeff β hβ)
   have hInnerSumm : ∀ j, Summable (fun k => f j k) := by
     intro j
     have hMajorSumm :
@@ -233,8 +233,8 @@ qualitative bound holds for any choice of `(L, K)` and certifies that
 the truncated energy converges to the full spectral energy as `(L, K) → ∞`.
 
 No new axioms needed beyond the existing `kernelAngChordal_mercerExpansion`,
-`summable_neumannCosineCoeff_imported`, and
-`spectral_modeL1_factorized_bridge_imported`. -/
+`summable_neumannCosineCoeff`, and
+`spectral_modeL1_factorized_bridge`. -/
 theorem spectralEnergyTruncated_error_le
     {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
     (P : Distribution (Wristband d)) (L K : ℕ) :
@@ -254,7 +254,7 @@ theorem spectralEnergyTruncated_error_le
       + angularPrefixMass β α hDim hβ hα P L * radialTailMass β hβ K := by
   -- Open bridge axiom via .choose / .choose_spec so M is definitionally
   -- equal to the witness used in the mass definitions.
-  set bridge := spectral_modeL1_factorized_bridge_imported β α hDim hβ hα P
+  set bridge := spectral_modeL1_factorized_bridge β α hDim hβ hα P
   let M : ℕ → ℝ := bridge.choose
   have hSpec := bridge.choose_spec
   obtain ⟨hMNonneg, _hModeInt, hModeL1Bound, hAngMajor⟩ := hSpec
@@ -303,7 +303,7 @@ theorem spectralEnergyTruncated_error_le
     exact hStep.trans_eq hReorder
   have hRadSumm : Summable (neumannRadialCoeff β hβ) :=
     summable_neumannRadialCoeff_of_summable_neumannCosineCoeff β hβ
-      (summable_neumannCosineCoeff_imported β hβ)
+      (summable_neumannCosineCoeff β hβ)
   have hRadShiftSumm : ∀ N, Summable (fun n => neumannRadialCoeff β hβ (n + N)) :=
     fun N => (summable_nat_add_iff N).2 hRadSumm
   have hInnerSumm : ∀ j, Summable (fun k => f j k) := by
@@ -560,7 +560,7 @@ theorem spectralEnergyTruncatedByDegree_nonneg
 
 Upgrades the opaque `radialTailMass β hβ K` (`∑' n, neumannRadialCoeff β hβ
 (n + K + 1)`) to an explicit, closed-form upper bound in `(β, K)` using
-axiom `neumannCosineCoeff_le_gaussianBound` from `SpectralImportedFacts`.
+the explicit Gaussian formula for `neumannCosineCoeff`.
 
 The shape is the *simple geometric* majorant of `Σ_{m=K+1}^∞ ã_m` with
 `ã_m = 2√(π/β)·exp(−π²m²/(4β))`:
@@ -581,7 +581,7 @@ noncomputable def radialTailMass_closedForm (β : ℝ) (K : ℕ) : ℝ :=
 
 Proof outline (`a := π²/(4β)`, `r := exp(−a(K+1))`, `C := 2√(π/β)·exp(−a(K+1)²)`):
 1. `radialTailMass β hβ K = ∑' n, neumannCosineCoeff β hβ (n + K)` (def. unfolding).
-2. Pointwise: axiom (R) gives `neumannCosineCoeff β hβ (n + K) ≤
+2. Pointwise: the explicit formula gives `neumannCosineCoeff β hβ (n + K) ≤
    2√(π/β)·exp(−π²(n+K+1)²/(4β))`.
 3. Square inequality: `(n+(K+1))² ≥ (K+1)² + (K+1)·n` (since the
    missing term `n² + (K+1)n` is nonneg).
@@ -663,7 +663,7 @@ theorem radialTailMass_le_closedForm (β : ℝ) (hβ : 0 < β) (K : ℕ) :
     summable_geometric_of_lt_one hr_pos.le hr_lt_one
   have hMajSumm : Summable (fun n : ℕ => C * r ^ n) := hSummableGeom.mul_left C
   have hOrigSumm : Summable (fun n : ℕ => neumannCosineCoeff β hβ (n + K)) :=
-    (summable_nat_add_iff K).mpr (summable_neumannCosineCoeff_imported β hβ)
+    (summable_nat_add_iff K).mpr (summable_neumannCosineCoeff β hβ)
   -- Rewrite radialTailMass via neumannCosineCoeff
   have hRewrite :
       radialTailMass β hβ K = ∑' n : ℕ, neumannCosineCoeff β hβ (n + K) := by
@@ -975,7 +975,7 @@ lemma fibreShiftedRadialSum_le_mercerDegreeMass_mass
       ≤ mercerDegreeMass d β α hDim hβ hα ℓ *
           ∑' n : ℕ, neumannRadialCoeff β hβ (h n) := by
   obtain ⟨M, _hMNonneg, _hModeInt, hModeL1Bound, hAngMajor⟩ :=
-    spectral_modeL1_factorized_bridge_imported β α hDim hβ hα P
+    spectral_modeL1_factorized_bridge β α hDim hβ hα P
   have hLamNonneg : ∀ j, 0 ≤ mercerEigenval d β α hDim hβ hα j :=
     mercerEigenval_nonneg d β α hDim hβ hα
   -- Indicator-weighted (j, n)-pair function.
@@ -1083,7 +1083,7 @@ lemma fibreRadialTailSum_le_mercerDegreeMass_radialTailMass
       ≤ mercerDegreeMass d β α hDim hβ hα ℓ * radialTailMass β hβ K := by
   have hRadSumm : Summable (neumannRadialCoeff β hβ) :=
     summable_neumannRadialCoeff_of_summable_neumannCosineCoeff β hβ
-      (summable_neumannCosineCoeff_imported β hβ)
+      (summable_neumannCosineCoeff β hβ)
   have hRadShiftSumm : Summable (fun n : ℕ => neumannRadialCoeff β hβ (n + (K + 1))) :=
     (summable_nat_add_iff (K + 1)).mpr hRadSumm
   exact fibreShiftedRadialSum_le_mercerDegreeMass_mass β α hDim hβ hα P ℓ
@@ -1106,7 +1106,7 @@ lemma fibreRadialFullSum_le_mercerDegreeMass_radialTotalMass
       ≤ mercerDegreeMass d β α hDim hβ hα ℓ * radialTotalMass β hβ := by
   have hRadSumm : Summable (neumannRadialCoeff β hβ) :=
     summable_neumannRadialCoeff_of_summable_neumannCosineCoeff β hβ
-      (summable_neumannCosineCoeff_imported β hβ)
+      (summable_neumannCosineCoeff β hβ)
   have hRadIdSumm : Summable (fun n : ℕ => neumannRadialCoeff β hβ (id n)) := by
     simpa using hRadSumm
   exact fibreShiftedRadialSum_le_mercerDegreeMass_mass β α hDim hβ hα P ℓ id hRadIdSumm
@@ -1142,12 +1142,12 @@ lemma spectralRadialTailAtPrefix_le_closedForm
         else 0)
       ≤ angularPrefixMass_closedForm d β α hDim hβ hα L * radialTailMass β hβ K := by
   obtain ⟨M, _hMNonneg, _hModeInt, hModeL1Bound, hAngMajor⟩ :=
-    spectral_modeL1_factorized_bridge_imported β α hDim hβ hα P
+    spectral_modeL1_factorized_bridge β α hDim hβ hα P
   have hLamNonneg : ∀ j, 0 ≤ mercerEigenval d β α hDim hβ hα j :=
     mercerEigenval_nonneg d β α hDim hβ hα
   have hRadSumm : Summable (neumannRadialCoeff β hβ) :=
     summable_neumannRadialCoeff_of_summable_neumannCosineCoeff β hβ
-      (summable_neumannCosineCoeff_imported β hβ)
+      (summable_neumannCosineCoeff β hβ)
   have hRadShiftSumm : Summable (fun n : ℕ => neumannRadialCoeff β hβ (n + (K + 1))) :=
     (summable_nat_add_iff (K + 1)).mpr hRadSumm
   -- Bridge majorant.
@@ -1302,12 +1302,12 @@ lemma spectralAngularTail_le_closedForm
           (modeProj (mercerEigenfun d β α hDim hβ hα) j k P) ^ 2)
       ≤ angularTailMass_closedForm d β α hDim hβ hα L * radialTotalMass β hβ := by
   obtain ⟨M, _hMNonneg, _hModeInt, hModeL1Bound, hAngMajor⟩ :=
-    spectral_modeL1_factorized_bridge_imported β α hDim hβ hα P
+    spectral_modeL1_factorized_bridge β α hDim hβ hα P
   have hLamNonneg : ∀ j, 0 ≤ mercerEigenval d β α hDim hβ hα j :=
     mercerEigenval_nonneg d β α hDim hβ hα
   have hRadSumm : Summable (neumannRadialCoeff β hβ) :=
     summable_neumannRadialCoeff_of_summable_neumannCosineCoeff β hβ
-      (summable_neumannCosineCoeff_imported β hβ)
+      (summable_neumannCosineCoeff β hβ)
   set A : ℕ → ℝ := fun j => mercerEigenval d β α hDim hβ hα j * (M j) ^ 2
   have hA_nonneg : ∀ j, 0 ≤ A j := fun j => mul_nonneg (hLamNonneg j) (sq_nonneg _)
   have hA_summable : Summable A := by
@@ -1534,12 +1534,12 @@ theorem spectralEnergyTruncatedByDegree_error_le_explicit
         L K P|
       ≤ spectralTruncationClosedForm d β α hDim hβ hα L K := by
   obtain ⟨M, _hMNonneg, _hModeInt, hModeL1Bound, hAngMajor⟩ :=
-    spectral_modeL1_factorized_bridge_imported β α hDim hβ hα P
+    spectral_modeL1_factorized_bridge β α hDim hβ hα P
   have hLamNonneg : ∀ j, 0 ≤ mercerEigenval d β α hDim hβ hα j :=
     mercerEigenval_nonneg d β α hDim hβ hα
   have hRadSumm : Summable (neumannRadialCoeff β hβ) :=
     summable_neumannRadialCoeff_of_summable_neumannCosineCoeff β hβ
-      (summable_neumannCosineCoeff_imported β hβ)
+      (summable_neumannCosineCoeff β hβ)
   set A : ℕ → ℝ := fun j => mercerEigenval d β α hDim hβ hα j * (M j) ^ 2
   have hA_nonneg : ∀ j, 0 ≤ A j := fun j => mul_nonneg (hLamNonneg j) (sq_nonneg _)
   have hA_summable : Summable A := by

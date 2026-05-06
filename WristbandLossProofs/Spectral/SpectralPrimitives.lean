@@ -21,7 +21,7 @@ where:
 - `λv j ≥ 0` are the Mercer eigenvalues of `kernelAngChordal β α` on `Sphere d`
   (from axiom `kernelAngChordal_mercerExpansion` in `SpectralImportedFacts`)
 - `a0` is the constant-mode coefficient and `a k` the k-th cosine coefficient
-  of `kernelRadNeumann β` (from axiom `kernelRadNeumann_hasCosineExpansion`)
+  of `kernelRadNeumann β` (from `kernelRadNeumann_explicitCosineExpansion`)
 - `modeProj φ j k P = E_{(u,t)~P}[φ_j(u) · radialFeature k t]`
 - `spectralEnergy = Σ' j k, λv j · radialCoeff a0 a k · (modeProj j k P)²`
 
@@ -39,7 +39,7 @@ All other terms vanish at `wristbandUniform d` (the reference measure).
     `radialFeature k t = cos(k·π·t)` for `k ≥ 1` (cosine modes).
 
     This unifies the constant term `a0` and the cosine terms `a k` from
-    `kernelRadNeumann_hasCosineExpansion` into a single indexed family.
+    `kernelRadNeumann_explicitCosineExpansion` into a single indexed family.
     The `kernelRadNeumann` expansion uses cosines `cos((k+1)·π·t)` indexed
     from `k = 0`; these correspond to `radialFeature (k + 1)`. -/
 noncomputable def radialFeature (k : ℕ) (t : UnitInterval) : ℝ :=
