@@ -28,6 +28,48 @@ lemma kernelRad3Image_symmetric
   unfold kernelRad3Image
   ring_nf
 
+/-- The Neumann radial kernel is symmetric. Proof: split the doubly
+    indexed `tsum` into the diagonal-image part D and the boundary-image
+    part S. The S-part is pointwise symmetric in `t, t'`; the D-part is
+    symmetric after reindexing `n ↦ -n`, using
+    `(t - t' + 2n)² = (t' - t - 2n)²`. -/
+lemma kernelRadNeumann_symmetric
+    (β : ℝ) (hβ : 0 < β) (t t' : UnitInterval) :
+    kernelRadNeumann β t t' = kernelRadNeumann β t' t := by
+  unfold kernelRadNeumann
+  rw [tsum_add (gaussianImageSum_summable β hβ ((t : ℝ) - (t' : ℝ)))
+                (gaussianImageSum_summable β hβ ((t : ℝ) + (t' : ℝ))),
+      tsum_add (gaussianImageSum_summable β hβ ((t' : ℝ) - (t : ℝ)))
+                (gaussianImageSum_summable β hβ ((t' : ℝ) + (t : ℝ)))]
+  have hS :
+      (∑' n : ℤ, Real.exp (-β * ((t : ℝ) + (t' : ℝ) - 2 * n) ^ 2)) =
+      (∑' n : ℤ, Real.exp (-β * ((t' : ℝ) + (t : ℝ) - 2 * n) ^ 2)) := by
+    refine tsum_congr fun n => ?_
+    congr 1
+    ring
+  have hD :
+      (∑' n : ℤ, Real.exp (-β * ((t : ℝ) - (t' : ℝ) - 2 * n) ^ 2)) =
+      (∑' n : ℤ, Real.exp (-β * ((t' : ℝ) - (t : ℝ) - 2 * n) ^ 2)) := by
+    rw [← (Equiv.neg ℤ).tsum_eq
+          (fun n : ℤ => Real.exp (-β * ((t' : ℝ) - (t : ℝ) - 2 * n) ^ 2))]
+    refine tsum_congr fun n => ?_
+    congr 1
+    push_cast
+    ring
+  linarith [hD, hS]
+
+/-- Package angular kernel symmetry into the `IsSymmetricKernel` predicate. -/
+lemma kernelAngChordal_isSymmetricKernel
+    {d : ℕ} (β α : ℝ) :
+    IsSymmetricKernel (kernelAngChordal (d := d) β α) :=
+  fun u v => kernelAngChordal_symmetric β α u v
+
+/-- Package Neumann radial kernel symmetry into `IsSymmetricKernel`. -/
+lemma kernelRadNeumann_isSymmetricKernel
+    (β : ℝ) (hβ : 0 < β) :
+    IsSymmetricKernel (kernelRadNeumann β) :=
+  fun t t' => kernelRadNeumann_symmetric β hβ t t'
+
 /-- The angular kernel takes values in `[0, 1]` for `β·α² ≥ 0`. -/
 lemma kernelAngChordal_nonneg
     {d : ℕ} (β α : ℝ) (_hβα : 0 ≤ β * α ^ 2)

@@ -21,7 +21,11 @@ References:
 - Fukumizu, K. *Elements of kernel theory* (lecture notes).
 - Gretton, A. et al. (2012). "A kernel two-sample test."
   *J. Mach. Learn. Res.* 13.
+- Horn, R.A.; Johnson, C.R. (2013). *Matrix Analysis.* 2nd ed.
 - Park, J.; Parkkonen, J. *Lecture notes on Riemannian geometry*.
+- Schur, J. (1911). "Bemerkungen zur Theorie der beschränkten
+  Bilinearformen mit unendlich vielen Veränderlichen."
+  *J. Reine Angew. Math.* 140.
 - Sriperumbudur, B.K. et al. (2011). "Universality, characteristic
   kernels and RKHS embedding of measures."
   *J. Mach. Learn. Res.* 12.
@@ -51,11 +55,22 @@ axiom gaussian_periodization_cosine_series_period_two
         Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
           Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * z))
 
-/-- Schur product theorem for kernel functions — product of PSD kernels
-    is PSD on the product space. -/
+/-- Schur product theorem for symmetric PSD kernels — Schur (1911); Horn &
+    Johnson (2013) §7.5. The Hadamard (entrywise) product of two
+    symmetric positive semidefinite matrices is positive semidefinite.
+
+    For finitely many points `pᵢ = (xᵢ, yᵢ)`, the product Gram matrix is
+    the Hadamard product of the factor Gram matrices; symmetry of `Kx`
+    and `Ky` makes those matrices self-adjoint, and `IsPosSemiDefKernel`
+    supplies nonnegative quadratic forms.
+
+    Mathlib reference: `Matrix.PosSemidef.hadamard` in
+    `Mathlib/Analysis/Matrix/Order.lean`. -/
 axiom productKernel_posSemiDef_imported
     {X : Type*} {Y : Type*}
     (Kx : X → X → ℝ) (Ky : Y → Y → ℝ)
+    (hKx_symm : IsSymmetricKernel Kx)
+    (hKy_symm : IsSymmetricKernel Ky)
     (hKx : IsPosSemiDefKernel Kx)
     (hKy : IsPosSemiDefKernel Ky) :
     IsPosSemiDefKernel (fun (p q : X × Y) => Kx p.1 q.1 * Ky p.2 q.2)

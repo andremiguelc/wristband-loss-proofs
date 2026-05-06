@@ -234,6 +234,13 @@ def IsPosSemiDefKernel
   ∀ (n : ℕ) (x : Fin n → X) (c : Fin n → ℝ),
     ∑ i, ∑ j, c i * c j * K (x i) (x j) ≥ 0
 
+/-- A real kernel is symmetric. This is the kernel-level hypothesis
+    needed to regard all finite Gram matrices as symmetric/self-adjoint,
+    e.g. when invoking the Schur product theorem. -/
+def IsSymmetricKernel
+    {X : Type*} (K : X → X → ℝ) : Prop :=
+  ∀ x y : X, K x y = K y x
+
 /-- A PSD kernel `K` is characteristic: `MMD²(P, Q) = 0` implies
     `P = Q`. Equivalently, the kernel embedding is injective. -/
 def IsCharacteristicKernel
