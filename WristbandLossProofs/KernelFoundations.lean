@@ -37,10 +37,10 @@ lemma kernelRadNeumann_symmetric
     (β : ℝ) (hβ : 0 < β) (t t' : UnitInterval) :
     kernelRadNeumann β t t' = kernelRadNeumann β t' t := by
   unfold kernelRadNeumann
-  rw [tsum_add (gaussianImageSum_summable β hβ ((t : ℝ) - (t' : ℝ)))
-                (gaussianImageSum_summable β hβ ((t : ℝ) + (t' : ℝ))),
-      tsum_add (gaussianImageSum_summable β hβ ((t' : ℝ) - (t : ℝ)))
-                (gaussianImageSum_summable β hβ ((t' : ℝ) + (t : ℝ)))]
+  rw [Summable.tsum_add (gaussianImageSum_summable β hβ ((t : ℝ) - (t' : ℝ)))
+                        (gaussianImageSum_summable β hβ ((t : ℝ) + (t' : ℝ))),
+      Summable.tsum_add (gaussianImageSum_summable β hβ ((t' : ℝ) - (t : ℝ)))
+                        (gaussianImageSum_summable β hβ ((t' : ℝ) + (t : ℝ)))]
   have hS :
       (∑' n : ℤ, Real.exp (-β * ((t : ℝ) + (t' : ℝ) - 2 * n) ^ 2)) =
       (∑' n : ℤ, Real.exp (-β * ((t' : ℝ) + (t : ℝ) - 2 * n) ^ 2)) := by
@@ -53,9 +53,14 @@ lemma kernelRadNeumann_symmetric
     rw [← (Equiv.neg ℤ).tsum_eq
           (fun n : ℤ => Real.exp (-β * ((t' : ℝ) - (t : ℝ) - 2 * n) ^ 2))]
     refine tsum_congr fun n => ?_
-    congr 1
-    push_cast
-    ring
+    have harg :
+        ((t' : ℝ) - (t : ℝ) - 2 * (((Equiv.neg ℤ) n : ℤ) : ℝ)) =
+          -(((t : ℝ) - (t' : ℝ) - 2 * (n : ℝ))) := by
+      have hneg : ((((Equiv.neg ℤ) n : ℤ) : ℝ)) = -(n : ℝ) := by
+        simp
+      rw [hneg]
+      ring
+    rw [harg, neg_sq]
   linarith [hD, hS]
 
 /-- Package angular kernel symmetry into the `IsSymmetricKernel` predicate. -/
@@ -303,79 +308,64 @@ lemma kernelRadNeumann_eq_imageSum_add
   exact Summable.tsum_add (gaussianImageSum_summable β hβ _)
                           (gaussianImageSum_summable β hβ _)
 
-/-- Cosine-eigenfunction expansion of the Neumann radial kernel
-    with explicit nonneg coefficients
-    `a0 = √(π/β)`, `a k = 2·√(π/β)·exp(-((k+1)π)²/(4β))`. -/
-theorem kernelRadNeumann_hasCosineExpansion
+private theorem neumann_exp_decay_summable
     (β : ℝ) (hβ : 0 < β) :
-    ∃ (a0 : ℝ) (a : ℕ → ℝ),
-      0 ≤ a0 ∧
-      (∀ k : ℕ, 0 ≤ a k) ∧
-      (∀ t t' : UnitInterval,
-        kernelRadNeumann β t t' =
-          a0 +
-            ∑' k : ℕ,
-              a k *
-                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
-                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))) := by
-  refine ⟨Real.sqrt (Real.pi / β),
-          fun k => 2 * Real.sqrt (Real.pi / β) *
-                    Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)),
-          Real.sqrt_nonneg _, ?_, ?_⟩
-  · intro k
-    have h1 : 0 ≤ (2 : ℝ) := by norm_num
-    have h2 : 0 ≤ Real.sqrt (Real.pi / β) := Real.sqrt_nonneg _
-    have h3 : 0 ≤ Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) :=
+    Summable (fun k : ℕ =>
+      Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β))) := by
+  have hpos_quot : 0 < Real.pi ^ 2 / (4 * β) := by positivity
+  have hc : -(Real.pi ^ 2 / (4 * β)) < 0 := neg_neg_iff_pos.mpr hpos_quot
+  have hf : ∀ i : ℕ, (i : ℝ) ≤ (((i + 1 : ℕ) : ℝ) ^ 2) := by
+    intro i
+    have hpos : (0 : ℝ) ≤ (i : ℝ) := Nat.cast_nonneg _
+    have h1 : (((i + 1 : ℕ) : ℝ) ^ 2) = ((i : ℝ) + 1) ^ 2 := by
+      push_cast
+      ring
+    rw [h1]
+    nlinarith [hpos, sq_nonneg ((i : ℝ))]
+  have hsum := Real.summable_exp_nat_mul_of_ge hc hf
+  refine hsum.congr (fun i => ?_)
+  ring_nf
+
+private theorem neumann_cosine_mode_summable
+    (β : ℝ) (hβ : 0 < β) (z : ℝ) :
+    Summable (fun k : ℕ =>
+      Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
+        Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * z)) := by
+  refine (neumann_exp_decay_summable β hβ).of_nonneg_of_le (fun k => ?_) (fun k => ?_) |>.of_norm
+  · positivity
+  · rw [Real.norm_eq_abs, abs_mul, abs_of_nonneg (Real.exp_nonneg _)]
+    have hcos : |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * z)| ≤ 1 := Real.abs_cos_le_one _
+    have hexp : 0 ≤ Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) :=
       Real.exp_nonneg _
-    positivity
-  · intro t t'
+    nlinarith [hcos, hexp]
+
+/-- Explicit-coefficient cosine eigenexpansion of the Neumann radial kernel.
+    The constant mode coefficient is `√(π/β)`; mode `k+1` has coefficient
+    `2·√(π/β)·exp(-((k+1)π)²/(4β))`. -/
+theorem kernelRadNeumann_explicitCosineExpansion
+    (β : ℝ) (hβ : 0 < β) (t t' : UnitInterval) :
+    kernelRadNeumann β t t' =
+      Real.sqrt (Real.pi / β) +
+        ∑' k : ℕ,
+          (2 * Real.sqrt (Real.pi / β) *
+            Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β))) *
+            Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
+            Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ)) := by
     -- Decompose kernelRadNeumann β t t' = G_β(t-t') + G_β(t+t').
     rw [kernelRadNeumann_eq_imageSum_add β hβ]
     -- Apply the periodization identity to each Gaussian image sum.
     rw [gaussian_periodization_cosine_series_period_two β ((t : ℝ) - (t' : ℝ)) hβ]
     rw [gaussian_periodization_cosine_series_period_two β ((t : ℝ) + (t' : ℝ)) hβ]
     -- The two cosine series combine via cos(A-B)+cos(A+B) = 2 cos A cos B.
-    -- Summability of `fun k => exp(-(k+1)²π²/(4β))` follows from Gaussian decay;
-    -- the cosine factor is bounded by 1 in absolute value.
-    have h_exp_summable :
-        Summable (fun k : ℕ =>
-          Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β))) := by
-      have hpos_quot : 0 < Real.pi ^ 2 / (4 * β) := by positivity
-      have hc : -(Real.pi ^ 2 / (4 * β)) < 0 := neg_neg_iff_pos.mpr hpos_quot
-      have hf : ∀ i : ℕ, (i : ℝ) ≤ (((i + 1 : ℕ) : ℝ) ^ 2) := by
-        intro i
-        have hpos : (0 : ℝ) ≤ (i : ℝ) := Nat.cast_nonneg _
-        have h1 : (((i + 1 : ℕ) : ℝ) ^ 2) = ((i : ℝ) + 1) ^ 2 := by push_cast; ring
-        rw [h1]
-        nlinarith [hpos, sq_nonneg ((i : ℝ))]
-      have hsum := Real.summable_exp_nat_mul_of_ge hc hf
-      refine hsum.congr (fun i => ?_)
-      ring
     -- Cosine times exp is summable by domination.
     have hsum_diff : Summable (fun k : ℕ =>
         Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
-          Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) - (t' : ℝ)))) := by
-      refine h_exp_summable.of_nonneg_of_le (fun k => ?_) (fun k => ?_) |>.of_norm
-      · positivity
-      · rw [Real.norm_eq_abs, abs_mul,
-            abs_of_nonneg (Real.exp_nonneg _)]
-        have hcos : |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) - (t' : ℝ)))| ≤ 1 :=
-          Real.abs_cos_le_one _
-        have hexp : 0 ≤ Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) :=
-          Real.exp_nonneg _
-        nlinarith [hcos, hexp]
+          Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) - (t' : ℝ)))) :=
+      neumann_cosine_mode_summable β hβ ((t : ℝ) - (t' : ℝ))
     have hsum_add : Summable (fun k : ℕ =>
         Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
-          Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) + (t' : ℝ)))) := by
-      refine h_exp_summable.of_nonneg_of_le (fun k => ?_) (fun k => ?_) |>.of_norm
-      · positivity
-      · rw [Real.norm_eq_abs, abs_mul,
-            abs_of_nonneg (Real.exp_nonneg _)]
-        have hcos : |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) + (t' : ℝ)))| ≤ 1 :=
-          Real.abs_cos_le_one _
-        have hexp : 0 ≤ Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) :=
-          Real.exp_nonneg _
-        nlinarith [hcos, hexp]
+          Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * ((t : ℝ) + (t' : ℝ)))) :=
+      neumann_cosine_mode_summable β hβ ((t : ℝ) + (t' : ℝ))
     -- Combine the two RHSs.
     have htrig : ∀ k : ℕ,
         Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) *
@@ -468,6 +458,33 @@ theorem kernelRadNeumann_hasCosineExpansion
           exact tsum_mul_left]
     ring
 
+/-- Cosine-eigenfunction expansion of the Neumann radial kernel
+    with explicit nonneg coefficients
+    `a0 = √(π/β)`, `a k = 2·√(π/β)·exp(-((k+1)π)²/(4β))`. -/
+theorem kernelRadNeumann_hasCosineExpansion
+    (β : ℝ) (hβ : 0 < β) :
+    ∃ (a0 : ℝ) (a : ℕ → ℝ),
+      0 ≤ a0 ∧
+      (∀ k : ℕ, 0 ≤ a k) ∧
+      (∀ t t' : UnitInterval,
+        kernelRadNeumann β t t' =
+          a0 +
+            ∑' k : ℕ,
+              a k *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
+                Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))) := by
+  refine ⟨Real.sqrt (Real.pi / β),
+          fun k => 2 * Real.sqrt (Real.pi / β) *
+            Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)),
+          Real.sqrt_nonneg _, ?_,
+          fun t t' => kernelRadNeumann_explicitCosineExpansion β hβ t t'⟩
+  intro k
+  have h1 : 0 ≤ (2 : ℝ) := by norm_num
+  have h2 : 0 ≤ Real.sqrt (Real.pi / β) := Real.sqrt_nonneg _
+  have h3 : 0 ≤ Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) :=
+    Real.exp_nonneg _
+  positivity
+
 /-- Rank-one kernels `K(x,y) = φ(x)φ(y)` are PSD. -/
 lemma rankOneKernel_posSemiDef
     {X : Type*} (φ : X → ℝ) :
@@ -513,11 +530,124 @@ lemma IsPosSemiDefKernel_const_mul
             simp [Finset.mul_sum, mul_left_comm, mul_comm]
     _ ≥ 0 := by nlinarith
 
-/-- Imported PSD fact wrapper for the Neumann radial kernel. -/
-lemma kernelRadNeumann_posSemiDef
+private theorem posSemiDef_of_nonneg_constant_plus_tsum_rankOne
+    {X : Type*} (a0 : ℝ) (a : ℕ → ℝ) (φ : ℕ → X → ℝ)
+    (ha0 : 0 ≤ a0) (ha : ∀ k, 0 ≤ a k)
+    (hSum : ∀ x y, Summable (fun k => a k * φ k x * φ k y))
+    (K : X → X → ℝ)
+    (hExp : ∀ x y, K x y = a0 + ∑' k, a k * φ k x * φ k y) :
+    IsPosSemiDefKernel K := by
+  intro n x c
+  have hInner :
+      ∀ i j : Fin n,
+        Summable (fun k => c i * c j * (a k * φ k (x i) * φ k (x j))) := by
+    intro i j
+    simpa [mul_assoc, mul_left_comm, mul_comm] using (hSum (x i) (x j)).mul_left (c i * c j)
+  calc
+    (∑ i, ∑ j, c i * c j * K (x i) (x j))
+        = ∑ i, ∑ j, c i * c j * (a0 + ∑' k, a k * φ k (x i) * φ k (x j)) := by
+            simp_rw [hExp]
+    _ = ∑ i, ∑ j,
+          (c i * c j * a0 + ∑' k, c i * c j * (a k * φ k (x i) * φ k (x j))) := by
+            refine Finset.sum_congr rfl ?_
+            intro i hi
+            refine Finset.sum_congr rfl ?_
+            intro j hj
+            rw [mul_add, tsum_mul_left]
+    _ = (∑ i, ∑ j, c i * c j * a0) +
+          ∑ i, ∑ j, ∑' k, c i * c j * (a k * φ k (x i) * φ k (x j)) := by
+            simp [Finset.sum_add_distrib]
+    _ = a0 * (∑ i, c i) ^ 2 +
+          ∑ i, ∑ j, ∑' k, c i * c j * (a k * φ k (x i) * φ k (x j)) := by
+            congr 1
+            calc
+              (∑ i, ∑ j, c i * c j * a0) = a0 * (∑ i, c i) * (∑ j, c j) := by
+                simp [Finset.mul_sum, mul_left_comm, mul_comm]
+              _ = a0 * (∑ i, c i) ^ 2 := by ring
+    _ = a0 * (∑ i, c i) ^ 2 +
+          ∑' k, ∑ i, ∑ j, c i * c j * (a k * φ k (x i) * φ k (x j)) := by
+            congr 1
+            calc
+              (∑ i, ∑ j, ∑' k, c i * c j * (a k * φ k (x i) * φ k (x j)))
+                  = ∑ i, ∑' k, ∑ j, c i * c j * (a k * φ k (x i) * φ k (x j)) := by
+                      refine Finset.sum_congr rfl ?_
+                      intro i hi
+                      symm
+                      exact Summable.tsum_finsetSum (fun j _ => hInner i j)
+              _ = ∑' k, ∑ i, ∑ j, c i * c j * (a k * φ k (x i) * φ k (x j)) := by
+                    symm
+                    exact Summable.tsum_finsetSum
+                      (fun i _ => summable_sum (s := Finset.univ) (fun j _ => hInner i j))
+    _ = a0 * (∑ i, c i) ^ 2 +
+          ∑' k, a k * (∑ i, c i * φ k (x i)) ^ 2 := by
+            congr 1
+            apply tsum_congr
+            intro k
+            calc
+              (∑ i, ∑ j, c i * c j * (a k * φ k (x i) * φ k (x j)))
+                  = a k * (∑ i, c i * φ k (x i)) * (∑ j, c j * φ k (x j)) := by
+                      simp [Finset.mul_sum, mul_left_comm, mul_comm]
+              _ = a k * (∑ i, c i * φ k (x i)) ^ 2 := by ring
+    _ ≥ 0 := by
+          have hConst : 0 ≤ a0 * (∑ i, c i) ^ 2 := mul_nonneg ha0 (sq_nonneg _)
+          have hVar : 0 ≤ ∑' k, a k * (∑ i, c i * φ k (x i)) ^ 2 := by
+            apply tsum_nonneg
+            intro k
+            exact mul_nonneg (ha k) (sq_nonneg _)
+          linarith
+
+/-- Neumann radial kernel on `[0,1]` is positive semi-definite.
+    Derived from the explicit cosine expansion as a sum of squares with
+    nonnegative coefficients. -/
+theorem kernelRadNeumann_posSemiDef
     (β : ℝ) (hβ : 0 < β) :
     IsPosSemiDefKernel (kernelRadNeumann β) := by
-  exact kernelRadNeumann_posSemiDef_imported β hβ
+  refine posSemiDef_of_nonneg_constant_plus_tsum_rankOne (X := UnitInterval)
+    (a0 := Real.sqrt (Real.pi / β))
+    (a := fun k =>
+      2 * Real.sqrt (Real.pi / β) *
+        Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)))
+    (φ := fun k (t : UnitInterval) => Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)))
+    (ha0 := Real.sqrt_nonneg _)
+    (ha := ?_)
+    (hSum := ?_)
+    (K := kernelRadNeumann β)
+    (hExp := ?_)
+  · intro k
+    have h1 : 0 ≤ (2 : ℝ) := by norm_num
+    have h2 : 0 ≤ Real.sqrt (Real.pi / β) := Real.sqrt_nonneg _
+    have h3 : 0 ≤ Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) :=
+      Real.exp_nonneg _
+    positivity
+  · intro t t'
+    have hCoeff :
+        Summable (fun k : ℕ =>
+          2 * Real.sqrt (Real.pi / β) *
+            Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β))) := by
+      simpa using (neumann_exp_decay_summable β hβ).mul_left (2 * Real.sqrt (Real.pi / β))
+    refine hCoeff.of_nonneg_of_le (fun k => ?_) (fun k => ?_) |>.of_norm
+    · positivity
+    · rw [Real.norm_eq_abs, abs_mul, abs_mul]
+      have hcos_t : |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ))| ≤ 1 :=
+        Real.abs_cos_le_one _
+      have hcos_t' : |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))| ≤ 1 :=
+        Real.abs_cos_le_one _
+      have hcoeff_nonneg :
+          0 ≤ 2 * Real.sqrt (Real.pi / β) *
+            Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β)) := by
+        positivity
+      rw [abs_of_nonneg hcoeff_nonneg]
+      have hcos_prod :
+          |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ))| *
+              |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))| ≤ 1 := by
+        have hcos_t_nonneg : 0 ≤ |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ))| :=
+          abs_nonneg _
+        have hcos_t'_nonneg : 0 ≤ |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))| :=
+          abs_nonneg _
+        nlinarith [hcos_t, hcos_t', hcos_t_nonneg, hcos_t'_nonneg]
+      nlinarith [hcos_prod, hcoeff_nonneg]
+  · intro t t'
+    simpa using kernelRadNeumann_explicitCosineExpansion β hβ t t'
 
 /-- Dominated-convergence / `integral_tsum` scaffold for Neumann potential:
 swap `∫` and `∑'` for the image-series representation. -/

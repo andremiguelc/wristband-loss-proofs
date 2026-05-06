@@ -75,12 +75,6 @@ axiom productKernel_posSemiDef_imported
     (hKy : IsPosSemiDefKernel Ky) :
     IsPosSemiDefKernel (fun (p q : X × Y) => Kx p.1 q.1 * Ky p.2 q.2)
 
-/-- Neumann radial kernel on `[0,1]` is PSD — heat-kernel eigenexpansion
-    with nonnegative weights (arXiv:1703.10541). -/
-axiom kernelRadNeumann_posSemiDef_imported
-    (β : ℝ) (hβ : 0 < β) :
-    IsPosSemiDefKernel (kernelRadNeumann β)
-
 /-- Neumann radial kernel has constant potential under `uniform01` —
     Markov mass conservation under reflecting BC (arXiv:1703.10541). -/
 axiom neumannPotential_constant_imported
