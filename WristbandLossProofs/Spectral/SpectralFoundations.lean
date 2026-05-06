@@ -1,6 +1,7 @@
 import WristbandLossProofs.Spectral.SpectralImportedFacts
 import WristbandLossProofs.KernelFoundations
 import WristbandLossProofs.KernelMinimization
+import Mathlib.MeasureTheory.Function.L2Space
 
 set_option autoImplicit false
 
@@ -32,7 +33,12 @@ Local lemmas for the spectral energy branch.
 lemma mercerEigenval_nonneg
     (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (j : ℕ) :
     0 ≤ mercerEigenval d β α hDim hβ hα j :=
-  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.1 j
+  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.choose_spec.1 j
+
+lemma mercerEigenfun_continuous
+    (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (j : ℕ) :
+    Continuous (mercerEigenfun d β α hDim hβ hα j) :=
+  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.choose_spec.2.1 j
 
 lemma mercerEigenfun_orthonormal
     (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
@@ -41,20 +47,20 @@ lemma mercerEigenfun_orthonormal
            mercerEigenfun d β α hDim hβ hα j' u
         ∂(sphereUniform d hDim1 : Measure (Sphere d)) =
       if j = j' then 1 else 0 :=
-  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.2.1 j j'
+  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.choose_spec.2.2.1 j j'
 
 lemma mercerEigenfun_zero_eq_one
     (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
     (u : Sphere d) :
     mercerEigenfun d β α hDim hβ hα 0 u = 1 :=
-  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.2.2.2.1 u
+  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.choose_spec.2.2.2.2.1 u
 
 /-- Block multiplicity: each angular degree `ℓ` has exactly
 `sphericalHarmonicDim d ℓ` flat eigenmodes. -/
 lemma mercerDegAt_card_fiber
     (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (ℓ : ℕ) :
     Set.ncard {j : ℕ | mercerDegAt d β α hDim hβ hα j = ℓ} = sphericalHarmonicDim d ℓ :=
-  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.2.2.2.2.1 ℓ
+  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.choose_spec.2.2.2.2.2.1 ℓ
 
 /-- Eigenvalue is constant on each `mercerDegAt`-fibre: all eigenmodes of the
 same angular degree share the same eigenvalue. -/
@@ -62,15 +68,102 @@ lemma mercerEigenval_const_on_degree_fiber
     (d : ℕ) (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α) (j j' : ℕ)
     (h : mercerDegAt d β α hDim hβ hα j = mercerDegAt d β α hDim hβ hα j') :
     mercerEigenval d β α hDim hβ hα j = mercerEigenval d β α hDim hβ hα j' :=
-  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.2.2.2.2.2 j j' h
+  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.choose_spec.2.2.2.2.2.2 j j' h
+
+lemma mercerEigenfun_comp_fst_integrable_under_distribution
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) (j : ℕ) :
+    Integrable
+      (fun w : Wristband d => mercerEigenfun d β α hDim hβ hα j w.1)
+      (P : Measure (Wristband d)) := by
+  let f : Wristband d → ℝ := fun w => mercerEigenfun d β α hDim hβ hα j w.1
+  have hcont : Continuous f := (mercerEigenfun_continuous d β α hDim hβ hα j).comp continuous_fst
+  obtain ⟨C, hC⟩ := isCompact_univ.exists_bound_of_continuousOn hcont.continuousOn
+  refine Integrable.of_bound (hcont.aestronglyMeasurable) C ?_
+  exact Filter.Eventually.of_forall fun w => hC w (by simp [f])
+
+lemma mercerEigenfun_sq_comp_fst_integrable_under_distribution
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) (j : ℕ) :
+    Integrable
+      (fun w : Wristband d => (mercerEigenfun d β α hDim hβ hα j w.1) ^ 2)
+      (P : Measure (Wristband d)) := by
+  let f : Wristband d → ℝ := fun w => (mercerEigenfun d β α hDim hβ hα j w.1) ^ 2
+  have hcont : Continuous f :=
+    ((mercerEigenfun_continuous d β α hDim hβ hα j).comp continuous_fst).pow 2
+  obtain ⟨C, hC⟩ := isCompact_univ.exists_bound_of_continuousOn hcont.continuousOn
+  refine Integrable.of_bound (hcont.aestronglyMeasurable) C ?_
+  exact Filter.Eventually.of_forall fun w => hC w (by simp [f])
+
+lemma radialFeature_continuous (k : ℕ) :
+    Continuous (fun t : UnitInterval => radialFeature k t) := by
+  by_cases hk : k = 0
+  · simp [radialFeature, hk]
+  · simpa [radialFeature, hk] using
+      Real.continuous_cos.comp
+        ((((continuous_const.mul continuous_const).mul continuous_subtype_val)))
+
+lemma kernelAngChordal_diagonal_eq_one
+    {d : ℕ} (β α : ℝ) (u : Sphere d) :
+    kernelAngChordal β α u u = 1 := by
+  simp [kernelAngChordal, sphereInner]
+
+lemma sq_integral_norm_le_integral_sq_under_probability_of_continuous
+    {α : Type*} [TopologicalSpace α] [CompactSpace α] [MeasurableSpace α] [BorelSpace α]
+    (μ : Measure α) [IsProbabilityMeasure μ] (f : C(α, ℝ)) :
+    (∫ x, ‖f x‖ ∂μ) ^ 2 ≤ ∫ x, (f x) ^ 2 ∂μ := by
+  let g : C(α, ℝ) := {
+    toFun := fun x => ‖f x‖
+    continuous_toFun := f.continuous.norm
+  }
+  let oneC : C(α, ℝ) := 1
+  let gLp := ContinuousMap.toLp (E := ℝ) (p := 2) (μ := μ) (𝕜 := ℝ) g
+  let oneLp := ContinuousMap.toLp (E := ℝ) (p := 2) (μ := μ) (𝕜 := ℝ) oneC
+  have hInner :
+      @inner ℝ (Lp ℝ 2 μ) _ gLp oneLp = ∫ x, ‖f x‖ ∂μ := by
+    dsimp [gLp, oneLp]
+    rw [MeasureTheory.ContinuousMap.inner_toLp (μ := μ) (f := g) (g := oneC)]
+    simp [g, oneC]
+  have hNormOne : ‖oneLp‖ = 1 := by
+    have hInnerOne :
+        @inner ℝ (Lp ℝ 2 μ) _ oneLp oneLp = (1 : ℝ) := by
+      dsimp [oneLp]
+      rw [MeasureTheory.ContinuousMap.inner_toLp (μ := μ) (f := oneC) (g := oneC)]
+      simp [oneC]
+    have hSq : ‖oneLp‖ ^ 2 = (1 : ℝ) := by
+      simpa [real_inner_self_eq_norm_sq] using hInnerOne
+    have hNonneg : 0 ≤ ‖oneLp‖ := norm_nonneg _
+    nlinarith
+  have hCauchy : ‖∫ x, ‖f x‖ ∂μ‖ ≤ ‖gLp‖ := by
+    rw [← hInner]
+    calc
+      ‖@inner ℝ (Lp ℝ 2 μ) _ gLp oneLp‖ ≤ ‖gLp‖ * ‖oneLp‖ := norm_inner_le_norm _ _
+      _ = ‖gLp‖ := by rw [hNormOne, mul_one]
+  have hSqLeft : (∫ x, ‖f x‖ ∂μ) ^ 2 ≤ ‖gLp‖ ^ 2 := by
+    have hNonnegLeft : 0 ≤ ∫ x, ‖f x‖ ∂μ := integral_nonneg (fun _ => norm_nonneg _)
+    have hNonnegRight : 0 ≤ ‖gLp‖ := norm_nonneg _
+    have hNonnegLeft' : 0 ≤ ∫ x, |f x| ∂μ := by simpa using hNonnegLeft
+    have hCauchy' : ∫ x, ‖f x‖ ∂μ ≤ ‖gLp‖ := by
+      simpa [Real.norm_eq_abs, abs_of_nonneg hNonnegLeft'] using hCauchy
+    exact (sq_le_sq₀ hNonnegLeft hNonnegRight).2 hCauchy'
+  have hSqRight : ‖gLp‖ ^ 2 = ∫ x, (f x) ^ 2 ∂μ := by
+    have hInnerG :
+        @inner ℝ (Lp ℝ 2 μ) _ gLp gLp = ∫ x, (f x) ^ 2 ∂μ := by
+      dsimp [gLp]
+      rw [MeasureTheory.ContinuousMap.inner_toLp (μ := μ) (f := g) (g := g)]
+      simp [g, pow_two]
+    simpa [real_inner_self_eq_norm_sq] using hInnerG
+  exact hSqLeft.trans_eq hSqRight
 
 lemma neumannConstantCoeff_nonneg (β : ℝ) (hβ : 0 < β) :
-    0 ≤ neumannConstantCoeff β hβ :=
-  (kernelRadNeumann_hasCosineExpansion β hβ).choose_spec.choose_spec.1
+    0 ≤ neumannConstantCoeff β hβ := by
+  unfold neumannConstantCoeff
+  exact Real.sqrt_nonneg _
 
 lemma neumannCosineCoeff_nonneg (β : ℝ) (hβ : 0 < β) (k : ℕ) :
-    0 ≤ neumannCosineCoeff β hβ k :=
-  (kernelRadNeumann_hasCosineExpansion β hβ).choose_spec.choose_spec.2.1 k
+    0 ≤ neumannCosineCoeff β hβ k := by
+  unfold neumannCosineCoeff
+  positivity
 
 /-- All radial coefficients are non-negative. -/
 lemma neumannRadialCoeff_nonneg (β : ℝ) (hβ : 0 < β) (k : ℕ) :
@@ -78,6 +171,47 @@ lemma neumannRadialCoeff_nonneg (β : ℝ) (hβ : 0 < β) (k : ℕ) :
   cases k with
   | zero => exact neumannConstantCoeff_nonneg β hβ
   | succ k => exact neumannCosineCoeff_nonneg β hβ k
+
+/-- The explicit Neumann cosine coefficients are summable. -/
+theorem summable_neumannCosineCoeff
+    (β : ℝ) (hβ : 0 < β) :
+    Summable (neumannCosineCoeff β hβ) := by
+  unfold neumannCosineCoeff
+  have hpos_quot : 0 < Real.pi ^ 2 / (4 * β) := by positivity
+  have hc : -(Real.pi ^ 2 / (4 * β)) < 0 := neg_neg_iff_pos.mpr hpos_quot
+  have hf : ∀ i : ℕ, (i : ℝ) ≤ (((i + 1 : ℕ) : ℝ) ^ 2) := by
+    intro i
+    have hpos : (0 : ℝ) ≤ (i : ℝ) := Nat.cast_nonneg _
+    have h1 : (((i + 1 : ℕ) : ℝ) ^ 2) = ((i : ℝ) + 1) ^ 2 := by
+      push_cast
+      ring
+    rw [h1]
+    nlinarith [hpos, sq_nonneg ((i : ℝ))]
+  have hsum := Real.summable_exp_nat_mul_of_ge hc hf
+  have hbase :
+      Summable (fun k : ℕ =>
+        Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β))) := by
+    refine hsum.congr (fun i => ?_)
+    ring_nf
+  simpa [mul_assoc] using hbase.mul_left (2 * Real.sqrt (Real.pi / β))
+
+/-- The explicit Neumann cosine coefficients satisfy their defining Gaussian
+upper bound. -/
+theorem neumannCosineCoeff_le_gaussianBound
+    (β : ℝ) (hβ : 0 < β) (k : ℕ) :
+    neumannCosineCoeff β hβ k ≤
+      2 * Real.sqrt (Real.pi / β) *
+        Real.exp (-(Real.pi ^ 2) * ((k : ℝ) + 1) ^ 2 / (4 * β)) := by
+  have hCast : (((k + 1 : ℕ) : ℝ) ^ 2) = ((k : ℝ) + 1) ^ 2 := by
+    push_cast
+    ring
+  have hExp :
+      -( (((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) ) / (4 * β) =
+        -(Real.pi ^ 2) * ((k : ℝ) + 1) ^ 2 / (4 * β) := by
+    rw [hCast]
+    ring
+  unfold neumannCosineCoeff
+  rw [hExp]
 
 /-! ### Kernel Expansion Wrappers -/
 
@@ -90,7 +224,7 @@ lemma kernelAngChordal_mercerExpansion_witness
         mercerEigenval d β α hDim hβ hα j *
           mercerEigenfun d β α hDim hβ hα j u *
           mercerEigenfun d β α hDim hβ hα j v :=
-  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.2.2.1 u v
+  (kernelAngChordal_mercerExpansion d β α hDim hβ hα).choose_spec.choose_spec.choose_spec.choose_spec.2.2.2.1 u v
 
 /-- Summability of the diagonal Mercer series at a fixed point `u`. -/
 lemma mercerDiagonalSeries_summable
@@ -196,7 +330,7 @@ lemma pointwiseAngularSummable
           mercerEigenfun d β α hDim hβ hα j w'.1) := by
   simpa using mercerPointwiseSummable β α hDim hβ hα w.1 w'.1
 
-/-- Radial cosine expansion rewritten in extracted witness notation. -/
+/-- Radial cosine expansion rewritten in the explicit coefficient notation. -/
 lemma kernelRadNeumann_cosineExpansion_witness
     (β : ℝ) (hβ : 0 < β) (t t' : UnitInterval) :
     kernelRadNeumann β t t' =
@@ -204,8 +338,9 @@ lemma kernelRadNeumann_cosineExpansion_witness
         ∑' k : ℕ,
           neumannCosineCoeff β hβ k *
             Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
-            Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ)) :=
-  (kernelRadNeumann_hasCosineExpansion β hβ).choose_spec.choose_spec.2.2 t t'
+            Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ)) := by
+  simpa [neumannConstantCoeff, neumannCosineCoeff] using
+    kernelRadNeumann_explicitCosineExpansion β hβ t t'
 
 /-- Extended-index radial expansion, under an explicit summability hypothesis. -/
 lemma kernelRadNeumann_spectralExpansion_extended_of_summable
@@ -2160,6 +2295,124 @@ lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_modeL1_m
     spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_pair_summable_integral_norm
       β α hDim hβ hα P hSummCos hProdInt hProdNorm
 
+noncomputable def angularModeL1Majorant
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) : ℕ → ℝ :=
+  fun j => ∫ w, ‖mercerEigenfun d β α hDim hβ hα j w.1‖ ∂(P : Measure (Wristband d))
+
+theorem spectral_modeL1_factorized_bridge
+    {d : ℕ} (β α : ℝ) (hDim : 2 ≤ d) (hβ : 0 < β) (hα : 0 < α)
+    (P : Distribution (Wristband d)) :
+    ∃ M : ℕ → ℝ,
+      (∀ j, 0 ≤ M j) ∧
+      (∀ j k,
+        Integrable
+          (fun w : Wristband d =>
+            mercerEigenfun d β α hDim hβ hα j w.1 * radialFeature k w.2)
+          (P : Measure (Wristband d))) ∧
+      (∀ j k,
+        ∫ w,
+          ‖mercerEigenfun d β α hDim hβ hα j w.1 * radialFeature k w.2‖
+          ∂(P : Measure (Wristband d)) ≤ M j) ∧
+      Summable
+        (fun j : ℕ => ‖mercerEigenval d β α hDim hβ hα j‖ * (M j) ^ 2) := by
+  let M := angularModeL1Majorant β α hDim hβ hα P
+  refine ⟨M, ?_, ?_, ?_, ?_⟩
+  · intro j
+    exact integral_nonneg (fun _ => norm_nonneg _)
+  · intro j k
+    let g : Wristband d → ℝ := fun w => mercerEigenfun d β α hDim hβ hα j w.1
+    let r : Wristband d → ℝ := fun w => radialFeature k w.2
+    have hg : Integrable g (P : Measure (Wristband d)) :=
+      mercerEigenfun_comp_fst_integrable_under_distribution β α hDim hβ hα P j
+    have hrMeas : AEStronglyMeasurable r (P : Measure (Wristband d)) :=
+      ((radialFeature_continuous k).comp continuous_snd).aestronglyMeasurable
+    have hrBound : ∀ᵐ w ∂(P : Measure (Wristband d)), ‖r w‖ ≤ 1 :=
+      Filter.Eventually.of_forall fun w => by
+        simpa [r, Real.norm_eq_abs] using abs_radialFeature_le_one k w.2
+    simpa [g, r] using hg.mul_bdd hrMeas hrBound
+  · intro j k
+    have hMajInt :
+        Integrable
+          (fun w : Wristband d => ‖mercerEigenfun d β α hDim hβ hα j w.1‖)
+          (P : Measure (Wristband d)) :=
+      (mercerEigenfun_comp_fst_integrable_under_distribution β α hDim hβ hα P j).norm
+    refine integral_mono_of_nonneg
+      (Filter.Eventually.of_forall fun _ => norm_nonneg _)
+      hMajInt ?_
+    filter_upwards with w
+    calc
+      ‖mercerEigenfun d β α hDim hβ hα j w.1 * radialFeature k w.2‖
+          = |mercerEigenfun d β α hDim hβ hα j w.1| * |radialFeature k w.2| := by
+              simp [Real.norm_eq_abs, abs_mul]
+      _ ≤ |mercerEigenfun d β α hDim hβ hα j w.1| * 1 := by
+            exact mul_le_mul_of_nonneg_left (abs_radialFeature_le_one k w.2) (abs_nonneg _)
+      _ = ‖mercerEigenfun d β α hDim hβ hα j w.1‖ := by
+            simp [Real.norm_eq_abs]
+  · let A : ℕ → ℝ := fun j =>
+      ‖mercerEigenval d β α hDim hβ hα j‖ * (M j) ^ 2
+    let B : ℕ → Wristband d → ℝ := fun j w =>
+      mercerEigenval d β α hDim hβ hα j *
+        (mercerEigenfun d β α hDim hβ hα j w.1) ^ 2
+    have hLamNonneg : ∀ j, 0 ≤ mercerEigenval d β α hDim hβ hα j :=
+      mercerEigenval_nonneg d β α hDim hβ hα
+    have hA_nonneg : ∀ j, 0 ≤ A j := by
+      intro j
+      exact mul_nonneg (norm_nonneg _) (sq_nonneg _)
+    have hB_nonneg : ∀ j w, 0 ≤ B j w := by
+      intro j w
+      exact mul_nonneg (hLamNonneg j) (sq_nonneg _)
+    have hA_le_integral : ∀ j, A j ≤ ∫ w, B j w ∂(P : Measure (Wristband d)) := by
+      intro j
+      let fC : C(Wristband d, ℝ) := {
+        toFun := fun w => mercerEigenfun d β α hDim hβ hα j w.1
+        continuous_toFun := (mercerEigenfun_continuous d β α hDim hβ hα j).comp continuous_fst
+      }
+      have hJensen :=
+        sq_integral_norm_le_integral_sq_under_probability_of_continuous
+          (μ := (P : Measure (Wristband d))) fC
+      have hMul :
+          mercerEigenval d β α hDim hβ hα j * (M j) ^ 2
+            ≤
+          mercerEigenval d β α hDim hβ hα j *
+            ∫ w, (mercerEigenfun d β α hDim hβ hα j w.1) ^ 2 ∂(P : Measure (Wristband d)) := by
+        exact mul_le_mul_of_nonneg_left (by simpa [M, angularModeL1Majorant, fC] using hJensen) (hLamNonneg j)
+      calc
+        A j = mercerEigenval d β α hDim hβ hα j * (M j) ^ 2 := by
+          rw [Real.norm_eq_abs, abs_of_nonneg (hLamNonneg j)]
+        _ ≤ mercerEigenval d β α hDim hβ hα j *
+              ∫ w, (mercerEigenfun d β α hDim hβ hα j w.1) ^ 2 ∂(P : Measure (Wristband d)) := hMul
+        _ = ∫ w, B j w ∂(P : Measure (Wristband d)) := by
+          simp [B, integral_mul_left]
+    have hPartialBound : ∀ n : ℕ, ∑ j in Finset.range n, A j ≤ 1 := by
+      intro n
+      have hIntB : ∀ j, Integrable (B j) (P : Measure (Wristband d)) := by
+        intro j
+        exact (mercerEigenfun_sq_comp_fst_integrable_under_distribution β α hDim hβ hα P j).const_mul _
+      calc
+        ∑ j in Finset.range n, A j
+            ≤ ∑ j in Finset.range n, ∫ w, B j w ∂(P : Measure (Wristband d)) := by
+                exact Finset.sum_le_sum fun j _ => hA_le_integral j
+        _ = ∫ w, ∑ j in Finset.range n, B j w ∂(P : Measure (Wristband d)) := by
+              rw [integral_finset_sum]
+        _ ≤ ∫ w, (1 : ℝ) ∂(P : Measure (Wristband d)) := by
+              refine integral_mono_of_nonneg ?_ (integrable_const 1) ?_
+              · exact Filter.Eventually.of_forall fun w => Finset.sum_nonneg fun j _ => hB_nonneg j w
+              · filter_upwards with w
+                have hSummB :
+                    Summable (fun j : ℕ => B j w) := by
+                  simpa [B, pow_two, mul_assoc] using
+                    mercerDiagonalSeries_summable β α hDim hβ hα w.1
+                calc
+                  ∑ j in Finset.range n, B j w ≤ ∑' j : ℕ, B j w :=
+                    hSummB.sum_le_tsum (Finset.range n) (fun j _ => hB_nonneg j w)
+                  _ = kernelAngChordal β α w.1 w.1 := by
+                        simpa [B, pow_two, mul_assoc] using
+                          (kernelAngChordal_mercerExpansion_witness β α hDim hβ hα w.1 w.1).symm
+                  _ = 1 := kernelAngChordal_diagonal_eq_one β α w.1
+        _ = 1 := by simp
+    exact Real.summable_of_sum_range_le hA_nonneg hPartialBound
+
 /-- Further reduced `modeL1` wrapper:
 the pair coefficient majorant is produced from factorized `j`/`k` summability. -/
 lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_modeL1_majorant_factorized
@@ -2207,7 +2460,7 @@ lemma spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_modeL1_m
     1. Unfold `kernelEnergy` and `wristbandKernelNeumann` as a product of factors.
     2. Substitute the Mercer expansion for the angular factor:
        `k_ang(u,v) = Σ'_j λv_j · φ_j(u) · φ_j(v)`.
-    3. Substitute the radial expansion (`kernelRadNeumann_hasCosineExpansion`) for
+    3. Substitute the radial expansion (`kernelRadNeumann_explicitCosineExpansion`) for
        the radial factor: `k_rad(t,t') = Σ'_k radialCoeff a0 a k · f_k(t) · f_k(t')`.
     4. Interchange `∫∫` and `Σ'_j Σ'_k` using `MeasureTheory.integral_tsum`
        with a dominated convergence / non-negativity argument.
@@ -2226,9 +2479,9 @@ lemma spectralEnergy_eq_kernelEnergy
         P =
       kernelEnergy (wristbandKernelNeumann (d := d) β α) P := by
   let hSummCos : Summable (neumannCosineCoeff β hβ) :=
-    summable_neumannCosineCoeff_imported β hβ
+    summable_neumannCosineCoeff β hβ
   obtain ⟨M, hMNonneg, hModeIntRaw, hModeL1BoundRaw, hAngMajor⟩ :=
-    spectral_modeL1_factorized_bridge_imported β α hDim hβ hα P
+    spectral_modeL1_factorized_bridge β α hDim hβ hα P
   have hModeInt : ∀ j k,
       Integrable
         (fun w : Wristband d => modeTerm β α hDim hβ hα j k w)

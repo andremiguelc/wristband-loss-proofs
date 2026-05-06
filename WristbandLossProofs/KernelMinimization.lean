@@ -27,26 +27,32 @@ the 3-image kernel actually used in Python.
 
 /-! ### PSD of the joint kernel
 
-Product of PSD kernels is PSD (Schur product theorem for kernel
+Product of symmetric PSD kernels is PSD (Schur product theorem for kernel
 functions). -/
 
-/-- Product of two PSD kernels (on possibly different spaces) gives a
-    PSD kernel on the product space.
-    This is the kernel-function version of the Schur product theorem. -/
+/-- Product of two symmetric PSD kernels is PSD on the product space.
+    Wrapper around the source-exact Schur product axiom; can later be
+    derived from `Matrix.PosSemidef.hadamard`. -/
 theorem productKernel_posSemiDef
     {X : Type*} {Y : Type*}
     (Kx : X → X → ℝ) (Ky : Y → Y → ℝ)
+    (hKx_symm : IsSymmetricKernel Kx)
+    (hKy_symm : IsSymmetricKernel Ky)
     (hKx : IsPosSemiDefKernel Kx)
     (hKy : IsPosSemiDefKernel Ky) :
     IsPosSemiDefKernel
       (fun (p q : X × Y) => Kx p.1 q.1 * Ky p.2 q.2) := by
-  exact productKernel_posSemiDef_imported Kx Ky hKx hKy
+  exact productKernel_posSemiDef_imported Kx Ky hKx_symm hKy_symm hKx hKy
 
-/-- The joint Neumann wristband kernel is PSD.
-    Follows from: angular is PSD + Neumann radial is PSD + product is PSD. -/
+/-- The joint Neumann wristband kernel is PSD: angular and Neumann radial
+    factors are each symmetric and PSD; Schur product theorem closes. -/
 theorem wristbandKernelNeumann_posSemiDef
     (d : ℕ) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α) :
     IsPosSemiDefKernel (wristbandKernelNeumann (d := d) β α) := by
+  have hAngSymm : IsSymmetricKernel (kernelAngChordal (d := d) β α) :=
+    kernelAngChordal_isSymmetricKernel β α
+  have hRadSymm : IsSymmetricKernel (kernelRadNeumann β) :=
+    kernelRadNeumann_isSymmetricKernel β hβ
   have hAng : IsPosSemiDefKernel (kernelAngChordal (d := d) β α) :=
     kernelAngChordal_posSemiDef d β α hβ hα
   have hRad : IsPosSemiDefKernel (kernelRadNeumann β) :=
@@ -55,6 +61,7 @@ theorem wristbandKernelNeumann_posSemiDef
     (productKernel_posSemiDef
       (Kx := kernelAngChordal (d := d) β α)
       (Ky := kernelRadNeumann β)
+      hAngSymm hRadSymm
       hAng hRad)
 
 /-! ### Constant potential of the joint kernel
