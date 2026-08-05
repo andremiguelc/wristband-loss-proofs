@@ -20,14 +20,9 @@ An unbiased sampler does not approximate the wristband kernel — under
 analysis is needed: `sampledEnergy_minimizer_unique` is
 `kernelEnergy_minimizer_unique` with the kernel renamed.
 
-Contrast `isBlindAt_of_hasFiniteRank` in `PoissonFoundations`, where the
-degree-truncated kernel is a genuinely different kernel and the uniqueness
-theorem simply does not apply to it.
-
 **Not visible in these statements.** They are about the sampler's *expectation*.
-For a single fixed draw the feature list is finite, so that kernel has finite
-rank and `isBlindAt_of_hasFiniteRank` applies to it — the draw has to be
-refreshed, or the construction reintroduces the defect it was built to remove.
+A single fixed draw gives a different, finite-rank kernel, to which none of this
+applies; the draw has to be refreshed each step.
 -/
 
 /-! ### Transfer -/
@@ -61,9 +56,8 @@ theorem sampledEnergy_minimized_at_uniform
     sampledEnergy_eq_kernelEnergy S β α hUnbiased]
   exact kernelEnergy_minimized_at_uniform d hDim β α hβ hα P (hDim1 := hDim1)
 
-/-- **Uniqueness survives sampling.** This is the contrast with truncation:
-`isBlindAt_of_hasFiniteRank` says a truncated kernel has distributions other
-than `μ₀` at its minimum; here there are none. -/
+/-- **Uniqueness survives sampling.** The uniform measure is the only
+distribution sitting at the minimum. -/
 theorem sampledEnergy_minimizer_unique
     (d : ℕ) {Ω : Type*} [MeasurableSpace Ω] (S : AngularSampler d Ω)
     (hDim : 2 ≤ d) (hDim1 : 1 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α)

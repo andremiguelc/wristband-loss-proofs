@@ -21,7 +21,7 @@ The wristband map produces uniform output *if and only if* the input is standard
 | **Equivalence** | Uniform wristband output $\iff$ Gaussian input | **Complete** (sorry-free) |
 | **Kernel minimization** | Neumann wristband kernel energy uniquely minimized at $\mu_0$ | **Complete** modulo 4 sorry's |
 | **Spectral** | $\text{spectralEnergy} = \text{kernelEnergy}$ + minimization + Gaussian iff | **Complete** (sorry-free in spectral files; transitively blocked by kernel sorry's) |
-| **Poisson mode sampling** | Angular truncation is exactly blind; an unbiased sampler is not | **Complete** (sorry-free, and no `sorryAx` on any path) |
+| **Poisson mode sampling** | The angular kernel is a Poisson mixture; an unbiased sampler preserves the minimizer | **Complete** (sorry-free, and no `sorryAx` on any path) |
 
 ### Open sorry's (4, all in kernel branch)
 
@@ -62,9 +62,9 @@ by module name, e.g. `lake build WristbandLossProofs.Poisson.PoissonMinimization
 | `Spectral/SpectralFoundations.lean` | Witness extraction, mode projections, spectral–kernel identity |
 | `Spectral/SpectralMinimization.lean` | Spectral minimization, uniqueness, Gaussian characterization |
 | `Spectral/SpectralTruncation.lean` | Closed-form truncation error bounds in the angular degree and radial mode count |
-| `Poisson/PoissonPrimitives.lean` | `HasFiniteRank`, `IsBlindAt`, `poissonWeight`, `RademacherDraw`, `AngularSampler` |
-| `Poisson/PoissonImportedFacts.lean` | 2 axioms: random-feature law, finite rank has a blind spot |
-| `Poisson/PoissonFoundations.lean` | Maclaurin expansion of the angular kernel, finite-rank energy, blindness |
+| `Poisson/PoissonPrimitives.lean` | `poissonWeight`, `dotProductKernel`, `RademacherDraw`, `randomMaclaurinFeature`, `AngularSampler` |
+| `Poisson/PoissonImportedFacts.lean` | 1 axiom: the random-feature law |
+| `Poisson/PoissonFoundations.lean` | Maclaurin expansion of the angular kernel, the sampler and its unbiasedness |
 | `Poisson/PoissonMinimization.lean` | Sampled energy transfer, minimization, uniqueness, Gaussian characterization |
 
 ## Further Reading

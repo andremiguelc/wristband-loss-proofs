@@ -30,9 +30,9 @@ decomposition results, this implies the wristband repulsion loss has a
 | `Spectral/SpectralFoundations.lean` | Spectral–kernel energy identity, mode projections, nonneg excess | Fully proven |
 | `Spectral/SpectralMinimization.lean` | Spectral minimization, uniqueness, Gaussian characterization | Fully proven |
 | `Spectral/SpectralTruncation.lean` | Closed-form truncation error bounds in `L` and `K` | Fully proven |
-| `Poisson/PoissonPrimitives.lean` | Finite rank, blindness, Poisson weights, Rademacher draw, samplers | Definitions only |
-| `Poisson/PoissonImportedFacts.lean` | Random-feature law; finite rank has a blind spot | 2 axioms |
-| `Poisson/PoissonFoundations.lean` | Maclaurin expansion, finite-rank energy, blindness | Fully proven |
+| `Poisson/PoissonPrimitives.lean` | Poisson weights, dot-product kernel, Rademacher draw, samplers | Definitions only |
+| `Poisson/PoissonImportedFacts.lean` | Random-feature law for dot-product kernels | 1 axiom |
+| `Poisson/PoissonFoundations.lean` | Maclaurin expansion, the sampler and its unbiasedness | Fully proven |
 | `Poisson/PoissonMinimization.lean` | Sampled energy transfer, minimization, uniqueness, Gaussian iff | Fully proven |
 
 ---
@@ -55,9 +55,9 @@ Wristband Equivalence              Kernel Energy Minimization
        Minimizer [not yet formal]
 ```
 
-The Poisson branch hangs off `KernelMinimization` in the same way the spectral one does, but in
-the opposite direction: it shows the *truncated* kernel loses uniqueness (`isBlindAt_of_hasFiniteRank`)
-while an unbiased sampler keeps it (`sampledEnergy_minimizer_unique`).
+The Poisson branch hangs off `KernelMinimization` in the same way the spectral one does: it
+rewrites the angular kernel as a Poisson mixture that can be sampled, and shows the minimizer
+survives (`sampledEnergy_minimizer_unique`).
 
 ```
 KernelPrimitives ─ PoissonPrimitives ─ PoissonImportedFacts ─ PoissonFoundations
@@ -233,11 +233,9 @@ Also: `sphereUniform_isProbability` (`EquivalenceFoundations.lean:149`).
 
 | Axiom | What it says | Source |
 |-------|-------------|--------|
-| `randomMaclaurin_law_exists` | A dot-product kernel with non-negative summable Maclaurin coefficients is the expected product of two random Maclaurin features | Kar & Karnick (2012) — **unverified attribution** |
-| `finiteRank_hasNontrivialFibre` | Finitely many features cannot separate the wristband measures | Sriperumbudur et al. (2011) — **unverified attribution** |
+| `randomMaclaurin_law_exists` | A dot-product kernel with non-negative summable Maclaurin coefficients is the expected product of two random Maclaurin features | Kar & Karnick (2012) — attribution not yet verified |
 
-Both citations were written from recollection and have not been checked against the sources; see
-`docs/posts/poisson/poisson_guide.md` §5 for the open questions on each.
+See `docs/posts/poisson/poisson_guide.md` §5 for the open questions on the citation.
 
 ---
 

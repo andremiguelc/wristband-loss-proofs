@@ -12,20 +12,17 @@ open scoped BigOperators
 
 /-! ## Poisson Foundations
 
-Local derivations for the Poisson branch. Two independent strands.
+Local derivations for the Poisson branch, all in service of one conclusion:
+that `poissonAngularSampler` is unbiased for the angular kernel.
 
-**The kernel is a Poisson mixture.** `kernelAngChordal_maclaurinExpansion`
-rewrites the angular kernel as a power series in `⟪u, u'⟫` whose coefficients
-are `poissonWeight (2βα²)`. Those coefficients are non-negative and sum to `1`,
-which is exactly what `randomMaclaurin_law_exists` asks of its input — so this
-strand is what licenses `poissonAngularSampler` at the end of the file. Nothing
-here is imported: it is the exponential series.
+The route is short. `kernelAngChordal_maclaurinExpansion` rewrites the angular
+kernel as a power series in `⟪u, u'⟫` whose coefficients are
+`poissonWeight (2βα²)`; `poissonWeight_nonneg` and `poissonWeight_summable` are
+exactly the hypotheses `randomMaclaurin_law_exists` asks of its input. Feeding
+one into the other gives the sampler and its unbiasedness.
 
-**Finite rank has a blind spot.** `kernelEnergy_eq_sum_sq_of_rankWitness` shows
-that a rank-`r` kernel's energy is a function of the `r` feature means and
-nothing else. Blindness is then immediate: any two distributions with equal
-feature means have equal energy. This is the whole content of the negative
-result, and the only thing imported is the existence of such a pair.
+Nothing here is imported. The expansion is the exponential series, and the
+coefficient facts are elementary.
 -/
 
 /-! ### The exponential series -/
@@ -96,70 +93,5 @@ lemma poissonAngularSampler_unbiased (d : ℕ) (β α : ℝ) (hβ : 0 < β) :
     (poissonWeight_summable _)).choose_spec u u'
   rw [kernelAngChordal_maclaurinExpansion]
   exact h
-
-/-! ### Finite rank determines the energy -/
-
-/-- A rank-`r` kernel's energy is the sum of the squared feature means. This is
-where the blindness comes from: the energy sees the `r` numbers `∫ f i dP` and
-nothing else about `P`. -/
-lemma kernelEnergy_eq_sum_sq_of_rankWitness
-    {X : Type*} [MeasurableSpace X] {r : ℕ}
-    (K : X → X → ℝ) (f : Fin r → X → ℝ) (P : Distribution X)
-    (hK : ∀ x y, K x y = ∑ i : Fin r, f i x * f i y)
-    (hInt : ∀ i, Integrable (f i) (P : Measure X)) :
-    kernelEnergy K P = ∑ i : Fin r, (∫ x, f i x ∂(P : Measure X)) ^ 2 := by
-  have hinner : ∀ x : X,
-      ∫ y, K x y ∂(P : Measure X)
-        = ∑ i : Fin r, f i x * ∫ y, f i y ∂(P : Measure X) := by
-    intro x
-    calc ∫ y, K x y ∂(P : Measure X)
-        = ∫ y, ∑ i : Fin r, f i x * f i y ∂(P : Measure X) := by
-          exact integral_congr_ae (Filter.Eventually.of_forall fun y => hK x y)
-      _ = ∑ i : Fin r, ∫ y, f i x * f i y ∂(P : Measure X) :=
-          integral_finset_sum _ fun i _ => (hInt i).const_mul _
-      _ = ∑ i : Fin r, f i x * ∫ y, f i y ∂(P : Measure X) :=
-          Finset.sum_congr rfl fun i _ => integral_const_mul _ _
-  rw [kernelEnergy]
-  calc ∫ x, ∫ y, K x y ∂(P : Measure X) ∂(P : Measure X)
-      = ∫ x, ∑ i : Fin r, f i x * ∫ y, f i y ∂(P : Measure X)
-          ∂(P : Measure X) := by
-        exact integral_congr_ae (Filter.Eventually.of_forall hinner)
-    _ = ∑ i : Fin r, ∫ x, f i x * (∫ y, f i y ∂(P : Measure X))
-          ∂(P : Measure X) :=
-        integral_finset_sum _ fun i _ => (hInt i).mul_const _
-    _ = ∑ i : Fin r, (∫ x, f i x ∂(P : Measure X)) ^ 2 :=
-        Finset.sum_congr rfl fun i _ => by
-          rw [integral_mul_const]; ring
-
-/-- Blindness, given a witness. Two distributions agreeing on the rank
-witness's features have equal energy, so if one of them is not `μ₀` the kernel
-cannot distinguish them. -/
-theorem isBlindAt_of_rankWitness
-    {X : Type*} [MeasurableSpace X] {r : ℕ}
-    (K : X → X → ℝ) (f : Fin r → X → ℝ) (μ₀ P : Distribution X)
-    (hK : ∀ x y, K x y = ∑ i : Fin r, f i x * f i y)
-    (hne : P ≠ μ₀)
-    (hAgree : AgreeOnFeatures f P μ₀)
-    (hIntP : ∀ i, Integrable (f i) (P : Measure X))
-    (hIntQ : ∀ i, Integrable (f i) (μ₀ : Measure X)) :
-    IsBlindAt K μ₀ := by
-  refine ⟨P, hne, ?_⟩
-  rw [kernelEnergy_eq_sum_sq_of_rankWitness K f P hK hIntP,
-    kernelEnergy_eq_sum_sq_of_rankWitness K f μ₀ hK hIntQ]
-  exact Finset.sum_congr rfl fun i _ => by rw [hAgree i]
-
-/-- The wristband instance: any finite-rank kernel on the wristband is blind at
-the uniform measure. This is what the `ℓ ≤ L` truncation buys — the truncated
-kernel has rank `∑_{ℓ≤L} N_ℓ`, and no amount of training removes the defect. -/
-theorem isBlindAt_of_hasFiniteRank
-    (d : ℕ) (hDim : 1 ≤ d) (r : ℕ) (K : Wristband d → Wristband d → ℝ)
-    (f : Fin r → Wristband d → ℝ)
-    (hK : ∀ x y, K x y = ∑ i : Fin r, f i x * f i y)
-    (hf : ∀ i, Integrable (f i)
-      ((wristbandUniform d hDim : Distribution (Wristband d)) :
-        Measure (Wristband d))) :
-    IsBlindAt K (wristbandUniform d hDim) := by
-  obtain ⟨P, hne, hIntP, hAgree⟩ := finiteRank_hasNontrivialFibre d hDim r f hf
-  exact isBlindAt_of_rankWitness K f _ P hK hne hAgree hIntP hf
 
 end WristbandLossProofs

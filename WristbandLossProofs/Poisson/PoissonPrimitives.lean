@@ -11,47 +11,23 @@ open scoped BigOperators
 
 /-! ## Poisson Primitives
 
-Definitions for the randomised replacement of the angular truncation.
+Definitions for computing the angular kernel by sampling rather than by
+enumerating a basis.
 
-The spectral fast path keeps angular degrees `ℓ ≤ L` exactly. That kernel has
-finite rank, so its energy factors through finitely many numbers and cannot
-separate all distributions — the defect formalised by `HasFiniteRank` and
-`IsBlindAt` below.
-
-The replacement keeps no degrees at all. Writing the angular kernel as a power
-series in `⟪u, u'⟫`,
+Written as a power series in `⟪u, u'⟫`,
 
   `kernelAngChordal β α u u' = ∑' m, poissonWeight (2βα²) m * (sphereInner u u')ᵐ`,
 
 the coefficients are non-negative and sum to `1`, so they are a probability
 distribution over the exponent `m`. A single draw of `m` together with `m` sign
-vectors gives a feature whose expected product is that series — no basis of the
-degree-`ℓ` block is ever enumerated, which is where the `d^ℓ` cost lived.
+vectors gives a feature whose expected product is that series. No spherical
+harmonic appears, and no degree block is enumerated — which is where the `d^ℓ`
+cost lived.
 
-`RademacherDraw` is that draw, and `randomMaclaurinFeature` that feature. The
-law they are drawn from is supplied by `PoissonImportedFacts`; the expansion
-itself is derived in `PoissonFoundations`.
+`RademacherDraw` is that draw and `randomMaclaurinFeature` that feature. The law
+they are drawn from is supplied by `PoissonImportedFacts`; the expansion itself
+is derived in `PoissonFoundations`.
 -/
-
-/-! ### Finite rank and blindness -/
-
-/-- `K` has rank at most `r`: it is a sum of `r` feature products. Any
-degree-truncated angular kernel has this with `r = N_{≤L} = ∑_{ℓ≤L} N_ℓ`. -/
-def HasFiniteRank {X : Type*} (K : X → X → ℝ) (r : ℕ) : Prop :=
-  ∃ f : Fin r → X → ℝ, ∀ x y, K x y = ∑ i : Fin r, f i x * f i y
-
-/-- Two distributions agree on the features `f`. When `f` is a rank witness for
-`K`, this is exactly the condition under which `K` cannot tell them apart. -/
-def AgreeOnFeatures {X : Type*} [MeasurableSpace X] {r : ℕ}
-    (f : Fin r → X → ℝ) (P Q : Distribution X) : Prop :=
-  ∀ i : Fin r, ∫ x, f i x ∂(P : Measure X) = ∫ x, f i x ∂(Q : Measure X)
-
-/-- `K` is blind at `μ₀` if some other distribution has the same energy.
-This is the property that makes the truncated loss unable to see a deviation:
-`P` sits at the minimum without being the target. -/
-def IsBlindAt {X : Type*} [MeasurableSpace X]
-    (K : X → X → ℝ) (μ₀ : Distribution X) : Prop :=
-  ∃ P : Distribution X, P ≠ μ₀ ∧ kernelEnergy K P = kernelEnergy K μ₀
 
 /-! ### Dot-product kernels and their coefficients -/
 

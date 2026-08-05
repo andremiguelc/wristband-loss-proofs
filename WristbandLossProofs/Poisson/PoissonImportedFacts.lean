@@ -12,24 +12,17 @@ open scoped BigOperators
 /-! # Poisson Imported Facts
 
 External results assumed without Lean proof, plus the extracted definitions
-used across the Poisson branch. Two axioms only; everything else in the branch
-is derived from them.
+used across the Poisson branch. One axiom only; everything else in the branch
+is derived from it.
 
 References:
 - Kar, P.; Karnick, H. (2012). "Random Feature Maps for Dot Product Kernels."
   *AISTATS* 2012, *PMLR* 22, 583–591.
-- Sriperumbudur, B.; Fukumizu, K.; Lanckriet, G. (2011). "Universality,
-  Characteristic Kernels and RKHS Embedding of Measures." *JMLR* 12,
-  2389–2410.
 
-CITATIONS PENDING VERIFICATION. Both attributions are from recollection and
-have not been checked against the sources. For `randomMaclaurin_law_exists`,
-the open questions are the precise result number and whether the source states
-it for the sphere or for a bounded-norm domain; adjacent candidates are Pham &
-Pagh (2013) and Hamid et al. (2014). For `finiteRank_hasNontrivialFibre`, the
-attribution is the weaker of the two and the result may instead belong to
-Sriperumbudur et al. (2010), *JMLR* 11, 1517–1561, or to Steinwart &
-Christmann (2008), *Support Vector Machines*.
+CITATION PENDING VERIFICATION. The attribution is from recollection and has not
+been checked against the source. Open questions: the precise result number, and
+whether the source states it for the sphere or for a bounded-norm domain.
+Adjacent candidates are Pham & Pagh (2013) and Hamid et al. (2014).
 -/
 
 /-! ## Axioms -/
@@ -55,33 +48,6 @@ axiom randomMaclaurin_law_exists
         ∫ ω, randomMaclaurinFeature p ω u * randomMaclaurinFeature p ω u'
             ∂(μ : Measure (RademacherDraw d))
           = dotProductKernel p u u'
-
-/-- Finitely many test functions cannot separate the measures on the wristband:
-    for any `r` features there is a distribution other than the uniform one
-    agreeing with it on all of them.
-
-    Specialization: stated for `Wristband d` against `wristbandUniform`, the
-    only instance the branch needs.
-
-    Fragilities:
-    1. Sources state this as "a characteristic kernel has infinite-dimensional
-       RKHS"; the fibre form here is the contrapositive, specialised to one
-       target measure.
-    2. The usual proof perturbs `μ₀` by a bounded density satisfying `r + 1`
-       linear constraints, which needs `L^∞(μ₀)` infinite-dimensional. That
-       holds on the wristband but is not itself recorded here. Integrability
-       under `P` is part of the conclusion for the same reason: the witness has
-       bounded density with respect to `μ₀`, so it inherits it.
-    3. Gives no control on how far the blind `P` is from `μ₀`. -/
-axiom finiteRank_hasNontrivialFibre
-    (d : ℕ) (hDim : 1 ≤ d) (r : ℕ) (f : Fin r → Wristband d → ℝ)
-    (hf : ∀ i, Integrable (f i)
-      ((wristbandUniform d hDim : Distribution (Wristband d)) :
-        Measure (Wristband d))) :
-    ∃ P : Distribution (Wristband d),
-      P ≠ wristbandUniform d hDim ∧
-        (∀ i, Integrable (f i) (P : Measure (Wristband d))) ∧
-        AgreeOnFeatures f P (wristbandUniform d hDim)
 
 /-! ## Witness extraction -/
 
