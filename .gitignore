@@ -21,3 +21,6 @@ _*
 !__init__.py
 
 wristband_loss_proofs_lean.zip
+
+# post figures are published alongside their notes
+!docs/posts/**/*.png

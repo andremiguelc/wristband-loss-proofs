@@ -19,16 +19,21 @@ decomposition results, this implies the wristband repulsion loss has a
 | File | Contents | Status |
 |------|----------|--------|
 | `EquivalenceFoundations.lean` | Types, chi-square distribution, CDF, probability integral transform | Fully proven |
-| `EquivalenceImportedFacts.lean` | Gaussian polar decomposition (axioms from literature) | 5 axioms |
+| `EquivalenceImportedFacts.lean` | Gaussian polar decomposition (axioms from literature) | 3 axioms |
 | `Equivalence.lean` | Wristband map, equivalence theorem (forward + backward + iff) | Fully proven |
 | `KernelPrimitives.lean` | Kernel definitions, energy, MMD, PSD/characteristic/universal predicates | Definitions only |
-| `KernelImportedFacts.lean` | PSD, universality, constant-potential axioms (from literature) | 11 axioms |
+| `KernelImportedFacts.lean` | PSD, universality, constant-potential axioms (from literature) | 9 axioms |
 | `KernelFoundations.lean` | Kernel properties, symmetry, measurability, characteristic proofs | Mostly proven (3 `sorry`) |
 | `KernelMinimization.lean` | Energy minimization + uniqueness; Neumann-to-3-image approximation | Proven; 1 `sorry` in energy approximation |
 | `Spectral/SpectralPrimitives.lean` | `radialFeature`, `radialCoeff`, `modeProj`, `spectralEnergy` | Definitions only |
-| `Spectral/SpectralImportedFacts.lean` | Mercer decomposition, summability, L¹ factorization (axioms) | 3 axioms |
+| `Spectral/SpectralImportedFacts.lean` | Mercer decomposition, addition theorem, degree mass (axioms) | 5 axioms |
 | `Spectral/SpectralFoundations.lean` | Spectral–kernel energy identity, mode projections, nonneg excess | Fully proven |
 | `Spectral/SpectralMinimization.lean` | Spectral minimization, uniqueness, Gaussian characterization | Fully proven |
+| `Spectral/SpectralTruncation.lean` | Closed-form truncation error bounds in `L` and `K` | Fully proven |
+| `Poisson/PoissonPrimitives.lean` | Finite rank, blindness, Poisson weights, Rademacher draw, samplers | Definitions only |
+| `Poisson/PoissonImportedFacts.lean` | Random-feature law; finite rank has a blind spot | 2 axioms |
+| `Poisson/PoissonFoundations.lean` | Maclaurin expansion, finite-rank energy, blindness | Fully proven |
+| `Poisson/PoissonMinimization.lean` | Sampled energy transfer, minimization, uniqueness, Gaussian iff | Fully proven |
 
 ---
 
@@ -48,6 +53,16 @@ Wristband Equivalence              Kernel Energy Minimization
                 ↓                    Gaussian ↔ spectral minimum
        Auxiliary Terms Preserve
        Minimizer [not yet formal]
+```
+
+The Poisson branch hangs off `KernelMinimization` in the same way the spectral one does, but in
+the opposite direction: it shows the *truncated* kernel loses uniqueness (`isBlindAt_of_hasFiniteRank`)
+while an unbiased sampler keeps it (`sampledEnergy_minimizer_unique`).
+
+```
+KernelPrimitives ─ PoissonPrimitives ─ PoissonImportedFacts ─ PoissonFoundations
+                                                                    ↓
+KernelMinimization ───────────────────────────────────────── PoissonMinimization
 ```
 
 ---
@@ -213,6 +228,16 @@ Also: `sphereUniform_isProbability` (`EquivalenceFoundations.lean:149`).
 | `kernelAngChordal_mercerExpansion` | Mercer decomposition of angular kernel into eigenfunctions/eigenvalues | 77 |
 | `summable_neumannCosineCoeff_imported` | Neumann cosine coefficients are summable | 133 |
 | `spectral_modeL1_factorized_bridge_imported` | Factorized L¹ majorant for mode integrals (Fubini/Tonelli) | 152 |
+
+### 5.4 Random features (`PoissonImportedFacts.lean`)
+
+| Axiom | What it says | Source |
+|-------|-------------|--------|
+| `randomMaclaurin_law_exists` | A dot-product kernel with non-negative summable Maclaurin coefficients is the expected product of two random Maclaurin features | Kar & Karnick (2012) — **unverified attribution** |
+| `finiteRank_hasNontrivialFibre` | Finitely many features cannot separate the wristband measures | Sriperumbudur et al. (2011) — **unverified attribution** |
+
+Both citations were written from recollection and have not been checked against the sources; see
+`docs/posts/poisson/poisson_guide.md` §5 for the open questions on each.
 
 ---
 
