@@ -915,6 +915,13 @@ theorem neumannPotential_constant
   let coeff : ℕ → ℝ := fun k =>
     2 * Real.sqrt (Real.pi / β) *
       Real.exp (-(((k + 1 : ℕ) : ℝ) ^ 2 * Real.pi ^ 2) / (4 * β))
+  have hCoeff :
+      Summable (fun k : ℕ => coeff k) := by
+    simpa [coeff] using (neumann_exp_decay_summable β hβ).mul_left (2 * Real.sqrt (Real.pi / β))
+  refine ⟨c0, ?_⟩
+  intro t
+  unfold kernelPotential
+  -- `F` and `G` mention the fixed `t`, so they can only be introduced here.
   let F : ℕ → UnitInterval → ℝ := fun k t' =>
     coeff k *
       Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ)) *
@@ -922,14 +929,11 @@ theorem neumannPotential_constant
   let G : ℕ → UnitInterval → ℝ
     | 0 => fun _ => c0
     | k + 1 => F k
-  have hCoeff :
-      Summable (fun k : ℕ => coeff k) := by
-    simpa [coeff] using (neumann_exp_decay_summable β hβ).mul_left (2 * Real.sqrt (Real.pi / β))
   have hFSumm : ∀ t' : UnitInterval, Summable (fun k : ℕ => F k t') := by
     intro t'
     refine hCoeff.of_nonneg_of_le (fun k => ?_) (fun k => ?_) |>.of_norm
     · positivity
-    · rw [F, Real.norm_eq_abs, abs_mul, abs_mul]
+    · simp only [F, Real.norm_eq_abs, abs_mul]
       have hcos_t : |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ))| ≤ 1 :=
         Real.abs_cos_le_one _
       have hcos_t' : |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))| ≤ 1 :=
@@ -968,26 +972,31 @@ theorem neumannPotential_constant
     · exact integral_nonneg (fun _ => norm_nonneg _)
     · have hcoeff_nonneg : 0 ≤ coeff k := by
         positivity
-      refine integral_mono_of_nonneg
-        (Eventually.of_forall (fun _ => norm_nonneg _))
-        (integrable_const (coeff k)) ?_
-      filter_upwards with t'
-      rw [F, Real.norm_eq_abs, abs_mul, abs_mul, abs_of_nonneg hcoeff_nonneg]
-      have hcos_t : |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ))| ≤ 1 :=
-        Real.abs_cos_le_one _
-      have hcos_t' : |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))| ≤ 1 :=
-        Real.abs_cos_le_one _
-      have hcos_prod :
-          |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ))| *
-              |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))| ≤ 1 := by
-        have hcos_t_nonneg :
-            0 ≤ |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ))| :=
-          abs_nonneg _
-        have hcos_t'_nonneg :
-            0 ≤ |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))| :=
-          abs_nonneg _
-        nlinarith [hcos_t, hcos_t', hcos_t_nonneg, hcos_t'_nonneg]
-      nlinarith [hcos_prod, hcoeff_nonneg]
+      have hbound : ∀ t' : UnitInterval, ‖F k t'‖ ≤ coeff k := by
+        intro t'
+        simp only [F, Real.norm_eq_abs, abs_mul, abs_of_nonneg hcoeff_nonneg]
+        have hcos_t : |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ))| ≤ 1 :=
+          Real.abs_cos_le_one _
+        have hcos_t' : |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))| ≤ 1 :=
+          Real.abs_cos_le_one _
+        have hcos_prod :
+            |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ))| *
+                |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))| ≤ 1 := by
+          have hcos_t_nonneg :
+              0 ≤ |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t : ℝ))| :=
+            abs_nonneg _
+          have hcos_t'_nonneg :
+              0 ≤ |Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ))| :=
+            abs_nonneg _
+          nlinarith [hcos_t, hcos_t', hcos_t_nonneg, hcos_t'_nonneg]
+        nlinarith [hcos_prod, hcoeff_nonneg]
+      calc ∫ t', ‖F k t'‖ ∂μ
+          ≤ ∫ _t' : UnitInterval, coeff k ∂μ :=
+            integral_mono_of_nonneg
+              (Filter.Eventually.of_forall fun _ => norm_nonneg _)
+              (integrable_const (coeff k))
+              (Filter.Eventually.of_forall hbound)
+        _ = coeff k := by simp [μ]
   have hGInt : ∀ n : ℕ, Integrable (G n) μ := by
     intro n
     cases n with
@@ -1009,9 +1018,6 @@ theorem neumannPotential_constant
     have hNormSumm : Summable (fun n : ℕ => ‖∫ t', G n t' ∂μ‖) := by
       simpa [Real.norm_eq_abs] using hGIntAbs
     exact hNormSumm.of_norm
-  refine ⟨c0, ?_⟩
-  intro t
-  unfold kernelPotential
   have hExp : ∀ t' : UnitInterval, kernelRadNeumann β t t' = ∑' n : ℕ, G n t' := by
     intro t'
     have hGSumm : Summable (fun n : ℕ => G n t') := by
@@ -1023,7 +1029,6 @@ theorem neumannPotential_constant
         simpa [c0, coeff, F] using kernelRadNeumann_explicitCosineExpansion β hβ t t'
       _ = ∑' n : ℕ, G n t' := by
         rw [hGSumm.tsum_eq_zero_add]
-        simp [G]
   calc
     (∫ t' : UnitInterval, kernelRadNeumann β t t' ∂μ)
         = ∫ t' : UnitInterval, ∑' n : ℕ, G n t' ∂μ := by
@@ -1041,7 +1046,7 @@ theorem neumannPotential_constant
           · simp [G, c0, μ]
           · refine tsum_congr ?_
             intro k
-            rw [G]
+            simp only [G]
             have hMul :
                 (fun t' : UnitInterval =>
                   coeff k *
@@ -1055,7 +1060,11 @@ theorem neumannPotential_constant
               funext t'
               ring
             rw [hMul, integral_const_mul]
-            simp [cosine_mode_integral_uniform01 (k + 1) (Nat.succ_pos k)]
+            have hzero :
+                ∫ t' : UnitInterval,
+                    Real.cos (((k + 1 : ℕ) : ℝ) * Real.pi * (t' : ℝ)) ∂μ = 0 :=
+              cosine_mode_integral_uniform01 (k + 1) (Nat.succ_pos k)
+            rw [hzero, mul_zero]
     _ = c0 := by simp
 
 end WristbandLossProofs
