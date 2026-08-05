@@ -14,12 +14,9 @@ open scoped BigOperators Topology
 Theorems about `spectralEnergyTruncated` (the joint angular-and-radial truncation
 of `spectralEnergy`, defined in `SpectralPrimitives.lean`).
 
-**Naming convention.** Throughout this file, `K` is "highest mode index kept"
-in the Lean sense, so `Finset.range (K + 1) = {0, 1, …, K}` indexes `K + 1`
-modes. The Python implementation (`python/spectral/kernel.py`) and the math
-docs (`docs/working/_spectral_what_and_why.md`) use the convention "number of
-modes kept", so Python's `k_modes = 6, ell ≤ 1` corresponds here to
-`K = 5, L = 1`.
+**Naming convention.** Throughout this file, `K` is "highest mode index kept",
+so `Finset.range (K + 1) = {0, 1, …, K}` indexes `K + 1` modes. A cutoff stated
+as "6 radial modes, `ℓ ≤ 1`" is `K = 5, L = 1` here.
 
 **No new axioms.** All proofs use only the existing imported facts:
 `spectral_modeL1_factorized_bridge` (with its k-uniform majorant),

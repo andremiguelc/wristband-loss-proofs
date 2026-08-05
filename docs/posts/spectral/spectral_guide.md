@@ -10,7 +10,6 @@ This document is the companion to `docs/proof_guide.md` for the
 **Related documents:**
 - Mathematical derivation (spherical harmonics, Bessel eigenvalues): `docs/posts/spectral/spectral_harmonics.md`
 - Narrative overview (motivation, intuition, big picture): `docs/posts/spectral/spectral_narrative.md`
-- Python implementation + complexity analysis: `docs/working/_spectral_python.md`
 
 ---
 
@@ -91,9 +90,6 @@ The spectral branch **does not replace** the existing proofs — it imports them
 ---
 
 ## 4. Python × Math × Lean Correspondence
-
-For code, complexity analysis, and engineering decisions, see
-`docs/working/_spectral_python.md`.
 
 ### 4.1 Spectral definitions
 
@@ -255,7 +251,7 @@ in $\ell$; $\lambda_1/\lambda_0 \approx c/d$ for $d \gg c$.
 For $\ell=1$: $\varphi_{1,m}(u) = \sqrt{d}\,u_m$, so mode projections are
 $\hat{c}_{1k} = \frac{\sqrt{d}}{N}U^\top\text{CosMatrix}$.
 
-Full derivation: `docs/posts/spectral_harmonics.md`.
+Full derivation: `docs/posts/spectral/spectral_harmonics.md`.
 
 ---
 

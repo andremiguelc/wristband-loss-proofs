@@ -122,9 +122,8 @@ truncated to finite ranges.
   - `K` = highest radial mode index kept (so modes `k ∈ {0, 1, …, K}`, i.e.
     `K + 1` radial modes total).
 
-Naming convention: in Python (`python/spectral/kernel.py`) and the math docs
-(`docs/working/_spectral_what_and_why.md`) the cutoff is "number of modes kept",
-so Python's `k_modes = 6, ell ≤ 1` corresponds here to `K = 5, L = 1`.
+Naming convention: `L` and `K` are *highest index kept*, not *number of modes
+kept*. A cutoff stated as "6 radial modes, `ℓ ≤ 1`" is `K = 5, L = 1` here.
 
 Both axes are finite sums, so no summability assumption is needed. The
 truncation-error bound `spectralEnergyTruncated_error_le` decomposes
