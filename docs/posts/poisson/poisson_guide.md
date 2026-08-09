@@ -27,11 +27,13 @@ enters: no degree block is enumerated, so the `d^ℓ` cost never appears.
 KernelPrimitives ─ PoissonPrimitives ─ PoissonImportedFacts ─ PoissonFoundations
                                                                      │
 KernelMinimization ──────────────────────────────────────── PoissonMinimization
+                                                                     │
+                                                             PoissonEstimator
 ```
 
 A strict chain. `PoissonFoundations` needs only `KernelPrimitives`; the dependence on the kernel
-minimization theorems enters at the last file, where the payoff is claimed. Nothing in the branch
-depends on `Spectral/`, and nothing in `Kernel/` or `Spectral/` depends on `Poisson/`.
+minimization theorems enters at the last two files, where the payoff is claimed. Nothing in the
+branch depends on `Spectral/`, and nothing in `Kernel/` or `Spectral/` depends on `Poisson/`.
 
 ## 3. Lean file map
 
@@ -41,6 +43,7 @@ depends on `Spectral/`, and nothing in `Kernel/` or `Spectral/` depends on `Pois
 | `PoissonImportedFacts.lean` | 1 axiom + 2 witness-extraction defs |
 | `PoissonFoundations.lean` | Exponential series, Poisson weight facts, the Maclaurin expansion, the sampler and its unbiasedness |
 | `PoissonMinimization.lean` | 5 theorems: transfer, minimization, uniqueness, Gaussian characterization, and the Poisson instance |
+| `PoissonEstimator.lean` | `realizedWristbandKernel` and its `drawLaw`, `HasIntegrableDrawEnergy`, unbiasedness of the realized energy, the minimization theorems restated on it, and the sum-of-squares feature form |
 
 ## 4. Math × Lean correspondence
 
@@ -55,7 +58,10 @@ depends on `Spectral/`, and nothing in `Kernel/` or `Spectral/` depends on `Pois
 | §3, the boxed unbiasedness identity | `poissonAngularSampler_unbiased` |
 | §3, sampling targets the right energy | `sampledEnergy_eq_kernelEnergy` |
 | §4, uniqueness survives | `sampledEnergy_minimizer_unique` |
-| §5 L2, a *fixed* draw is finite-rank | not formalized; noted in the `PoissonMinimization` header |
+| §5 L2, a *fixed* draw is finite-rank | `realizedWristbandKernel` is that kernel; its rank is not stated |
+| the estimate the code computes, averaged over draws | `realizedEnergy_unbiased` |
+| the licence for the exchange of integrals | `HasIntegrableDrawEnergy`, sufficient by `hasIntegrableDrawEnergy_of_sq` |
+| a sum over pairs becomes a sum over features | `kernelEnergy_featureForm` |
 
 ## 5. Imported facts
 
@@ -91,6 +97,11 @@ sorry's are not on any path used here.
 | `poissonAngularSampler_unbiased` | `randomMaclaurin_law_exists` |
 | `sampledEnergy_minimizer_unique` | the 5 kernel-universality axioms |
 | `poissonSampledEnergy_minimizer_unique` | the above + `randomMaclaurin_law_exists` |
+| `realizedEnergy_unbiased` | none |
+| `kernelEnergy_featureForm` | none |
+| `hasIntegrableDrawEnergy_of_sq` | none |
+| `poissonRealizedEnergy_unbiased` | `randomMaclaurin_law_exists` |
+| `realizedEnergy_minimizer_unique` | the 5 kernel-universality axioms |
 
 To re-check: `lake env lean` on a scratch file of `#print axioms` lines. Note that `lake build`
 alone does **not** reach this branch — the root module imports only `Equivalence` and the
@@ -106,6 +117,13 @@ alone does **not** reach this branch — the root module imports only `Equivalen
 - **Resampling.** The design constraint that the draw must be refreshed each step is stated in
   the `PoissonMinimization` module header, not as a theorem.
 - **The cost claim.** `O(N(Sd + Dc))` is not formalized; there is no complexity model here.
+- **The three hypotheses of `hasIntegrableDrawEnergy_of_sq`.** The feature's second moment, the bound
+  on `kernelRadNeumann`, and joint measurability of `feat` are all hypotheses. The second moment is
+  finite for this sampler and the radial bound is a theta-function estimate, but neither is proved;
+  `AngularSampler` carries no measurability at all, so the third cannot be discharged as stated.
+- **Concentration, and the logarithm.** Unbiasedness is about the energy. The code descends
+  `(1/β) log Ê`, and Jensen makes that estimate biased low by a gap that averaging does not remove.
+  Nothing here bounds it.
 
 ## 9. References
 

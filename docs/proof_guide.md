@@ -34,6 +34,7 @@ decomposition results, this implies the wristband repulsion loss has a
 | `Poisson/PoissonImportedFacts.lean` | Random-feature law for dot-product kernels | 1 axiom |
 | `Poisson/PoissonFoundations.lean` | Maclaurin expansion, the sampler and its unbiasedness | Fully proven |
 | `Poisson/PoissonMinimization.lean` | Sampled energy transfer, minimization, uniqueness, Gaussian iff | Fully proven |
+| `Poisson/PoissonEstimator.lean` | Unbiasedness of the realized D-draw energy, feature form of the energy | Fully proven |
 
 ---
 
@@ -57,12 +58,15 @@ Wristband Equivalence              Kernel Energy Minimization
 
 The Poisson branch hangs off `KernelMinimization` in the same way the spectral one does: it
 rewrites the angular kernel as a Poisson mixture that can be sampled, and shows the minimizer
-survives (`sampledEnergy_minimizer_unique`).
+survives (`sampledEnergy_minimizer_unique`). `PoissonEstimator` then moves those statements off the
+expected kernel and onto the kernel a run actually draws (`realizedEnergy_unbiased`).
 
 ```
 KernelPrimitives ─ PoissonPrimitives ─ PoissonImportedFacts ─ PoissonFoundations
                                                                     ↓
 KernelMinimization ───────────────────────────────────────── PoissonMinimization
+                                                                    ↓
+                                                             PoissonEstimator
 ```
 
 ---
