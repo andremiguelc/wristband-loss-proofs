@@ -1,19 +1,18 @@
-# Wristband Loss — Spectral Decomposition Guide
+# Wristband loss — spectral decomposition guide
 
-This document is the companion to `docs/proof_guide.md` for the
-`WristbandLossProofs/Spectral/` branch.  It covers three questions:
-
-1. **What** the spectral decomposition is (mathematically).
-2. **How** it connects to the existing kernel energy proofs.
-3. **Where** it lives in the Lean files and which pieces are imported vs proved.
+Companion to [`docs/proof_guide.md`](../../proof_guide.md) for the
+`WristbandLossProofs/Spectral/` branch. It states what the spectral decomposition is, how it
+connects to the kernel energy proofs, where each piece lives in the Lean files, and which
+pieces are imported rather than proved.
 
 **Related documents:**
-- Mathematical derivation (spherical harmonics, Bessel eigenvalues): `docs/posts/spectral/spectral_harmonics.md`
-- Narrative overview (motivation, intuition, big picture): `docs/posts/spectral/spectral_narrative.md`
+- Mathematical derivation, with spherical harmonics and Bessel eigenvalues: [spectral_harmonics.md](spectral_harmonics.md)
+- Narrative overview: [spectral_narrative.md](spectral_narrative.md)
+- The branch that removes the angular truncation of §4.3: [poisson_guide.md](../poisson/poisson_guide.md)
 
 ---
 
-## 1. The Central Identity
+## 1. The central identity
 
 The wristband repulsion energy is:
 
@@ -34,7 +33,7 @@ where:
 |--------|---------|--------|
 | $\lambda_j \geq 0$ | Mercer eigenvalues of $k_\text{ang}$ on $S^{d-1}$ | Axiom `kernelAngChordal_mercerExpansion` |
 | $\varphi_j : S^{d-1} \to \mathbb{R}$ | corresponding orthonormal eigenfunctions | same axiom |
-| $\tilde{a}_k \geq 0$ | radial mode coefficients: $\tilde{a}_0 = a_0$, $\tilde{a}_k = a_{k-1}$ for $k \geq 1$ | Axiom `kernelRadNeumann_hasCosineExpansion` |
+| $\tilde{a}_k \geq 0$ | radial mode coefficients: $\tilde{a}_0 = a_0$, $\tilde{a}_k = a_{k-1}$ for $k \geq 1$ | Theorem `kernelRadNeumann_hasCosineExpansion` |
 | $\hat{c}_{jk}(P) = \mathbb{E}_{(u,t)\sim P}[\varphi_j(u)\cdot f_k(t)]$ | joint mode projection | `modeProj` in `SpectralPrimitives.lean` |
 | $f_0(t) = 1$, $f_k(t) = \cos(k\pi t)$ for $k \geq 1$ | radial eigenfunctions (Neumann on $[0,1]$) | `radialFeature` in `SpectralPrimitives.lean` |
 
@@ -54,52 +53,67 @@ from $\mu_0$ adds non-negative terms.  The unique minimizer is preserved.
 
 ---
 
-## 2. How the Spectral Branch Fits Into the Overall Proof
+## 2. How the spectral branch fits the rest of the proof
 
 ```
-Step 1: Wristband Equivalence         Step 2: Kernel Minimization
+  Wristband Equivalence                Kernel Minimization
   Phi_#Q = mu_0  <=>  Q = gamma        E(P) >= E(mu_0), equality iff P = mu_0
         |                                          |
-        +------------------+------ ----------------+
-                           |   (reused by spectral branch)
-               Spectral Branch
-               ---------------
-               E(P) = Sum_{j,k} lam_j * a_k * |c_{jk}|^2   (identity)
-               => spectralEnergy(P) >= spectralEnergy(mu_0)  (minimization)
-               => spectralEnergy uniquely minimized at mu_0   (uniqueness)
-               => Q ~ N(0,I) <-> spectral energy at minimum   (characterization)
+        +--------------------+---------------------+
+                             |   (both reused, neither replaced)
+                     Spectral Branch
+                     E(P) = Sum_{j,k} lam_j * a_k * |c_{jk}|^2   (identity)
+                     spectralEnergy(P) >= spectralEnergy(mu_0)   (minimization)
+                     spectralEnergy uniquely minimized at mu_0   (uniqueness)
+                     Q ~ N(0,I) <-> spectral energy at minimum   (characterization)
 ```
 
-The spectral branch **does not replace** the existing proofs — it imports them.
+The spectral branch imports the existing proofs rather than replacing them.
 `spectralEnergy_minimizer_unique` calls `kernelEnergy_minimizer_unique`
-(from `KernelMinimization.lean`) after converting via the identity.
+(from `KernelMinimization.lean`) after converting through the identity.
 `spectralEnergy_wristband_gaussian_iff` calls `wristbandEquivalence`.
 
 ---
 
-## 3. Lean File Map
+## 3. Lean file map
 
-| File | Contents | Status |
+| File | Contents | Axioms |
 |------|----------|--------|
-| `SpectralPrimitives.lean` | `radialFeature`, `radialCoeff`, `modeProj`, `spectralEnergy`, `spectralEnergyTruncated`, `spectralEnergyTruncatedByDegree`, `sphericalHarmonicDim` | Definitions only |
-| `SpectralImportedFacts.lean` | Mercer axiom (with degree structure) + radial summability + L¹ bridge + radial Gaussian-decay + addition theorem + diagonal Mercer + per-fibre Cauchy-Schwarz | 7 axioms |
-| `SpectralFoundations.lean` | Supporting lemmas, bridge consumption, spectral identity | No `sorry` |
-| `SpectralMinimization.lean` | 3 main theorems (minimization, uniqueness, Gaussian characterization) | All bodies complete |
-| `SpectralTruncation.lean` | Joint truncation containment, qualitative + closed-form error bounds, joint convergence | All bodies complete |
+| `SpectralPrimitives.lean` | `radialFeature`, `radialCoeff`, `modeProj`, `spectralEnergy`, `spectralEnergyTruncated`, `spectralEnergyTruncatedByDegree`, `sphericalHarmonicDim` | — |
+| `SpectralImportedFacts.lean` | Zonal harmonic expansion, Mercer expansion with degree structure, addition theorem, total degree mass, per-degree mode bound | 5 |
+| `SpectralFoundations.lean` | Supporting lemmas, bridge consumption, spectral identity | — |
+| `SpectralMinimization.lean` | Minimization, uniqueness, Gaussian characterization | — |
+| `SpectralTruncation.lean` | Joint truncation containment, qualitative and closed-form error bounds, joint convergence | — |
+
+No `sorry` in any of the five. §6 lists the axioms.
+
+**Build status.** `SpectralFoundations.lean` does not compile against the pinned Mathlib
+(v4.28.0), and `SpectralMinimization.lean` and `SpectralTruncation.lean` fail with it because
+they import it. `SpectralPrimitives.lean` and `SpectralImportedFacts.lean` build.
+
+The 14 errors are API-shaped: `Exists.choose_spec` chains that do not match the Mercer
+axiom's nesting, `∑ x in s` where `∑ x ∈ s` is now required, a renamed `integral_mul_left`,
+and three unsolved goals. A bare `lake build` does not reach these modules, so the breakage
+is not visible from the default build.
+
+Until the files compile, **"Proved" in the tables below is not a current machine check.**
+Do not cite them as verified.
 
 ---
 
-## 4. Python × Math × Lean Correspondence
+## 4. Python × math × Lean correspondence
 
 ### 4.1 Spectral definitions
 
+All Lean names are in `SpectralPrimitives.lean`, except the Mercer witnesses.
+
 | Python | Math | Lean |
 |--------|------|------|
-| `cos_mat = cos(π * k_range * t)` (k=0 col is all 1's) | $f_0(t) = 1$; $f_k(t) = \cos(k\pi t)$ for $k \geq 1$ | `radialFeature k t` (`SpectralPrimitives.lean:45`) |
-| `a_0 = sqrt(pi/beta)`; `a_k = 2*sqrt(pi/beta)*exp(...)` | $\tilde{a}_0 = a_0$; $\tilde{a}_k = a_{k-1}$ for $k \geq 1$ | `radialCoeff a0 a k` (`SpectralPrimitives.lean:55`) |
+| `cos_mat = cos(π * k_range * t)` (k=0 col is all 1's) | $f_0(t) = 1$; $f_k(t) = \cos(k\pi t)$ for $k \geq 1$ | `radialFeature k t` |
+| `a_0 = sqrt(pi/beta)`; `a_k = 2*sqrt(pi/beta)*exp(...)` | $\tilde{a}_0 = a_0$; $\tilde{a}_k = a_{k-1}$ for $k \geq 1$ | `radialCoeff a0 a k` |
 | $\ell=0$: constant; $\ell=1$: `sqrt(d)*u_m`. Eigenvalues via Bessel. | $\varphi_j : S^{d-1} \to \mathbb{R}$, orthonormal; $\lambda_j \geq 0$; $\varphi_0 \equiv 1$ | `mercerEigenfun` / `mercerEigenval` (`SpectralImportedFacts.lean`) |
-| `c_0k = cos_mat.mean(0)`; `c_1k = sqrt(d)/N * u.T @ cos_mat` | $\hat{c}_{jk}(P) = \mathbb{E}_{(u,t)\sim P}[\varphi_j(u) \cdot f_k(t)]$ | `modeProj φ j k P` (`SpectralPrimitives.lean:74`) |
-| `E_0 + E_1` (truncated to $\ell \leq 1$, $K = 6$) | $\mathcal{E}_\text{sp}(P) = \sum_{j,k} \lambda_j \tilde{a}_k \hat{c}_{jk}^2$ | `spectralEnergy φ λv a0 a P` (`SpectralPrimitives.lean:93`) |
+| `c_0k = cos_mat.mean(0)`; `c_1k = sqrt(d)/N * u.T @ cos_mat` | $\hat{c}_{jk}(P) = \mathbb{E}_{(u,t)\sim P}[\varphi_j(u) \cdot f_k(t)]$ | `modeProj φ j k P` |
+| `E_0 + E_1` (truncated to $\ell \leq 1$, $K = 6$) | $\mathcal{E}_\text{sp}(P) = \sum_{j,k} \lambda_j \tilde{a}_k \hat{c}_{jk}^2$ | `spectralEnergy φ λv a0 a P` |
 
 ### 4.2 Spectral theorems
 
@@ -134,12 +148,12 @@ The truncation API supports two indexing conventions:
 
 ## 5. Definitions (`SpectralPrimitives.lean`)
 
-| Name | Type / Formula | Line |
-|------|----------------|------|
-| `radialFeature k t` | $f_k(t)$: `1` if $k=0$, `cos(k pi t)` if $k \geq 1$ | 45 |
-| `radialCoeff a0 a k` | $\tilde{a}_k$: `a0` if $k=0$, `a(k-1)` if $k \geq 1$ | 55 |
-| `modeProj phi j k P` | $\hat{c}_{jk}(P) = \int \varphi_j(u)\,f_k(t)\;dP(u,t)$ | 74 |
-| `spectralEnergy phi lv a0 a P` | $\sum'_j \sum'_k \lambda_j\tilde{a}_k(\hat{c}_{jk})^2$ | 93 |
+| Name | Type / formula |
+|------|----------------|
+| `radialFeature k t` | $f_k(t)$: `1` if $k=0$, `cos(k pi t)` if $k \geq 1$ |
+| `radialCoeff a0 a k` | $\tilde{a}_k$: `a0` if $k=0$, `a(k-1)` if $k \geq 1$ |
+| `modeProj phi j k P` | $\hat{c}_{jk}(P) = \int \varphi_j(u)\,f_k(t)\;dP(u,t)$ |
+| `spectralEnergy phi lv a0 a P` | $\sum'_j \sum'_k \lambda_j\tilde{a}_k(\hat{c}_{jk})^2$ |
 
 **Design note.** The extended index $k = 0$ (constant) allows a single uniform
 tsum covering both the constant-mode term $a_0$ and the cosine modes $a_k$.
@@ -148,7 +162,7 @@ measure.
 
 ---
 
-## 6. Imported Facts
+## 6. Imported facts
 
 ### `kernelAngChordal_mercerExpansion` (`SpectralImportedFacts.lean`)
 
@@ -184,29 +198,35 @@ on Hilbert spaces exists in Mathlib (`Analysis.InnerProductSpace.Spectrum`).
 The specific Mercer form with *pointwise* (not just $L^2$) convergence and
 the degree structure are not yet in Mathlib — hence the axiom.
 
-### Closure bridge imports (`SpectralImportedFacts.lean`)
+### The other axioms of `SpectralImportedFacts.lean`
 
 | Axiom | Role |
 |------|------|
-| `summable_neumannCosineCoeff_imported` | Radial cosine summability witness |
-| `spectral_modeL1_factorized_bridge_imported` | Factorized mode-`L¹` majorant package for unconditional closure (used by qualitative truncation bound; not on the closed-form path) |
-| `neumannCosineCoeff_le_gaussianBound` | Pointwise Gaussian-decay bound `ã_k ≤ 2√(π/β) · exp(−π²(k+1)²/(4β))` from the closed-form Neumann heat kernel formula (Teplyaev §0.6) |
+| `kernelAngChordal_zonalHarmonicExpansion_ge3` | Zonal harmonic expansion of the angular kernel, $d \geq 3$ |
 | `mercerEigenfun_addition_theorem` | $\sum_{j : \deg(j) = \ell} \varphi_j(u)^2 = N(d, \ell)$ (Atkinson-Han Theorem 2.9) |
-| `mercerDegreeMass_total_eq_one` | $\sum_\ell \lambda_\ell N(d, \ell) = 1$ (the diagonal-Mercer trace under probability normalization) — *derivable from the Mercer expansion + addition theorem via Fubini, future-cleanup* |
-| `mercer_modeProjSqSum_per_degree_le_mass` | $\sum_{j : \deg(j)=\ell} \lambda_j \cdot \hat{c}_{jk}(P)^2 \leq \sum_{j : \deg(j)=\ell} \lambda_j$, P-uniform — *derivable from the addition theorem + Cauchy-Schwarz on integrals + $|f_k| \leq 1$, future-cleanup* |
+| `mercerDegreeMass_total_eq_one` | $\sum_\ell \lambda_\ell N(d, \ell) = 1$, the diagonal-Mercer trace under probability normalization. Derivable from the Mercer expansion and the addition theorem through Fubini. |
+| `mercer_modeProjSqSum_per_degree_le_mass` | $\sum_{j : \deg(j)=\ell} \lambda_j \cdot \hat{c}_{jk}(P)^2 \leq \sum_{j : \deg(j)=\ell} \lambda_j$, P-uniform. Derivable from the addition theorem, Cauchy-Schwarz on integrals, and $|f_k| \leq 1$. |
 
-**Reused imported axioms (no change):**
+### Results this branch uses that are proved, not imported
 
-| Axiom | File | Role |
+These were axioms in earlier revisions. They are theorems now, so nothing here adds to the
+axiom count.
+
+| Name | File | Role |
 |-------|------|------|
-| `kernelRadNeumann_hasCosineExpansion` | `KernelImportedFacts.lean` | Radial eigenvalues $\tilde{a}_k$ |
-| `kernelAngChordal_posSemiDef` | `KernelImportedFacts.lean` | Angular PSD (licenses $\lambda_j \geq 0$) |
+| `summable_neumannCosineCoeff` | `SpectralFoundations.lean` | Radial cosine summability |
+| `spectral_modeL1_factorized_bridge` | `SpectralFoundations.lean` | Factorized mode-$L^1$ majorant for unconditional closure; used by the qualitative truncation bound, not on the closed-form path |
+| `neumannCosineCoeff_le_gaussianBound` | `SpectralFoundations.lean` | Pointwise Gaussian-decay bound `ã_k ≤ 2√(π/β) · exp(−π²(k+1)²/(4β))`, from the closed-form Neumann heat kernel formula (Teplyaev §0.6) |
+| `kernelRadNeumann_hasCosineExpansion` | `KernelFoundations.lean` | Radial eigenvalues $\tilde{a}_k$ |
 | `kernelEnergy_minimizer_unique` | `KernelMinimization.lean` | Uniqueness at $\mu_0$ |
 | `wristbandEquivalence` | `Equivalence.lean` | Gaussian $\leftrightarrow$ uniform |
 
+`kernelAngChordal_posSemiDef` (`KernelImportedFacts.lean`) is an axiom, and licenses
+$\lambda_j \geq 0$. It is counted in the kernel branch, not here.
+
 ---
 
-## 7. Lemmas & Theorems
+## 7. Lemmas and theorems
 
 ### 7.1 Lemmas (`SpectralFoundations.lean`)
 
@@ -224,12 +244,10 @@ the degree structure are not yet in Mathlib — hence the axiom.
 | `spectralEnergy_eq_kernelEnergy` | $\sum'_{jk}\lambda_j\tilde{a}_k\hat{c}_{jk}^2 = \mathcal{E}(P)$ | Proved |
 | `spectralEnergy_nonneg_excess` | $\mathcal{E}_\text{sp}(\mu_0) \leq \mathcal{E}_\text{sp}(P)$ | Proved |
 
-**Closure route used.** The unconditional theorem now closes through the
-existing factorized wrapper
+**Closure route.** The unconditional theorem closes through the factorized wrapper
 `spectralEnergy_eq_kernelEnergy_of_summable_neumannCosineCoeff_and_modeL1_majorant_factorized`,
-fed by two imported bridge assumptions in `SpectralImportedFacts.lean`:
-- `summable_neumannCosineCoeff_imported`
-- `spectral_modeL1_factorized_bridge_imported`
+fed by two theorems of `SpectralFoundations.lean`: `summable_neumannCosineCoeff` and
+`spectral_modeL1_factorized_bridge`.
 
 ### 7.2 Main theorems (`SpectralMinimization.lean`)
 
@@ -241,7 +259,7 @@ fed by two imported bridge assumptions in `SpectralImportedFacts.lean`:
 
 ---
 
-## 8. Angular Eigenvalues
+## 8. Angular eigenvalues
 
 $$\lambda_\ell = e^{-c}\,\Gamma(d/2)\,(2/c)^{(d-2)/2}\, I_{\ell+(d-2)/2}(c), \quad c = 2\beta\alpha^2$$
 
@@ -255,34 +273,46 @@ Full derivation: `docs/posts/spectral/spectral_harmonics.md`.
 
 ---
 
-## 9. What's Not Formalized
+## 9. What is not formalized
 
 | Python feature | Mathematical content | Notes |
 |----------------|---------------------|-------|
-| Angular eigenvalue computation | $\lambda_\ell$ via Bessel functions | Precomputed at runtime, not in Lean |
-| $\ell=2$ correction | $O(Nd^2K)$ cost, relevant for small $d$ | Not yet designed |
-| Gradient analysis | Gradient of mode energy w.r.t. $x_i$ | Not formalized anywhere |
+| Angular eigenvalue computation | $\lambda_\ell$ through Bessel functions | Precomputed at runtime, not in Lean |
+| $\ell=2$ correction | $O(Nd^2K)$ cost, relevant for small $d$ | Not designed |
+| Gradient analysis | Gradient of mode energy with respect to $x_i$ | Not formalized anywhere |
 
-The truncation error bound — both qualitative (bridge-witnessed) and
-closed-form, P-uniform — is now proved.  The closed-form bound makes
-the truncation error explicit in $(\beta, \alpha, d, L, K)$, with the
-Python convention `k_modes = K + 1, ℓ ≤ L` aligned to the Lean parameters.
+**What the truncation bound does and does not give.** The closed-form bound of §4.3 makes
+the error explicit in $(\beta, \alpha, d, L, K)$, with the Python convention
+`k_modes = K + 1, ℓ ≤ L` aligned to the Lean parameters. It is an upper bound on the error,
+and it is only useful when that bound is smaller than the energy scale $\lambda_0\tilde{a}_0$.
+
+At the neural configuration, $\beta = 8$ and $\alpha^2 = 1/12$, so $c = 2\beta\alpha^2 = 4/3$.
+The angular mass per degree is then close to $\mathrm{Poisson}(c)$, so $\ell \le 1$ discards
+about 38% of it. The angular half of the bound is therefore **larger than the energy scale
+at these settings, and carries no information there**. The radial half is tight. Do not cite
+the bound as a justification for $\ell \le 1$.
+
+Truncating at $\ell \le L$ also makes the angular kernel finite-rank, hence not
+characteristic, so the truncated energy has directions in which it is exactly flat. That is
+a structural defect, not a loose constant, and no better bound removes it.
+[poisson_mode_sampling.md](../poisson/poisson_mode_sampling.md) §2 gives the argument and
+§3 the sampler that avoids it.
 
 ---
 
-## 10. Mathlib Lookups
+## 10. Mathlib lookups
 
-| Fact | Lean name | Status |
-|------|-----------|--------|
-| Swap $\int$ and $\sum'$ | `MeasureTheory.integral_tsum` | In Mathlib; needs measurability + dominated bound |
-| Swap $\sum'\sum'$ | `tsum_comm'` | In Mathlib |
-| Factor $\sum f\cdot\sum f = (\sum f)^2$ | `tsum_mul_left`, `tsum_mul_right` | In Mathlib |
-| Factor $\int_{X\times Y}f(x)g(y) = \int f\cdot\int g$ | `MeasureTheory.integral_prod_mul` | In Mathlib (Fubini) |
-| Mercer pointwise convergence | Not in Mathlib | **Axiom required** |
+| Fact | Lean name | Notes |
+|------|-----------|-------|
+| Swap $\int$ and $\sum'$ | `MeasureTheory.integral_tsum` | Needs measurability and a dominated bound |
+| Swap $\sum'\sum'$ | `Summable.tsum_comm'` | — |
+| Factor $\sum f\cdot\sum f = (\sum f)^2$ | `tsum_mul_left`, `tsum_mul_right` | — |
+| Factor $\int_{X\times Y}f(x)g(y) = \int f\cdot\int g$ | `MeasureTheory.integral_prod_mul` | Fubini |
+| Mercer pointwise convergence | — | Not in Mathlib; this is why §6 has an axiom |
 
 ---
 
-## 11. Axiom Validation Notes
+## 11. Axiom validation notes
 
 These notes address potential pitfalls in the axioms and their interaction
 with Lean's type system.
