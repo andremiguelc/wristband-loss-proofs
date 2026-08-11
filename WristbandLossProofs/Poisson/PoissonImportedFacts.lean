@@ -18,6 +18,10 @@ is derived from it.
 References:
 - Kar, P.; Karnick, H. (2012). "Random Feature Maps for Dot Product Kernels."
   *AISTATS* 2012, *PMLR* 22, 583–591.
+- Schoenberg, I. J. (1942). "Positive definite functions on spheres."
+  *Duke Math. J.* 9, 96–108.
+- Björck, G. (1956). "Distributions of positive mass, which maximize a certain
+  generalized energy integral." *Ark. Mat.* 3, 255–269.
 
 CITATION PENDING VERIFICATION. The attribution is from recollection and has not
 been checked against the source. Open questions: the precise result number, and
@@ -48,6 +52,26 @@ axiom randomMaclaurin_law_exists
         ∫ ω, randomMaclaurinFeature p ω u * randomMaclaurinFeature p ω u'
             ∂(μ : Measure (RademacherDraw d))
           = dotProductKernel p u u'
+
+/-- Schoenberg, Björck: the uniform measure minimizes the energy of a
+    dot-product kernel whose Maclaurin coefficients are non-negative.
+
+    Such coefficients make the kernel positive definite on the sphere; the
+    kernel is zonal, so the uniform measure has constant potential, and the two
+    together put the minimum there.
+
+    Fragilities:
+    1. Stated at the level of the energy, so the constant-potential step is
+       imported with it rather than derived from `energy_eq_mmdSq_of_constantPotential`.
+    2. Both integrals defining `kernelEnergy` are assumed to exist; the statement
+       is about their values, not their existence.
+    3. Gives a minimum, not a modulus. Nothing here says how fast the energy
+       grows away from the uniform measure. -/
+axiom dotProductKernel_energy_minimized_at_uniform
+    (d : ℕ) (hDim : 1 ≤ d) (p : ℕ → ℝ) (hp : ∀ m, 0 ≤ p m) (hsum : Summable p)
+    (P : Distribution (Sphere d)) :
+    kernelEnergy (dotProductKernel p) (sphereUniform d hDim)
+      ≤ kernelEnergy (dotProductKernel p) P
 
 /-! ## Witness extraction -/
 
