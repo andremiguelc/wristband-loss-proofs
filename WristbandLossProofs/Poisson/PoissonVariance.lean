@@ -11,7 +11,22 @@ namespace WristbandLossProofs
 open MeasureTheory ProbabilityTheory
 open scoped BigOperators
 
+/-! ## Poisson Variance
+
+How many features the realized energy needs.
+
+`realizedEnergy_variance` gives the `1/D` law. The draws are independent, so the
+variance of their mean equals one draw's variance divided by `D`. Chebyshev turns
+that law into a tail bound. `featureCount_suffices` then reads the tail bound
+backwards, as a feature count.
+
+One draw's variance stays a hypothesis here. No theorem below bounds it. These
+theorems convert a bound on it into a bound on `D`.
+-/
+
 variable {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
+
+/-! ### One draw's energy -/
 
 /-- The energy one draw produces. `realizedEnergy_eq_average` says the realized
 energy is the mean of `D` of these, one per draw. -/
@@ -51,8 +66,8 @@ draw divided by `D`. Nothing here is specific to this sampler. -/
 
 /-- **The realized energy has variance `Var[one draw] / D`.**
 
-`hL2` is the hypothesis that one draw's energy has a finite second moment; it is
-the quantity every feature-count rule is written in. -/
+`hL2` asks one draw's energy for a finite second moment. Every feature-count rule
+below uses that quantity. -/
 theorem realizedEnergy_variance (S : AngularSampler d Ω) (β : ℝ) {D : ℕ}
     (P : Distribution (Wristband d)) (hInt : HasIntegrableDrawEnergy S β P)
     (hL2 : MemLp (drawEnergy S β P) 2 (S.law : Measure Ω)) :
@@ -148,9 +163,9 @@ theorem realizedEnergy_chebyshev (S : AngularSampler d Ω) (β α : ℝ) {D : �
   refine hcheb.trans (le_of_eq (congrArg ENNReal.ofReal ?_))
   field_simp
 
-/-- **The feature-count rule.** To hold the estimate within `ε` of the true energy
-with probability at least `1 - δ`, it is enough to take
-`D ≥ V / (δ ε²)`, where `V` bounds one draw's variance. -/
+/-- **The feature-count rule.** Let `V` bound one draw's variance. Then
+`D ≥ V / (δ ε²)` is sufficient. It holds the estimate within `ε` of the true
+energy, with probability `1 - δ` or more. -/
 theorem featureCount_suffices (S : AngularSampler d Ω) (β α : ℝ) {D : ℕ}
     (hD : 0 < D) (hUnbiased : IsUnbiasedFor S (kernelAngChordal (d := d) β α))
     (P : Distribution (Wristband d)) (hInt : HasIntegrableDrawEnergy S β P)
@@ -171,10 +186,11 @@ theorem featureCount_suffices (S : AngularSampler d Ω) (β α : ℝ) {D : ℕ}
     linarith
   nlinarith [hV]
 
-/-- The same rule in the form a practitioner uses: to hold the estimate within a
-*relative* error `ε` of the true energy, take `D ≥ ϱ / (δ ε²)`, where `ϱ` bounds
-one draw's variance in units of the squared energy. `ϱ` carries no `D`, no batch
-size and no dimension — it is a property of the kernel alone. -/
+/-- The same rule for a *relative* error `ε`. Let `ϱ` bound one draw's variance,
+in units of the squared energy. Then take `D ≥ ϱ / (δ ε²)`.
+
+`ϱ` uses no `D`, no batch size and no dimension. It is a property of the kernel
+alone. -/
 theorem featureCount_suffices_relative (S : AngularSampler d Ω) (β α : ℝ) {D : ℕ}
     (hD : 0 < D) (hUnbiased : IsUnbiasedFor S (kernelAngChordal (d := d) β α))
     (P : Distribution (Wristband d)) (hInt : HasIntegrableDrawEnergy S β P)

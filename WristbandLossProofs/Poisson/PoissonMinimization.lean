@@ -12,17 +12,14 @@ open scoped BigOperators
 
 /-! ## Poisson Minimization
 
-Main theorems of the Poisson branch, and they are short by design.
-
 An unbiased sampler does not approximate the wristband kernel — under
-`IsUnbiasedFor` it *is* the wristband kernel, pointwise. So the whole of
-`KernelMinimization` transfers by rewriting, and the payoff is that no new
-analysis is needed: `sampledEnergy_minimizer_unique` is
+`IsUnbiasedFor` it *is* the wristband kernel, pointwise. So `KernelMinimization`
+transfers by rewriting: `sampledEnergy_minimizer_unique` is
 `kernelEnergy_minimizer_unique` with the kernel renamed.
 
-**Not visible in these statements.** They are about the sampler's *expectation*.
-A single fixed draw gives a different, finite-rank kernel, to which none of this
-applies; the draw has to be refreshed each step.
+The statements are about the sampler's *expectation*. A single fixed draw gives a
+different kernel with finite rank, and none of them applies to it. So the draw
+must change at each step.
 -/
 
 /-! ### Transfer -/
@@ -70,9 +67,9 @@ theorem sampledEnergy_minimizer_unique
     sampledEnergy_eq_kernelEnergy S β α hUnbiased] at hEq
   exact kernelEnergy_minimizer_unique d hDim β α hβ hα P (hDim1 := hDim1) (hEq := hEq)
 
-/-- **Gaussian characterization.** The sampled energy is at its minimum exactly
-when the encoder's input law is standard Gaussian — the same statement the
-spectral branch proves, now for a loss that enumerates no basis. -/
+/-- **Gaussian characterization.** The sampled energy reaches its minimum exactly
+when the input law of the encoder is standard Gaussian. The spectral branch proves
+the same statement. This version holds for a loss that enumerates no basis. -/
 theorem sampledEnergy_wristband_gaussian_iff
     (d : ℕ) {Ω : Type*} [MeasurableSpace Ω] (S : AngularSampler d Ω)
     (hDim : 2 ≤ d) (hDim1 : 1 ≤ d) (β α : ℝ) (hβ : 0 < β) (hα : 0 < α)

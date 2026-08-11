@@ -9,40 +9,36 @@ namespace WristbandLossProofs
 open MeasureTheory ProbabilityTheory
 open scoped BigOperators
 
-/-! ## The second moment as a certified lower bound on the gap
+/-! ## Poisson Second Moment
 
-`kernelEnergy K P - kernelEnergy K μ₀` is the quantity the loss reports, and by
-`energy_eq_mmdSq_of_constantPotential` it is `MMD²(P, μ₀)`. Nothing downstream can
-be trusted without a lower bound on it, and a lower bound is what a batch
-measurement can supply.
+A lower bound on `kernelEnergy K P - kernelEnergy K μ₀`, the quantity the loss
+reports, which by `energy_eq_mmdSq_of_constantPotential` is `MMD²(P, μ₀)`. The
+bound is computable from a batch.
 
 The mechanism is a split. Write the angular kernel as
 
   `kernelAngChordal = angularRemainder + a * dotSqKernel`,   `a = e^{-c} c² / 2`,
 
-where `dotSqKernel u u' = ⟪u, u'⟫²` and `c = 2βα²`. The coefficient `a` is the
-quadratic Maclaurin coefficient of `exp(c(t-1))`, so the remainder is the same
-series with that one term deleted — its coefficients are still non-negative, so
-it is still a kernel whose energy the uniform measure minimizes. Subtracting the
-two energies, the remainder can only help, and what is left is a bound written
-entirely in `dotSqKernel`:
+where `dotSqKernel u u' = ⟪u, u'⟫²` and `c = 2βα²`. Here `a` is the quadratic
+Maclaurin coefficient. So the remainder is the same series without that one term.
+Its coefficients stay non-negative, so the uniform measure still minimizes its
+energy. Subtract the two energies. This leaves
 
   `a * (E_dotSq(P) - E_dotSq(μ₀))  ≤  E_ang(P) - E_ang(μ₀)`.
 
-The left side is measurable from a batch in closed form: `E_dotSq(P)` is
-`‖E_P[u uᵀ]‖²_F`, the sum of the squared eigenvalues of the second-moment matrix,
-and `E_dotSq(μ₀) = 1/d`. That is the "cliff" a practitioner reads off a batch,
-and its reciprocal is the participation ratio.
+`E_dotSq(P)` equals `‖E_P[u uᵀ]‖²_F`. That is the sum of the squared eigenvalues
+of the batch's second-moment matrix. At the uniform measure it equals `1/d`. Its
+reciprocal is the participation ratio.
 
-`energyGap_ge_of_remainder` is the general statement and is elementary — it is
-linearity of the energy in the kernel, nothing more. The single imported fact is
-that the remainder's energy is minimized at the uniform measure.
+`energyGap_ge_of_remainder` gives the general statement. Its proof uses only
+linearity of the energy in the kernel. One imported fact remains: the uniform
+measure minimizes the energy of the remainder.
 
-The inequality points the safe way. A *lower* bound on the gap gives, through
-`featureCount_suffices`, an *upper* bound on the features needed — so a budget
-chosen from it is at worst too generous. The bound sees only the quadratic part
-of the deviation, so a `P` that matches the uniform second moment exactly is
-certified as `0` however far away it is; the bound is one-sided, not an estimate.
+The bound is one-sided, and it uses only the quadratic part of the deviation. So
+it gives `0` for any `P` that matches the uniform second moment, at any distance
+from the target. `featureCount_suffices` turns a lower bound on the gap into an
+upper bound on the features. A budget from this bound is therefore too generous
+at worst.
 -/
 
 /-! ### Energy is linear in the kernel -/
@@ -74,13 +70,14 @@ lemma kernelEnergy_const_mul {X : Type*} [MeasurableSpace X] (a : ℝ)
 
 /-! ### The splitting bound -/
 
-/-- **Dropping a non-negative-coefficient remainder can only lower the gap.**
+/-- **A dropped remainder with non-negative coefficients only lowers the gap.**
 
-If `K = R + a·Q` with `a ≥ 0`, and the uniform measure minimizes `R`'s energy,
-then `K`'s gap over the uniform measure dominates `a` times `Q`'s gap.
+Let `K = R + a·Q` with `a ≥ 0`. Let the uniform measure minimize the energy of
+`R`. Then the gap of `K` over the uniform measure is at least `a` times the gap
+of `Q`.
 
-Elementary: linearity of the energy plus one inequality. The content is entirely
-in the hypothesis `hR`, which is where the analysis lives. -/
+The proof uses linearity of the energy and one inequality. The hypothesis `hR`
+holds all the content. -/
 theorem energyGap_ge_of_remainder {X : Type*} [MeasurableSpace X]
     (K R Q : X → X → ℝ) (a : ℝ) (P μ₀ : Distribution X)
     (hsplit : ∀ x y, K x y = R x y + a * Q x y)
@@ -127,13 +124,13 @@ lemma kernelAngChordal_eq_remainder_add {d : ℕ} (β α : ℝ) (u u' : Sphere d
 
 /-- **The gap is at least the second-moment excess, scaled by `e^{-c} c²/2`.**
 
-The left-hand side is computable from a batch: `kernelEnergy dotSqKernel P` is the
-sum of the squared eigenvalues of `E_P[u uᵀ]`, and at the uniform measure it is
-`1/d`. So a batch measurement certifies a lower bound on the distance the loss
-has to report, with no approximation and no sampling.
+A batch gives the left-hand side directly. `kernelEnergy dotSqKernel P` is the sum
+of the squared eigenvalues of `E_P[u uᵀ]`. At the uniform measure it equals `1/d`.
+So one batch measurement certifies a lower bound on the distance that the loss
+must report. It needs no approximation and no sampling.
 
-`hRem` is the only analytic input, and it is supplied by
-`angularRemainder_energy_minimized_at_uniform`. -/
+`hRem` is the only analytic input.
+`angularRemainder_energy_minimized_at_uniform` discharges it. -/
 theorem angularGap_ge_secondMomentGap {d : ℕ} (β α : ℝ)
     (P μ₀ : Distribution (Sphere d))
     (hRP : HasEnergy (angularRemainder β α) P)
@@ -149,11 +146,11 @@ theorem angularGap_ge_secondMomentGap {d : ℕ} (β α : ℝ)
   energyGap_ge_of_remainder _ _ _ _ P μ₀
     (kernelAngChordal_eq_remainder_add β α) hRP hQP hRU hQU hRem
 
-/-! ### The remainder really is a non-negative-coefficient kernel
+/-! ### The remainder has non-negative coefficients
 
-`angularRemainder` was defined by subtraction. This identifies it with the same
-Maclaurin series minus one term, which is what lets the imported minimization
-fact apply to it. -/
+The definition of `angularRemainder` uses a subtraction. The lemmas below identify
+it with the same Maclaurin series without one term. The imported minimization fact
+then applies to it. -/
 
 /-- Maclaurin coefficients with the `b`-th entry deleted. -/
 def maclaurinDrop (p : ℕ → ℝ) (b : ℕ) : ℕ → ℝ := fun m => if m = b then 0 else p m
@@ -221,8 +218,8 @@ lemma angularRemainder_eq_dotProductKernel {d : ℕ} (β α : ℝ)
     angularQuadCoeff_eq_poissonWeight, dotSqKernel]
   ring
 
-/-- **The remainder's energy is minimized at the uniform measure**, so the
-hypothesis of `angularGap_ge_secondMomentGap` is discharged. -/
+/-- **The uniform measure minimizes the energy of the remainder.** This discharges
+the hypothesis of `angularGap_ge_secondMomentGap`. -/
 lemma angularRemainder_energy_minimized_at_uniform {d : ℕ} (hDim : 1 ≤ d)
     (β α : ℝ) (hβα : 0 ≤ 2 * β * α ^ 2) (P : Distribution (Sphere d)) :
     kernelEnergy (angularRemainder β α) (sphereUniform d hDim)
@@ -237,12 +234,12 @@ lemma angularRemainder_energy_minimized_at_uniform {d : ℕ} (hDim : 1 ≤ d)
     (maclaurinDrop_nonneg hp 2)
     (maclaurinDrop_summable hp (poissonWeight_summable _) 2) P
 
-/-- **The bound, with nothing left to supply but integrability.**
+/-- **The bound. Only integrability remains to supply.**
 
 `kernelEnergy dotSqKernel P` is the sum of the squared eigenvalues of the batch's
-second-moment matrix, and at the uniform measure it is `1/d`. So the right-hand
-side — the distance the loss has to report — is bounded below by a number a
-batch hands you directly. -/
+second-moment matrix. At the uniform measure it equals `1/d`. So one number from a
+batch bounds the right-hand side from below. That side is the distance which the
+loss must report. -/
 theorem angularGap_ge_secondMomentGap_of_uniform {d : ℕ} (hDim : 1 ≤ d) (β α : ℝ)
     (hβα : 0 ≤ 2 * β * α ^ 2) (P : Distribution (Sphere d))
     (hRP : HasEnergy (angularRemainder β α) P)
@@ -258,19 +255,22 @@ theorem angularGap_ge_secondMomentGap_of_uniform {d : ℕ} (hDim : 1 ≤ d) (β 
   angularGap_ge_secondMomentGap β α P _ hRP hQP hRU hQU
     (angularRemainder_energy_minimized_at_uniform hDim β α hβα P)
 
-/-! ### What a certified gap buys: the two estimates come out in the right order
+/-! ### A certified gap puts the two estimates in the right order
 
-`featureCount_suffices` bounds one estimate's deviation. Detection needs two — at
-the batch and at the target — from the *same* draw, so a union bound joins them.
-The conclusion is the statement a practitioner wants: with enough features the
-loss ranks a degenerate batch above the target, and the failure probability is
+`featureCount_suffices` bounds the deviation of one estimate. Detection needs two
+estimates, at the batch and at the target, from the *same* draw. A union bound
+joins them.
+
+The conclusion states what a practitioner needs. With enough features, the loss
+ranks a degenerate batch above the target, and the failure probability is
 explicit. -/
 
-/-- **A gap of `2ε` is reported correctly with probability at least `1 - 2δ`.**
+/-- **The loss reports a gap of `2ε` correctly, with probability `1 - 2δ` or
+more.**
 
-Both estimates use the same draw vector `ω`, so this is one event on one space.
-If each estimate is within `ε` of its true value, and the true values differ by
-more than `2ε`, the order is right. -/
+Both estimates use the same draw vector `ω`. So this is one event on one space.
+Let each estimate be within `ε` of its true value, and let the true values differ
+by more than `2ε`. The order is then correct. -/
 theorem realizedEnergy_separates {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
     (S : AngularSampler d Ω) (β α : ℝ) {D : ℕ} (hD : 0 < D)
     (hUnbiased : IsUnbiasedFor S (kernelAngChordal (d := d) β α))

@@ -11,34 +11,25 @@ open scoped BigOperators
 
 /-! ## Poisson Estimator
 
-`sampledEnergy_eq_kernelEnergy` is about `sampledKernel`, the kernel obtained by
-averaging the feature product over the draw law. Nothing is drawn there: the
-average is taken before the energy.
-
-What the loss computes is the other order. It draws `D` times, forms the
-empirical average of the `D` feature products, and takes the energy of *that*
-kernel. `realizedWristbandKernel` is that object, and it is random. The theorem
-below says its energy is unbiased for the true energy:
+`sampledEnergy_eq_kernelEnergy` averages the feature product over the draw law,
+then takes the energy. The loss uses the other order. It draws `D` times, averages
+the `D` feature products, then takes the energy of that random kernel.
+`realizedWristbandKernel` is that object. `realizedEnergy_unbiased` states that
+its energy has the true energy as its mean:
 
   `∫ ω, kernelEnergy (realizedWristbandKernel S β ω) P = kernelEnergy K P`
 
-with `ω` ranging over `D` independent draws.
+Here `ω` ranges over `D` independent draws.
 
-The two statements are different, and the difference is an exchange of
-`∫ dP dP` with `∫` over the draws. That exchange is Fubini on
-`(draw law)^D × (P ⊗ P)` and it needs an integrability hypothesis:
-`HasIntegrableDrawEnergy`. The hypothesis is not decoration. Without it both
-sides are defined — the Bochner integral returns zero off its domain — and they
-need not agree.
+The two orders differ by an exchange of `∫ dP dP` with the draw integral. That
+exchange is Fubini on `(draw law)^D × (P ⊗ P)`, and it needs
+`HasIntegrableDrawEnergy`. Without that hypothesis, both sides still have a
+value, because the Bochner integral gives zero off its domain. The two values can
+then differ.
 
-`hasIntegrableDrawEnergy_of_sq` says what the hypothesis amounts to: a finite
-second moment for the feature, a bounded radial factor, and joint measurability.
-None of the three is supplied by `AngularSampler`, which carries no measurability
-at all, so all three stay hypotheses here.
-
-`kernelEnergy_featureForm` is separate and elementary. It says the energy of a
-finite-rank kernel is a sum over features of a squared mean, with no sum over
-pairs of points anywhere. That is the identity the implementation runs on.
+`kernelEnergy_featureForm` is separate and elementary. The energy of a
+finite-rank kernel is a sum over features of a squared mean. No sum over pairs of
+points remains. The implementation runs on that identity.
 -/
 
 /-! ### The realized kernel -/
@@ -48,9 +39,9 @@ def drawLaw {d : ℕ} {Ω : Type*} [MeasurableSpace Ω] (S : AngularSampler d Ω
     (D : ℕ) : Distribution (Fin D → Ω) :=
   ⟨Measure.pi fun _ => (S.law : Measure Ω), inferInstance⟩
 
-/-- The rank-one wristband kernel of a single draw. Its average over the draw
-law is `wristbandKernelNeumann`; by itself it is not a kernel one would use, and
-it is not positive semi-definite in any useful sense. -/
+/-- The rank-one wristband kernel of a single draw. Its average over the draw law
+equals `wristbandKernelNeumann`. On its own it is not a useful kernel, and it has
+no useful positive semi-definite property. -/
 def drawWristbandKernel {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
     (S : AngularSampler d Ω) (β : ℝ) (z : Ω) (w w' : Wristband d) : ℝ :=
   S.feat z w.1 * S.feat z w'.1 * kernelRadNeumann β w.2 w'.2
@@ -61,8 +52,8 @@ def realizedAngularKernel {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
     (S : AngularSampler d Ω) {D : ℕ} (ω : Fin D → Ω) (u u' : Sphere d) : ℝ :=
   (D : ℝ)⁻¹ * ∑ j : Fin D, S.feat (ω j) u * S.feat (ω j) u'
 
-/-- The wristband kernel `D` draws produce. The radial factor is exact: only the
-angular factor is sampled. -/
+/-- The wristband kernel that `D` draws produce. The radial factor stays exact.
+Only the angular factor uses a sample. -/
 def realizedWristbandKernel {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
     (S : AngularSampler d Ω) (β : ℝ) {D : ℕ} (ω : Fin D → Ω)
     (w w' : Wristband d) : ℝ :=
@@ -70,12 +61,7 @@ def realizedWristbandKernel {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
 
 /-- The hypothesis the exchange of integrals needs: one draw's kernel is
 integrable on the joint space of a draw and a pair of points.
-
-Three things are being asked at once. The map is jointly a.e.-strongly
-measurable in the draw and the pair — `AngularSampler` requires no measurability
-of `feat`, so this does not come for free. The feature product has a finite first
-moment. And the radial factor does not spoil either. `hasIntegrableDrawEnergy_of_sq`
-gives a sufficient condition in those terms. -/
+`hasIntegrableDrawEnergy_of_sq` gives a sufficient condition. -/
 def HasIntegrableDrawEnergy {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
     (S : AngularSampler d Ω) (β : ℝ) (P : Distribution (Wristband d)) : Prop :=
   Integrable (fun p : Ω × (Wristband d × Wristband d) =>
@@ -85,8 +71,8 @@ def HasIntegrableDrawEnergy {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
 
 /-! ### Energy as one integral over pairs
 
-`kernelEnergy` is written as an iterated integral. Every exchange below happens
-on the product, so this is the form to work in. -/
+The definition of `kernelEnergy` uses an iterated integral. Every exchange below
+happens on the product, so use this form instead. -/
 
 /-- The iterated integral defining `kernelEnergy` collapses to one integral over
 `P ⊗ P` when the kernel is integrable there. -/
@@ -168,16 +154,13 @@ lemma drawEnergy_average_eq_kernelEnergy {d : ℕ} {Ω : Type*} [MeasurableSpace
 
 /-! ### Unbiasedness of the realized energy -/
 
-/-- **The energy of the realized kernel is unbiased for the true energy.**
+/-- **The energy of the realized kernel has the true energy as its mean.**
 
-`sampledEnergy_eq_kernelEnergy` averages the feature product first and then takes
-the energy. This averages the draws last, which is the order the loss computes
-in. The two agree, and the proof is the exchange of the draw integral with
-`∫ dP dP` — legitimate under `HasIntegrableDrawEnergy` and not otherwise.
+The proof exchanges the draw integral with `∫ dP dP`. `HasIntegrableDrawEnergy`
+makes that exchange valid. Nothing else does.
 
-The statement is about the mean over draws only. A single realization is a
-finite-rank kernel with its own minimizer, which is elsewhere; that is why the
-draw has to be refreshed each step. -/
+This statement covers the mean over draws only. One realization is a kernel with
+finite rank, and its own minimizer sits elsewhere. -/
 theorem realizedEnergy_unbiased {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
     (S : AngularSampler d Ω) (β α : ℝ) {D : ℕ} (hD : 0 < D)
     (hUnbiased : IsUnbiasedFor S (kernelAngChordal (d := d) β α))
@@ -275,16 +258,17 @@ theorem realizedEnergy_minimizer_unique (d : ℕ) {Ω : Type*} [MeasurableSpace 
 
 /-! ### A sufficient condition for the hypothesis -/
 
-/-- `HasIntegrableDrawEnergy` holds when the feature has a finite second moment,
-the radial factor is bounded, and the draw kernel is jointly measurable.
+/-- Three conditions give `HasIntegrableDrawEnergy`. The feature has a finite
+second moment, the radial factor has a bound, and the draw kernel is jointly
+measurable.
 
-The bound is `|ψ(u)ψ(u')k| ≤ (C/2)(ψ(u)² + ψ(u')²)`, so only a second moment is
-needed and the two marginals of `P ⊗ P` each supply one.
+The proof uses `|ψ(u)ψ(u')k| ≤ (C/2)(ψ(u)² + ψ(u')²)`. So it needs only a second
+moment, and each marginal of `P ⊗ P` gives one.
 
-The second moment is the quantity the sampler's variance is written in, and it is
-finite for the Poisson sampler. The other two hypotheses are not proved here: the
-radial bound is a theta-function estimate, and joint measurability of `feat` is
-not part of `AngularSampler`. -/
+The sampler's variance uses that second moment, and it is finite for the Poisson
+sampler. No theorem here proves the other two conditions. The radial bound is a
+theta-function estimate, and `AngularSampler` does not require joint
+measurability of `feat`. -/
 lemma hasIntegrableDrawEnergy_of_sq {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
     (S : AngularSampler d Ω) (β : ℝ) (P : Distribution (Wristband d)) (C : ℝ)
     (hMeas : AEStronglyMeasurable (fun p : Ω × (Wristband d × Wristband d) =>
@@ -331,13 +315,12 @@ lemma hasIntegrableDrawEnergy_of_sq {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
 
 /-! ### Where the pairwise sum goes
 
-The energy of a finite-rank kernel is a sum over features of a squared mean. No
-sum over pairs of points survives, which is the whole reason the loss is linear
-in the batch rather than quadratic.
+No sum over pairs of points survives, which is why the loss is linear in the
+batch rather than quadratic.
 
 Stated for the angular factor alone, and for a distribution on the sphere. The
-radial factor is exact and carries its own finite basis; the joint version is the
-product of the two lists, with the same algebra applied twice. -/
+joint version is the product of the two feature lists, with the same algebra
+applied twice. -/
 
 /-- The energy of the kernel `(1/D) ∑ⱼ ψⱼ(x) ψⱼ(x')` is `(1/D) ∑ⱼ (∫ψⱼ dP)²`. -/
 theorem kernelEnergy_featureForm {X : Type*} [MeasurableSpace X] {D : ℕ}

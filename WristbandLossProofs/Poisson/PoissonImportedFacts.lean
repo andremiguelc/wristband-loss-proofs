@@ -11,9 +11,8 @@ open scoped BigOperators
 
 /-! # Poisson Imported Facts
 
-External results assumed without Lean proof, plus the extracted definitions
-used across the Poisson branch. Two axioms; everything else in the branch is
-derived from them.
+External results with no Lean proof, plus the definitions extracted from them.
+The branch derives everything else.
 
 References:
 - Kar, P.; Karnick, H. (2012). "Random Feature Maps for Dot Product Kernels."
@@ -30,27 +29,26 @@ whether the source states it on the sphere or on a bounded-norm domain.
 Adjacent candidates are Pham & Pagh (2013) and Hamid et al. (2014).
 
 `dotProductKernel_energy_minimized_at_uniform` ← Schoenberg for the positive
-definiteness, Björck for the energy minimum. Open: the result numbers, whether
-Björck covers a general non-negative-coefficient kernel or only the Riesz
-family, and whether the minimum is stated for `S^{d-1}` at every `d ≥ 1`.
+definiteness, Björck for the energy minimum. Open: the result numbers. Also, does
+Björck cover a general kernel with non-negative coefficients, or only the Riesz
+family? And does the source give the minimum for `S^{d-1}` at every `d ≥ 1`?
 -/
 
 /-! ## Axioms -/
 
-/-- Kar-Karnick: a dot-product kernel with non-negative summable Maclaurin
-    coefficients is the expected product of two `randomMaclaurinFeature`s,
-    under a law drawing the exponent from the normalised coefficients and the
-    vectors with independent `±1` coordinates.
+/-- Kar-Karnick. Take a dot-product kernel whose Maclaurin coefficients are
+    non-negative and summable. One law draws the exponent from the normalised
+    coefficients, and draws the vectors with independent `±1` coordinates. Under
+    that law, the mean product of two `randomMaclaurinFeature`s equals the kernel.
 
-    Specialization: stated for `Sphere d` and for the explicit feature map of
-    `PoissonPrimitives`, so only the law is imported, not the construction.
+    Specialization: this axiom names `Sphere d` and the explicit feature map of
+    `PoissonPrimitives`. So it imports only the law, not the construction.
 
-    Fragilities:
-    1. The source constructs the estimator and proves unbiasedness; assembling
-       the product measure on the sigma-type `RademacherDraw` is ours.
-    2. Non-negativity of the coefficients is the source hypothesis; summability
-       is added here because the feature carries the factor `√(∑' p)`.
-    3. Says nothing about variance, which is where the real cost sits. -/
+    Fragilities. The source builds the estimator and proves its unbiasedness. We
+    assemble the product measure on the sigma-type `RademacherDraw`.
+    Non-negativity of the coefficients is the hypothesis of the source. This
+    axiom adds summability, because the feature carries the factor `√(∑' p)`. The
+    source says nothing about variance, which holds the real cost. -/
 axiom randomMaclaurin_law_exists
     (d : ℕ) (p : ℕ → ℝ) (hp : ∀ m, 0 ≤ p m) (hsum : Summable p) :
     ∃ μ : Distribution (RademacherDraw d),
@@ -62,17 +60,16 @@ axiom randomMaclaurin_law_exists
 /-- Schoenberg, Björck: the uniform measure minimizes the energy of a
     dot-product kernel whose Maclaurin coefficients are non-negative.
 
-    Such coefficients make the kernel positive definite on the sphere; the
-    kernel is zonal, so the uniform measure has constant potential, and the two
-    together put the minimum there.
+    Such coefficients make the kernel positive definite on the sphere. The kernel
+    is zonal, so the uniform measure has a constant potential. Together, those two
+    facts put the minimum at the uniform measure.
 
-    Fragilities:
-    1. Stated at the level of the energy, so the constant-potential step is
-       imported with it rather than derived from `energy_eq_mmdSq_of_constantPotential`.
-    2. Both integrals defining `kernelEnergy` are assumed to exist; the statement
-       is about their values, not their existence.
-    3. Gives a minimum, not a modulus. Nothing here says how fast the energy
-       grows away from the uniform measure. -/
+    Fragilities. This axiom speaks at the level of the energy. So it imports the
+    constant-potential step, in place of a derivation from
+    `energy_eq_mmdSq_of_constantPotential`. It also assumes that both integrals of
+    `kernelEnergy` exist. It states their values, not their existence. And it gives
+    a minimum, not a modulus: nothing here says how fast the energy grows away from
+    the uniform measure. -/
 axiom dotProductKernel_energy_minimized_at_uniform
     (d : ℕ) (hDim : 1 ≤ d) (p : ℕ → ℝ) (hp : ∀ m, 0 ≤ p m) (hsum : Summable p)
     (P : Distribution (Sphere d)) :

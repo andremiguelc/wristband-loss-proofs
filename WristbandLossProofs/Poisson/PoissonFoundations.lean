@@ -12,16 +12,16 @@ open scoped BigOperators
 
 /-! ## Poisson Foundations
 
-Local derivations for the Poisson branch, all in service of one conclusion:
-that `poissonAngularSampler` is unbiased for the angular kernel.
+Local derivations for the Poisson branch. They reach one conclusion:
+`poissonAngularSampler` is unbiased for the angular kernel.
 
-The route is short. `kernelAngChordal_maclaurinExpansion` rewrites the angular
-kernel as a power series in `⟪u, u'⟫` whose coefficients are
-`poissonWeight (2βα²)`; `poissonWeight_nonneg` and `poissonWeight_summable` are
-exactly the hypotheses `randomMaclaurin_law_exists` asks of its input. Feeding
-one into the other gives the sampler and its unbiasedness.
+`kernelAngChordal_maclaurinExpansion` rewrites the angular kernel as a power
+series in `⟪u, u'⟫`. Its coefficients are `poissonWeight (2βα²)`.
+`randomMaclaurin_law_exists` asks two things of its input, and
+`poissonWeight_nonneg` and `poissonWeight_summable` give them. Feed one result
+into the other. This gives the sampler and its unbiasedness.
 
-Nothing here is imported. The expansion is the exponential series, and the
+This file imports no fact. The expansion is the exponential series, and the
 coefficient facts are elementary.
 -/
 
@@ -45,8 +45,8 @@ lemma poissonWeight_summable (c : ℝ) : Summable (poissonWeight c) := by
   rw [poissonWeight]
   ring
 
-/-- The coefficients are a probability distribution over the exponent. This is
-the statement that the angular kernel is normalised at `⟪u, u⟫ = 1`. -/
+/-- The coefficients are a probability distribution over the exponent. This states
+that the angular kernel has the value `1` at `⟪u, u⟫ = 1`. -/
 lemma poissonWeight_tsum_eq_one (c : ℝ) : ∑' m : ℕ, poissonWeight c m = 1 := by
   have h : ∑' m : ℕ, poissonWeight c m
       = Real.exp (-c) * ∑' m : ℕ, c ^ m / (Nat.factorial m : ℝ) := by

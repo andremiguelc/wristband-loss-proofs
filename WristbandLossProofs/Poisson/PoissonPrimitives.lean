@@ -14,19 +14,18 @@ open scoped BigOperators
 Definitions for computing the angular kernel by sampling rather than by
 enumerating a basis.
 
-Written as a power series in `⟪u, u'⟫`,
+Write the angular kernel as a power series in `⟪u, u'⟫`:
 
-  `kernelAngChordal β α u u' = ∑' m, poissonWeight (2βα²) m * (sphereInner u u')ᵐ`,
+  `kernelAngChordal β α u u' = ∑' m, poissonWeight (2βα²) m * (sphereInner u u')ᵐ`.
 
-the coefficients are non-negative and sum to `1`, so they are a probability
-distribution over the exponent `m`. A single draw of `m` together with `m` sign
-vectors gives a feature whose expected product is that series. No spherical
-harmonic appears, and no degree block is enumerated — which is where the `d^ℓ`
-cost lived.
+The coefficients are non-negative, and they sum to `1`. So they are a probability
+distribution over the exponent `m`. Draw one `m` together with `m` sign vectors.
+That gives a feature, and the mean of its product is that series. No spherical
+harmonic occurs, and the method enumerates no degree block.
 
-`RademacherDraw` is that draw and `randomMaclaurinFeature` that feature. The law
-they are drawn from is supplied by `PoissonImportedFacts`; the expansion itself
-is derived in `PoissonFoundations`.
+`RademacherDraw` is that draw, and `randomMaclaurinFeature` is that feature.
+`PoissonImportedFacts` gives the law of the draw. `PoissonFoundations` derives the
+expansion.
 -/
 
 /-! ### Dot-product kernels and their coefficients -/
@@ -61,9 +60,9 @@ def randomMaclaurinFeature {d : ℕ} (p : ℕ → ℝ)
 
 /-! ### Samplers
 
-A sampler is a randomised feature map together with the law of its draw. The
-kernel it represents is the expected product of two of its features; it is
-*unbiased* for `K` when that expectation is `K` on the nose. -/
+A sampler holds a randomised feature map and the law of its draw. The mean product
+of two of its features gives the kernel that it represents. The sampler is
+*unbiased* for `K` when that mean equals `K` exactly. -/
 
 /-- An angular sampler: a randomised feature map `feat ω : Sphere d → ℝ` with
 draw law `law` on `Ω`. -/
@@ -81,9 +80,8 @@ def IsUnbiasedFor {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
     (S : AngularSampler d Ω) (K : Sphere d → Sphere d → ℝ) : Prop :=
   ∀ u u', sampledKernel S u u' = K u u'
 
-/-- Wristband kernel built from a sampled angular factor. The radial factor is
-unchanged: it is a one-dimensional coordinate, so its modes carry no
-multiplicity and there is nothing to truncate away. -/
+/-- Wristband kernel with a sampled angular factor. The radial factor does not
+change. It is a one-dimensional coordinate, so its modes have no multiplicity. -/
 def sampledWristbandKernel {d : ℕ} {Ω : Type*} [MeasurableSpace Ω]
     (S : AngularSampler d Ω) (β : ℝ) : Wristband d → Wristband d → ℝ :=
   fun w w' => sampledKernel S w.1 w'.1 * kernelRadNeumann β w.2 w'.2
