@@ -7,6 +7,7 @@ Left  : per-pattern weight lambda_l, several d.  Right down, hard, and d-depende
 Mid   : number of patterns N_l, several d.        Right up,   hard, and d-dependent.
 Right : the product A_l = lambda_l * N_l.         All curves collapse onto Poisson(c).
 """
+import os
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -14,7 +15,7 @@ import matplotlib.pyplot as plt
 from scipy import special
 import math
 
-OUT = "/Users/andrec/Documents/projects/math/wristband-loss-proofs/docs/posts/poisson/fig_cancel.png"
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fig_cancel.png")
 
 c, LMAX = 4.0 / 3.0, 6
 DIMS = [8, 32, 128, 512]

@@ -3,13 +3,14 @@ polynomial that crosses zero l times (left), and a weight saying how much sphere
 at each angle, which collapses onto the equator as d grows (right). Everything else
 in Step 5 is bookkeeping.
 """
+import os
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy import special, integrate
 
-OUT = "/Users/andrec/Documents/projects/math/wristband-loss-proofs/docs/posts/poisson/fig_funkhecke.png"
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fig_funkhecke.png")
 
 t = np.linspace(-1, 1, 1200)
 

@@ -6,6 +6,7 @@ Left  : which severity levels the loss actually uses, step by step -- fixed vs r
 Right : the estimated kernel value for one well-aligned pair (t = 0.8), against the
         number of random features. Truncation is a permanent offset; sampling is noise.
 """
+import os
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -14,7 +15,7 @@ from matplotlib.patches import Rectangle
 from scipy import special
 import math
 
-OUT = "/Users/andrec/Documents/projects/math/wristband-loss-proofs/docs/posts/poisson/fig_sample.png"
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fig_sample.png")
 
 c, d, T_VAL = 4.0 / 3.0, 128, 0.8
 nu = (d - 2) / 2.0

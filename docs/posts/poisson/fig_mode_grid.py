@@ -1,10 +1,13 @@
-"""Figure: the mode table is a multiplication table of two weight lists.
+"""What the picture proves: the mode table is a multiplication table of two weight lists,
+so both the cost and the share of the kernel kept factorise into a row part and a column
+part -- and the column part is already at 100%, so every loss sits in the rows.
 
 rows  = angular degree l, weight A_l = Poisson(c) pmf, c = 2*beta*alpha^2 = 4/3
 cols  = radial mode k,   weight R_k proportional to 1 (k=0) and 2 exp(-pi^2 k^2/(4 beta)) (k>=1), beta=8
-cell  = A_l * R_k  (the joint weight of one mode of the fast method)
-box   = what "l <= 1, k <= 5" actually keeps
+cell  = A_l * R_k  (the joint weight of one mode)
+box   = what "l <= 1, k <= 5" keeps
 """
+import os
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -12,7 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import math
 
-OUT = "/Users/andrec/Documents/projects/math/wristband-loss-proofs/docs/posts/poisson/fig_mode_grid.png"
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fig_mode_grid.png")
 
 c, beta = 4.0 / 3.0, 8.0
 LMAX, KMAX = 5, 5
@@ -79,7 +82,8 @@ fig.text(0.045, 0.975,
          "every cell = (its row's weight) $\\times$ (its column's weight),  in % of the whole kernel",
          fontsize=10.5, fontweight="bold")
 fig.text(0.045, 0.940,
-         "rows keep 62% $\\;\\cdot\\;$ columns keep 100.0%  $\\Rightarrow$  the box keeps 62%."
+         f"rows keep {100*A[:2].sum():.1f}% $\\;\\cdot\\;$ columns keep {100*R.sum():.3f}%"
+         f"  $\\Rightarrow$  the box keeps {100*W[:2, :].sum():.1f}%."
          "  The rows are the problem.",
          fontsize=9.5, color="0.3")
 

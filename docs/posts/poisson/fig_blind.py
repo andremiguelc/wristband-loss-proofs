@@ -6,6 +6,7 @@ by a factor of two.
 Top   : four arrangements, all with average arrow exactly zero.
 Bottom: what the l<=1 loss reports for each (identical) vs what the full kernel says.
 """
+import os
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -13,7 +14,7 @@ import matplotlib.pyplot as plt
 from scipy import integrate, special
 import math
 
-OUT = "/Users/andrec/Documents/projects/math/wristband-loss-proofs/docs/posts/poisson/fig_blind.png"
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fig_blind.png")
 
 c, d = 4.0 / 3.0, 128
 nu = (d - 2) / 2.0

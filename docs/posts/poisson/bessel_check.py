@@ -1,4 +1,4 @@
-"""Check three claims before writing them into the (H) Step 5 expansion.
+"""Numbers for the Funk-Hecke integral and the closed-form angular weight A_l (section 1).
 
 (1) Funk-Hecke by direct quadrature gives the same lambda_l as the closed form
     A_l = lambda_l * N_l = e^{-c} * Gamma(nu) (2/c)^nu * (nu+l) * I_{nu+l}(c) * C_l^nu(1),

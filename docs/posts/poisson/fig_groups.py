@@ -6,13 +6,14 @@ Left  : the patterns on a circle, l = 0,1,2,3 (radius deformed by cos(l*theta)).
 Right : how many patterns each group holds on the sphere at d=128, log scale,
         annotated with the share of the kernel's weight that group carries.
 """
+import os
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import math
 
-OUT = "/Users/andrec/Documents/projects/math/wristband-loss-proofs/docs/posts/poisson/fig_groups.png"
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fig_groups.png")
 
 d, c, LMAX = 128, 4.0 / 3.0, 5
 
