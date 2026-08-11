@@ -19,7 +19,7 @@ decomposition results, this implies the wristband repulsion loss has a
 | File | Contents | Status |
 |------|----------|--------|
 | `EquivalenceFoundations.lean` | Types, chi-square distribution, CDF, probability integral transform | Fully proven |
-| `EquivalenceImportedFacts.lean` | Gaussian polar decomposition (axioms from literature) | 3 axioms |
+| `EquivalenceImportedFacts.lean` | Gaussian polar decomposition (axioms from literature) | 2 axioms |
 | `Equivalence.lean` | Wristband map, equivalence theorem (forward + backward + iff) | Fully proven |
 | `KernelPrimitives.lean` | Kernel definitions, energy, MMD, PSD/characteristic/universal predicates | Definitions only |
 | `KernelImportedFacts.lean` | PSD, universality, constant-potential axioms (from literature) | 9 axioms |
@@ -31,10 +31,12 @@ decomposition results, this implies the wristband repulsion loss has a
 | `Spectral/SpectralMinimization.lean` | Spectral minimization, uniqueness, Gaussian characterization | Fully proven |
 | `Spectral/SpectralTruncation.lean` | Closed-form truncation error bounds in `L` and `K` | Fully proven |
 | `Poisson/PoissonPrimitives.lean` | Poisson weights, dot-product kernel, Rademacher draw, samplers | Definitions only |
-| `Poisson/PoissonImportedFacts.lean` | Random-feature law for dot-product kernels | 1 axiom |
+| `Poisson/PoissonImportedFacts.lean` | Random-feature law for dot-product kernels; uniform minimizes their energy | 2 axioms |
 | `Poisson/PoissonFoundations.lean` | Maclaurin expansion, the sampler and its unbiasedness | Fully proven |
 | `Poisson/PoissonMinimization.lean` | Sampled energy transfer, minimization, uniqueness, Gaussian iff | Fully proven |
 | `Poisson/PoissonEstimator.lean` | Unbiasedness of the realized D-draw energy, feature form of the energy | Fully proven |
+| `Poisson/PoissonVariance.lean` | The `1/D` variance identity, Chebyshev, and the feature-count bounds | Fully proven, no axioms |
+| `Poisson/PoissonSecondMoment.lean` | Certified lower bound on the gap from the second moment; separation of two estimates | Fully proven |
 
 ---
 
@@ -197,49 +199,60 @@ since $\lVert u - u'\rVert^2 = 2(1 - \langle u, u'\rangle)$.
 These are well-known results stated as Lean `axiom`s (accepted without proof)
 because they are not yet available in Mathlib.
 
+**Total: 18** — 2 equivalence, 9 kernel, 5 spectral, 2 random-feature. To regenerate the list,
+`grep -rn "^axiom" WristbandLossProofs/`. Several results that appear as axioms in older revisions
+of this guide have since been derived; each subsection below names them.
+
 ### 5.1 Gaussian polar decomposition (`EquivalenceImportedFacts.lean`)
 
 | Axiom | Math | Line |
 |-------|------|------|
-| `gaussianNZ` | $\mathcal{N}(0,I_d)$ restricted to $\mathbb{R}^d \setminus \{0\}$ | 34 |
-| `gaussianPolar_direction_uniform` | $Z/\lVert Z\rVert \sim \sigma_{d-1}$ | 42 |
-| `gaussianPolar_radius_chiSq` | $\lVert Z\rVert^2 \sim \chi^2_d$ | 52 |
-| `gaussianPolar_independent` | $Z/\lVert Z\rVert \perp \lVert Z\rVert^2$ | 60 |
-| `sphereUniform_rotationInvariant` | $O_\# \sigma_{d-1} = \sigma_{d-1}$ | 73 |
+| `spherical_polar_decomposition` | Any spherical law splits as direction $\times$ radius, independent, direction uniform | 42 |
+| `gaussianFull_normSq_chiSq` | $\lVert Z\rVert^2 \sim \chi^2_d$ for $Z \sim \mathcal{N}(0,I_d)$ | 67 |
 
-Also: `sphereUniform_isProbability` (`EquivalenceFoundations.lean:149`).
+`gaussianNZ`, `gaussianPolar_direction_uniform`, `gaussianPolar_radius_chiSq`,
+`gaussianPolar_independent` and `sphereUniform_rotationInvariant` were **axioms and are not any
+more** — they are derived in `EquivalenceFoundations.lean` and `EquivalencePrimitives.lean`, with
+their signatures preserved so downstream call sites did not change.
+
+`sphereUniform_isProbability` is likewise no longer an axiom
+(`EquivalencePrimitives.lean:172`).
 
 ### 5.2 Kernel theory (`KernelImportedFacts.lean`)
 
 | Axiom | What it says | Line |
 |-------|-------------|------|
-| `kernelAngChordal_posSemiDef` | Chordal RBF on $S^{d-1}$ is PSD | 28 |
-| `kernelRadNeumann_hasCosineExpansion` | Neumann kernel has cosine series expansion | 38 |
-| `productKernel_posSemiDef_imported` | Product of PSD kernels is PSD | 62 |
-| `kernelRadNeumann_posSemiDef_imported` | Neumann radial kernel is PSD | 78 |
-| `neumannPotential_constant_imported` | Neumann potential is constant under uniform | 91 |
-| `kernelAngChordal_universal` | Chordal RBF is universal | 101 |
-| `kernelRadNeumann_universal` | Neumann kernel is universal | 108 |
-| `productKernel_universal` | Product of universal kernels is universal | 115 |
-| `universal_implies_characteristic` | Universal $\Rightarrow$ characteristic | 128 |
-| `orthogonal_group_transitive_on_sphere` | $O(d)$ acts transitively on $S^{d-1}$ | 138 |
-| `mmdSq_nonneg` | $\mathrm{MMD}^2 \ge 0$ for PSD kernels | 150 |
+| `kernelAngChordal_posSemiDef` | Chordal RBF on $S^{d-1}$ is PSD | 46 |
+| `gaussian_periodization_cosine_series_period_two` | Periodized Gaussian has a cosine series of period 2 | 51 |
+| `productKernel_posSemiDef_imported` | Product of PSD kernels is PSD | 71 |
+| `kernelAngChordal_universal` | Chordal RBF is universal | 107 |
+| `kernelRadNeumann_universal` | Neumann kernel is universal | 156 |
+| `productKernel_universal_compact_imported` | Product of universal kernels on compacta is universal | 171 |
+| `universal_implies_characteristic` | Universal $\Rightarrow$ characteristic | 204 |
+| `orthogonal_group_transitive_on_sphere` | $O(d)$ acts transitively on $S^{d-1}$ | 210 |
+| `mmdSq_nonneg` | $\mathrm{MMD}^2 \ge 0$ for PSD kernels | 217 |
+
+`kernelRadNeumann_posSemiDef` and `neumannPotential_constant` were **axioms and are not any
+more** — they are theorems in `KernelFoundations.lean` (lines 602 and 909).
 
 ### 5.3 Spectral theory (`SpectralImportedFacts.lean`)
 
 | Axiom | What it says | Line |
 |-------|-------------|------|
-| `kernelAngChordal_mercerExpansion` | Mercer decomposition of angular kernel into eigenfunctions/eigenvalues | 77 |
-| `summable_neumannCosineCoeff_imported` | Neumann cosine coefficients are summable | 133 |
-| `spectral_modeL1_factorized_bridge_imported` | Factorized L¹ majorant for mode integrals (Fubini/Tonelli) | 152 |
+| `kernelAngChordal_zonalHarmonicExpansion_ge3` | Zonal harmonic expansion of the angular kernel, $d \ge 3$ | 65 |
+| `kernelAngChordal_mercerExpansion` | Mercer decomposition of angular kernel into eigenfunctions/eigenvalues | 108 |
+| `mercerEigenfun_addition_theorem` | Addition theorem for the Mercer eigenfunctions | 168 |
+| `mercerDegreeMass_total_eq_one` | The degree masses sum to one | 178 |
+| `mercer_modeProjSqSum_per_degree_le_mass` | Per-degree mode projections are bounded by the degree mass | 187 |
 
 ### 5.4 Random features (`PoissonImportedFacts.lean`)
 
 | Axiom | What it says | Source |
 |-------|-------------|--------|
 | `randomMaclaurin_law_exists` | A dot-product kernel with non-negative summable Maclaurin coefficients is the expected product of two random Maclaurin features | Kar & Karnick (2012) — attribution not yet verified |
+| `dotProductKernel_energy_minimized_at_uniform` | The uniform measure minimizes the energy of a dot-product kernel with non-negative Maclaurin coefficients | Schoenberg (1942), Björck (1956) — attribution not yet verified |
 
-See `docs/posts/poisson/poisson_guide.md` §5 for the open questions on the citation.
+See `docs/posts/poisson/poisson_guide.md` §5 for the open questions on both citations.
 
 ---
 

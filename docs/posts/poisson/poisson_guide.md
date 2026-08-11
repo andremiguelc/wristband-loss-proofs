@@ -29,21 +29,32 @@ KernelPrimitives ─ PoissonPrimitives ─ PoissonImportedFacts ─ PoissonFound
 KernelMinimization ──────────────────────────────────────── PoissonMinimization
                                                                      │
                                                              PoissonEstimator
+                                                                     │
+                                                             PoissonVariance
+                                                                     │
+                                                            PoissonSecondMoment
 ```
 
 A strict chain. `PoissonFoundations` needs only `KernelPrimitives`; the dependence on the kernel
-minimization theorems enters at the last two files, where the payoff is claimed. Nothing in the
-branch depends on `Spectral/`, and nothing in `Kernel/` or `Spectral/` depends on `Poisson/`.
+minimization theorems enters at `PoissonMinimization` and below, where the payoff is claimed.
+Nothing in the branch depends on `Spectral/`, and nothing in `Kernel/` or `Spectral/` depends on
+`Poisson/`.
+
+The last two files answer a different question from the first five. Files 1–5 say the sampler
+targets the right minimum. `PoissonVariance` says how many features `D` it takes to *see* that
+minimum, and `PoissonSecondMoment` says what a given distance from the minimum costs in rank.
 
 ## 3. Lean file map
 
 | File | Contents |
 |---|---|
 | `PoissonPrimitives.lean` | `poissonWeight`, `dotProductKernel`, `RademacherDraw`, `randomMaclaurinFeature`, `AngularSampler`, `sampledKernel`, `IsUnbiasedFor`, `sampledWristbandKernel` |
-| `PoissonImportedFacts.lean` | 1 axiom + 2 witness-extraction defs |
+| `PoissonImportedFacts.lean` | 2 axioms + 2 witness-extraction defs |
 | `PoissonFoundations.lean` | Exponential series, Poisson weight facts, the Maclaurin expansion, the sampler and its unbiasedness |
 | `PoissonMinimization.lean` | 5 theorems: transfer, minimization, uniqueness, Gaussian characterization, and the Poisson instance |
 | `PoissonEstimator.lean` | `realizedWristbandKernel` and its `drawLaw`, `HasIntegrableDrawEnergy`, unbiasedness of the realized energy, the minimization theorems restated on it, and the sum-of-squares feature form |
+| `PoissonVariance.lean` | `drawEnergy`, the `1/D` variance identity, Chebyshev, and the two feature-count bounds |
+| `PoissonSecondMoment.lean` | Energy is linear in the kernel; the splitting bound; the angular instance `a·(E_P[t²] − 1/d) ≤ MMD²`; and `realizedEnergy_separates` |
 
 ## 4. Math × Lean correspondence
 
@@ -65,7 +76,10 @@ branch depends on `Spectral/`, and nothing in `Kernel/` or `Spectral/` depends o
 
 ## 5. Imported facts
 
-One axiom, `randomMaclaurin_law_exists`: there is a law on `RademacherDraw d` under which the
+Two axioms, both in `PoissonImportedFacts.lean`, and **both attributed from recollection, neither
+checked against the source.**
+
+**1. `randomMaclaurin_law_exists`** — there is a law on `RademacherDraw d` under which the
 expected product of two `randomMaclaurinFeature`s is the dot-product kernel with coefficients
 `p`, for any non-negative summable `p`.
 
@@ -73,9 +87,26 @@ Attributed to **Kar & Karnick (2012)**, *Random Feature Maps for Dot Product Ker
 PMLR 22:583–591. The construction and its unbiasedness are theirs; assembling the measure on the
 sigma-type is not, and neither is any variance control.
 
-> The attribution is written from recollection and not yet checked against the source. Open
-> questions: the result number, and whether the source states it on the sphere or on a
-> bounded-norm domain. Pham & Pagh (2013) and Hamid et al. (2014) are adjacent candidates.
+> Open: the result number, and whether the source states it on the sphere or on a bounded-norm
+> domain. Pham & Pagh (2013) and Hamid et al. (2014) are adjacent candidates.
+
+**2. `dotProductKernel_energy_minimized_at_uniform`** — the uniform measure minimizes the energy
+of any dot-product kernel whose Maclaurin coefficients are non-negative.
+
+Attributed to **Schoenberg (1942)**, *Positive definite functions on spheres*, Duke Math. J.
+9:96–108, for the positive definiteness, and **Björck (1956)**, *Distributions of positive mass,
+which maximize a certain generalized energy integral*, Ark. Mat. 3:255–269, for the energy
+minimum. This axiom exists so that `PoissonSecondMoment` can split `k_ang` at its quadratic term
+and still know the remainder is minimized at `μ₀`.
+
+> Open: the result numbers; whether Björck covers a general non-negative-coefficient kernel or
+> only the Riesz family; and whether the minimum is stated for `S^{d-1}` at every `d ≥ 1`.
+
+Three limits are worth stating for the second axiom, because they are easy to over-read. It is
+stated at the level of the **energy**, so the constant-potential step comes in with it rather than
+out of `energy_eq_mmdSq_of_constantPotential`. It assumes **both integrals exist**; it is about
+their values, not their existence. And it gives a **minimum, not a modulus** — nothing in it says
+how fast the energy grows away from `μ₀`. The quadratic term supplies that growth separately.
 
 ## 6. What is derived, not imported
 
@@ -102,6 +133,19 @@ sorry's are not on any path used here.
 | `hasIntegrableDrawEnergy_of_sq` | none |
 | `poissonRealizedEnergy_unbiased` | `randomMaclaurin_law_exists` |
 | `realizedEnergy_minimizer_unique` | the 5 kernel-universality axioms |
+| `realizedEnergy_variance` | none |
+| `realizedEnergy_chebyshev` | none |
+| `featureCount_suffices` | none |
+| `featureCount_suffices_relative` | none |
+| `energyGap_ge_of_remainder` | none |
+| `angularGap_ge_secondMomentGap` | none |
+| `angularGap_ge_secondMomentGap_of_uniform` | `dotProductKernel_energy_minimized_at_uniform` |
+| `realizedEnergy_separates` | none |
+
+Note the shape of the last block: the whole of `PoissonVariance` is axiom-free, and inside
+`PoissonSecondMoment` only the one theorem that needs the uniform measure to minimize the
+remainder touches the new axiom. `realizedEnergy_separates` joins the two branches and stays
+axiom-free, because it takes the true gap as a hypothesis rather than deriving it.
 
 To re-check: `lake env lean` on a scratch file of `#print axioms` lines. Note that `lake build`
 alone does **not** reach this branch — the root module imports only `Equivalence` and the

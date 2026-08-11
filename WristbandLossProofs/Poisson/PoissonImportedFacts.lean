@@ -12,8 +12,8 @@ open scoped BigOperators
 /-! # Poisson Imported Facts
 
 External results assumed without Lean proof, plus the extracted definitions
-used across the Poisson branch. One axiom only; everything else in the branch
-is derived from it.
+used across the Poisson branch. Two axioms; everything else in the branch is
+derived from them.
 
 References:
 - Kar, P.; Karnick, H. (2012). "Random Feature Maps for Dot Product Kernels."
@@ -23,10 +23,16 @@ References:
 - Björck, G. (1956). "Distributions of positive mass, which maximize a certain
   generalized energy integral." *Ark. Mat.* 3, 255–269.
 
-CITATION PENDING VERIFICATION. The attribution is from recollection and has not
-been checked against the source. Open questions: the precise result number, and
-whether the source states it for the sphere or for a bounded-norm domain.
+CITATION PENDING VERIFICATION, both axioms, both from recollection.
+
+`randomMaclaurin_law_exists` ← Kar & Karnick. Open: the result number, and
+whether the source states it on the sphere or on a bounded-norm domain.
 Adjacent candidates are Pham & Pagh (2013) and Hamid et al. (2014).
+
+`dotProductKernel_energy_minimized_at_uniform` ← Schoenberg for the positive
+definiteness, Björck for the energy minimum. Open: the result numbers, whether
+Björck covers a general non-negative-coefficient kernel or only the Riesz
+family, and whether the minimum is stated for `S^{d-1}` at every `d ≥ 1`.
 -/
 
 /-! ## Axioms -/
