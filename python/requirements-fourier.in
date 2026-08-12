@@ -1,0 +1,15 @@
+# Numerics for the random Fourier feature estimator study.
+#
+# Resolved wheel-only with hashes on 2026-08-12:
+#   uv pip compile python/requirements-fourier.in --generate-hashes \
+#       --only-binary :all: -o python/requirements-fourier.txt
+#   uv venv .venv --python 3.12
+#   uv pip sync --python .venv/bin/python --require-hashes \
+#       --only-binary :all: python/requirements-fourier.txt
+#
+# --require-hashes stops a package that changed on the index from entering
+# silently. --only-binary :all: makes the install fail instead of build, so no
+# setup.py or other build backend runs as the current user.
+numpy
+scipy
+matplotlib
