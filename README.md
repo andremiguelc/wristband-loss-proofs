@@ -14,22 +14,17 @@ where $\Phi(z) = \bigl(z/\|z\|,\; F_{\chi^2_d}(\|z\|^2)\bigr)$ is the wristband 
 
 The wristband map produces uniform output *if and only if* the input is standard Gaussian.
 
-## Proof Status
+## Branches
 
-| Branch | What it proves | Status |
-|--------|---------------|--------|
-| **Equivalence** | Uniform wristband output $\iff$ Gaussian input | **Complete** (sorry-free) |
-| **Kernel minimization** | Neumann wristband kernel energy uniquely minimized at $\mu_0$ | **Complete** modulo 4 sorry's |
-| **Spectral** | $\text{spectralEnergy} = \text{kernelEnergy}$ + minimization + Gaussian iff | **Complete** (sorry-free in spectral files; transitively blocked by kernel sorry's) |
+| Branch | What it proves |
+|--------|---------------|
+| **Equivalence** | Uniform wristband output $\iff$ Gaussian input |
+| **Kernel minimization** | Neumann wristband kernel energy uniquely minimized at $\mu_0$ |
+| **Spectral** | $\text{spectralEnergy} = \text{kernelEnergy}$, minimization, and the Gaussian iff |
+| **Poisson mode sampling** | The angular kernel is a Poisson mixture; an unbiased sampler preserves the minimizer |
 
-### Open sorry's (4, all in kernel branch)
-
-| Sorry | File | Kind |
-|-------|------|------|
-| `measurable_wristbandKernelNeumann` | `KernelFoundations` | Routine measurability |
-| `integral_tsum_kernelRadNeumann` | `KernelFoundations` | Fubini for tsum |
-| `cosine_span_uniformly_dense_on_unitInterval` | `KernelFoundations` | Cosine density (Stone-Weierstrass) |
-| `threeImage_energy_approx` | `KernelMinimization` | 3-image / Neumann bridge bound |
+Per-branch proof status, the open `sorry`s, and the axiom inventory live in the
+[proof guide](docs/proof_guide.md).
 
 ## Build
 
@@ -40,27 +35,44 @@ lake exe cache get
 lake build
 ```
 
+Note that `WristbandLossProofs.lean` imports only `Equivalence` and the `lean_lib` declares no
+globs, so `lake build` does **not** reach the kernel, spectral, or Poisson branches. Build those
+by module name:
+
+```bash
+lake build WristbandLossProofs.KernelMinimization
+lake build WristbandLossProofs.Poisson.PoissonSecondMoment   # pulls in all seven Poisson files
+lake build WristbandLossProofs.Spectral.SpectralTruncation
+```
+
+The third currently fails: `Spectral/SpectralFoundations.lean` needs repair against the
+pinned Mathlib. See the [proof guide](docs/proof_guide.md) §1.
+
 ## Lean Files
 
-| File | Contents |
-|------|----------|
-| `EquivalencePrimitives.lean` | Types (`Vec`, `VecNZ`, `Distribution`), sphere uniform measure, $\chi^2$ CDF, probability integral transform |
-| `EquivalenceImportedFacts.lean` | 3 axioms transcribing Muirhead (1982) Thm 1.2.9, 1.5.6, 1.4.1(a) |
-| `EquivalenceFoundations.lean` | Derivations: `gaussianNZ`, polar direction uniform, polar independence, polar radius $\chi^2$ |
-| `Equivalence.lean` | Wristband map $\Phi$ and the central theorem |
-| `KernelPrimitives.lean` | Kernel definitions, energy, MMD, PSD/characteristic predicates |
-| `KernelImportedFacts.lean` | 11 axioms: PSD, universality, characteristic, transitivity, constant potential |
-| `KernelFoundations.lean` | Kernel properties, Neumann radial expansion, cosine orthogonality |
-| `KernelMinimization.lean` | Energy minimization, uniqueness, 3-image bridge |
-| `Spectral/SpectralPrimitives.lean` | `radialFeature`, `radialCoeff`, `modeProj`, `spectralEnergy` |
-| `Spectral/SpectralImportedFacts.lean` | 3 axioms: Mercer expansion, cosine-coefficient summability, $L^1$ factorized bridge |
-| `Spectral/SpectralFoundations.lean` | Witness extraction, mode projections, spectral–kernel identity |
-| `Spectral/SpectralMinimization.lean` | Spectral minimization, uniqueness, Gaussian characterization |
+Each branch is layered the same way: `*Primitives` holds definitions, `*ImportedFacts`
+holds the axioms taken from the literature, and the remaining modules derive from them.
+
+```
+WristbandLossProofs/
+  EquivalencePrimitives · EquivalenceImportedFacts · EquivalenceFoundations · Equivalence
+  KernelPrimitives      · KernelImportedFacts      · KernelFoundations      · KernelMinimization
+  Spectral/  SpectralPrimitives · SpectralImportedFacts · SpectralFoundations
+             SpectralMinimization · SpectralTruncation
+  Poisson/   PoissonPrimitives · PoissonImportedFacts · PoissonFoundations
+             PoissonMinimization · PoissonEstimator · PoissonVariance · PoissonSecondMoment
+```
+
+The [proof guide](docs/proof_guide.md) gives the contents and the axiom count of each
+module.
 
 ## Further Reading
 
 - [Proof guide](docs/proof_guide.md) — theorem map, axiom inventory, Python-to-Lean correspondence
 - [Spectral kernel derivation](docs/posts/spectral/spectral_harmonics.md) — spherical harmonics, Gegenbauer, Bessel eigenvalues
 - [Spectral narrative](docs/posts/spectral/spectral_narrative.md) — from wristband loss to spectral kernel
-- [Wristband loss explained](docs/posts/og_wristband/wristband_loss.md) 
-- [Conditional sampling](docs/posts/og_wristband/conditional_sampling.md) 
+- [Spectral guide](docs/posts/spectral/spectral_guide.md) — Lean companion for the spectral branch
+- [Poisson mode sampling](docs/posts/poisson/poisson_mode_sampling.md) — why angular truncation is blind, and the sampler that is not
+- [Poisson guide](docs/posts/poisson/poisson_guide.md) — Lean companion for the Poisson branch
+- [Wristband loss explained](docs/posts/og_wristband/wristband_loss.md) — what the loss does and why
+- [Conditional sampling](docs/posts/og_wristband/conditional_sampling.md) — sampling from a trained encoder
