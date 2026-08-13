@@ -1,0 +1,22 @@
+# Numerics plus PyTorch, for the Fourier feature loss benchmark.
+#
+# This is a superset of requirements-fourier.in, so one virtual environment
+# serves both the note scripts and the benchmark. Sync this one, not both:
+# uv pip sync removes anything the file does not list.
+#
+# Resolve and install:
+#   uv pip compile python/requirements-bench.in --generate-hashes \
+#       --only-binary :all: -o python/requirements-bench.txt
+#   uv pip sync --python .venv/bin/python --require-hashes \
+#       --only-binary :all: python/requirements-bench.txt
+#
+# --require-hashes stops a package that changed on the index from entering
+# silently. --only-binary :all: makes the install fail instead of build, so no
+# setup.py or other build backend runs as the current user.
+#
+# On this machine torch resolves to the CPU build: macOS arm64 has no CUDA
+# wheel. A CUDA host needs its own resolution against the PyTorch index.
+numpy
+scipy
+matplotlib
+torch
