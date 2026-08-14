@@ -21,7 +21,7 @@ RES = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
 HERE = Path(__file__).resolve().parent
 
 COLOR = {"exact": "#4a4a4a", "spectral": "#e08214", "paired": "#2a5d9f", "phase": "#7fb3e0",
-         "proved": "#a83232", "pairwise": "#4a4a4a"}
+         "proved": "#a83232", "pairwise": "#4a4a4a", "pairs": "#3a8a5f"}
 
 plt.rcParams.update({
    "figure.dpi": 110, "savefig.dpi": 150, "savefig.bbox": "tight",
@@ -246,7 +246,16 @@ def FigureCost():
 # 4. Training: where each path landed, and how long it took to get there
 ########################################################################################################################
 
-def FigureTraining(suffix="", out="measured_training.png", mark_epoch=None, scale="floor"):
+PANELS_DEFAULT = [("training_d8", "latent width 8", "input 15"),
+                  ("training_d32", "latent width 32", "input 128")]
+
+PANELS_PAIRS = [("withpairs_d8", "latent width 8", "input 15"),
+                ("withpairs_d32", "latent width 32", "input 128"),
+                ("withpairs_d64", "latent width 64", "input 256")]
+
+
+def FigureTraining(suffix="", out="measured_training.png", mark_epoch=None, scale="floor",
+                   panels_spec=None, shown=None):
    """Quality against wall-clock, one panel per latent width.
 
    ``scale`` picks what divides the angular score. ``floor`` is one draw of the score of a
@@ -255,9 +264,9 @@ def FigureTraining(suffix="", out="measured_training.png", mark_epoch=None, scal
    divide anything -- ``band`` uses the 95th percentile of the null band instead, which is
    positive, fixed by its own seed, and the same in every run.
    """
-   pairs = [(f"training_d8{suffix}", "latent width 8", "input 15"),
-            (f"training_d32{suffix}", "latent width 32", "input 128")]
-   loaded = [(load(name), label, sub) for name, label, sub in pairs]
+   spec = panels_spec or [(f"{name}{suffix}", label, sub)
+                          for name, label, sub in PANELS_DEFAULT]
+   loaded = [(load(name), label, sub) for name, label, sub in spec]
    loaded = [row for row in loaded if row[0] is not None]
    if not loaded:
       return
@@ -265,7 +274,9 @@ def FigureTraining(suffix="", out="measured_training.png", mark_epoch=None, scal
           "fourier paired": COLOR["paired"], "fourier phase": COLOR["phase"]}
    # The random phase variant tracks the paired one closely enough here that drawing it only
    # thickens the plot. It is still measured, and it is still in the table of section 6.
-   shown = {"pairwise": "pairwise", "spectral": "spectral", "fourier paired": "fourier"}
+   shown = shown or {"pairwise": "pairwise", "spectral": "spectral", "fourier paired": "fourier"}
+   for path in shown:
+      key.setdefault(path, COLOR["pairs"])
    wide = {"fourier paired": 2.7}
 
    # Raw energy distances at two latent widths are not comparable numbers, so both panels are
@@ -274,7 +285,7 @@ def FigureTraining(suffix="", out="measured_training.png", mark_epoch=None, scal
    panels = []
    for data, label, sub in loaded:
       rows = data["results"]["shared calibration"]
-      width = "8" if "width 8" in label else "32"
+      width = label.split()[-1]                     # "latent width 32" -> "32"
       floor = data["floor"][0] if scale == "floor" else band[width]["q95"]
       curves = {}
       for path in data["paths"]:
@@ -290,15 +301,32 @@ def FigureTraining(suffix="", out="measured_training.png", mark_epoch=None, scal
    lo = min(min(p[5][k][edge[0]].min() for k in shown) for p in panels)
    hi = max(max(p[5][k][edge[1]].max() for k in shown) for p in panels)
 
-   fig, axes = plt.subplots(1, len(panels), figsize=(6.3 * len(panels), 5.3),
+   # Panels get a little narrower as they multiply, so a three-panel figure still fits a page.
+   per_panel = 6.3 if len(panels) < 3 else 5.5
+   fig, axes = plt.subplots(1, len(panels), figsize=(per_panel * len(panels), 5.3),
                             squeeze=False, sharex=True, sharey=True)
    print("\nFIGURE 4 -- training")
    for ax, (data, label, sub, rows, floor, curves) in zip(axes[0], panels):
+      if scale == "floor":
+         # The best pairwise reached. Grey and dotted, because it is a fact about the grey curve.
+         ref = float(curves["pairwise"]["med"].min())
+      else:
+         # One is the null band: the score a genuine target batch produces. Nothing can go
+         # meaningfully below it, because there the test can no longer tell the two apart.
+         ref = 1.
+
       for path in shown:
          c = curves[path]
+         # Inside the band the statistic is an unbiased estimate of zero: it wanders either
+         # side of zero, and a log axis cannot draw the negative half. The curve stops where it
+         # enters the band, which is also where the judge stops being able to separate anything.
+         stop = len(c["med"])
+         if scale == "band":
+            below = np.flatnonzero(c["med"] <= ref)
+            stop = int(below[0]) + 1 if len(below) else stop
          if scale == "floor":
             ax.fill_between(c["secs"], c["lo"], c["hi"], color=key[path], alpha=0.15, lw=0)
-         ax.plot(c["secs"], c["med"], color=key[path], marker="o", ms=4.6,
+         ax.plot(c["secs"][:stop], c["med"][:stop], color=key[path], marker="o", ms=4.6,
                  markeredgecolor="white", markeredgewidth=0.7, lw=wide.get(path, 2.), zorder=3)
          if mark_epoch is not None and mark_epoch <= len(c["med"]):
             # Where the earlier, shorter run stopped. It stopped inside the reorganisation.
@@ -310,13 +338,6 @@ def FigureTraining(suffix="", out="measured_training.png", mark_epoch=None, scal
             ax.plot(c["secs"][j], c["med"][j], "o", mfc="none", mec=key[path], ms=13, mew=1.8,
                     zorder=4)
 
-      if scale == "floor":
-         # The best pairwise reached. Grey and dotted, because it is a fact about the grey curve.
-         ref = float(curves["pairwise"]["med"].min())
-      else:
-         # One is the null band: the score a genuine target batch produces. Nothing can go
-         # meaningfully below it, because there the test can no longer tell the two apart.
-         ref = 1.
       ax.axhline(ref, ls=":", color=key["pairwise"], lw=1.4, zorder=2)
 
       print(f"   {label} ({sub}): dividing by {floor:.3e} ({scale})")
@@ -344,7 +365,8 @@ def FigureTraining(suffix="", out="measured_training.png", mark_epoch=None, scal
                   1.5 * max(c["secs"][-1] for c in curves.values()))
       # The reference line must be inside the frame, or the axis promises a line it never draws.
       ax.set_ylim(min(0.85 * lo, 0.75 * ref), 1.5 * hi)
-      xt = [0.05, 0.1, 0.5, 1., 5., 10., 25., 100.]
+      xt = ([0.05, 0.1, 0.5, 1., 5., 10., 25., 100.] if len(panels) < 3 else
+            [0.1, 0.5, 1., 5., 10., 50., 100.])   # narrower panels cannot fit every label
       ax.set_xticks(xt)
       ax.set_xticklabels([f"{t:g} s" for t in xt])
       yt = ([400, 600, 1000, 2000, 4000, 8000] if scale == "floor" else
@@ -385,4 +407,7 @@ if __name__ == "__main__":
    FigureCost()
    FigureTraining()
    FigureTraining(suffix="_long", out="measured_training_long.png", scale="band")
+   FigureTraining(out="measured_training_pairs.png", scale="band", panels_spec=PANELS_PAIRS,
+                  shown={"pairwise": "pairwise", "spectral": "spectral",
+                         "fourier paired": "fourier", "pairs 16384": "pairs, $M$ = 16,384"})
    print(f"\nfigures written to {HERE}")
