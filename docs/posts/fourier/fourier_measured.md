@@ -10,10 +10,15 @@ not slow, it is impossible. The proved feature counts hold but ask for roughly *
 features** than the paired feature actually needs, so size a run from the measurement and quote
 the proof when a guarantee is wanted.
 
-Two cautions up front. The one measured cost of the sampled path is **reconstruction**: at latent
-width 32 it ends 2.4% worse than the exact kernel, on every seed. And an earlier version of §6,
-kept as an appendix, reported large quality gaps between the paths — those came from stopping at
-96 steps, in the middle of a transient, and they do not survive 384 steps.
+Three cautions up front. The one measured cost of the feature path is **reconstruction**: at
+latent width 32 it ends 2.4% worse than the exact kernel, on every seed — though §7 shows that
+penalty does not appear at width 64, and its cause is unresolved. An earlier version of §6, kept
+as an appendix, reported large quality gaps between the paths; those came from stopping at 96
+steps, in the middle of a transient, and they do not survive 384 steps. And **§7 finds a simpler
+estimator that beats the features here**: keep the exact kernel and sample the pairs. On this
+task it matches the exact kernel on eight of nine comparisons while running 10 to 39× faster, so
+the case for features rests on sharded training and on kernels with no closed form, not on this
+benchmark.
 
 ---
 
@@ -580,6 +585,106 @@ survives.
 
 ---
 
+## 7. Sampled pairs: the exact kernel, on a sample of the pairs
+
+The features exist to avoid forming all `N²` pairs. There is a second way to avoid that, and it is
+simpler: keep the exact kernel and evaluate it on `M` randomly drawn pairs. Both estimates are
+unbiased for the same energy. This section measures which one is better, because the answer is
+not the one the feature path assumes.
+
+![Quality against wall-clock at three latent widths, with sampled pairs](measured_training_pairs.png)
+
+*The first two panels are §6's, with the pairs line added — the other three curves reproduce §6
+to every digit, because the seeds, the initial weights and the batch order are identical. The
+third panel is a wider latent. Curves stop where they cross `1×`: inside the band the statistic is
+an unbiased estimate of zero, so it wanders either side of zero and a logarithmic axis cannot
+show the negative half.*
+
+### The estimator
+
+Draw `M` ordered pairs uniformly, with replacement, and average the three-image kernel `K3` over
+them. The quantity estimated is exactly the scalar the pairwise path computes:
+
+$$\text{mean}_k \;=\; \frac{N^{2}\,\mathbb{E}\bigl[K3(i,j)\bigr] \;-\; N}{3N^{2}-N},
+\qquad (i,j) \text{ uniform over the } N^{2} \text{ ordered pairs}$$
+
+So the two paths differ only in how the pairs are obtained. Cost is `O(M d)`, and no `N × N`
+tensor is built.
+
+**[Measured]** the estimate is unbiased: against the exact pairwise value at `N = 1024`, over 200
+repetitions, on a Gaussian batch and on a clumped one, every deviation across `M` from 256 to
+16,384 fell within **1.7 standard errors**.
+
+### One step, at the training batch
+
+`N = 4096`, `d = 32`, forward plus backward:
+
+| path | ms | error on the energy | points taking a gradient |
+|---|---:|---:|---:|
+| pairwise, exact | 220.31 | exact | 100% |
+| fourier, `D = 384` | 6.96 | 1.28% | 100% |
+| pairs, `M = 4096` | **1.29** | 1.38% | 85.7% |
+| pairs, `M = 16384` | 2.67 | **0.69%** | 100% |
+
+Matching accuracy for a fifth of the time, or twice the accuracy for a third of it. The reason is
+arithmetic: a feature must be evaluated at every point of the batch, a pair at two of them.
+
+### In training, against the exact kernel
+
+48 epochs, batch 4096, 3 seeds, shared calibration, each path compared with pairwise **on the same
+seed**. Pairs drawn at `M = 16,384`:
+
+| | angle | radius | reconstruction | speed vs exact |
+|---|---|---|---|---:|
+| latent width 8 | 1.4σ, 1 of 3 | 1.3σ, 2 of 3 | 0.4σ, 1 of 3 | **39×** |
+| latent width 32 | 0.5σ, 1 of 3 | 1.5σ, 0 of 3 | +0.09% (5.4σ, 0 of 3) | **21×** |
+| latent width 64 | 0.8σ, 1 of 3 | 0.6σ, 2 of 3 | 0.9σ, 2 of 3 | **10×** |
+
+Of nine comparisons, **eight are statistically indistinguishable from the exact kernel**. The
+exception is a `+0.09%` reconstruction gap at width 32 — detectable with three seeds, and 27×
+smaller than the feature path's `+2.4%` at the same significance. Significance is not size.
+
+Head-to-head against the features at width 32, in a separate run with fourier as the reference:
+
+| pairs vs fourier | angle | radius | reconstruction |
+|---|---|---|---|
+| `M = 1024` | +0.000047 (1.0σ) | +0.0032 (1.6σ) | **−0.0090 (3.8σ, 3 of 3)** |
+| `M = 4096` | +0.000011 (0.1σ) | +0.0020 (0.6σ) | **−0.0134 (4.8σ, 3 of 3)** |
+| `M = 16384` | **−0.000050 (2.4σ, 3 of 3)** | +0.0016 (0.8σ) | **−0.0149 (5.4σ, 3 of 3)** |
+
+Negative favours pairs. At `M = 16,384` the pairs are better on the angle **and** on
+reconstruction, tie on the radius, and still cost less per step.
+
+### Two predictions that failed
+
+*Sparse gradients did not matter.* At `M = 1024` only 40% of the batch takes a gradient on a step.
+It still beat the features on reconstruction by 3.8σ. Coverage shows on the angle — +0.000047,
++0.000011, −0.000050 as `M` rises — but never decided the comparison.
+
+*The feature path's reconstruction penalty is not the price of a noisy gradient.* That was §6's
+explanation. Pairs at `M = 1024` are noisier on the loss value than the features and cost less
+reconstruction, so noise is not the mechanism. A kernel explanation looked likely — pairs use the
+3-image radial kernel, the features a six-mode cosine expansion — but it does not survive width
+64, where the features finish with the **best** reconstruction of the four, 5.0σ better than the
+exact kernel. **The cause of the width-32 penalty is unresolved.**
+
+### What this does not settle
+
+- **The features still win where the estimate has to be split.** `c_{jk}` is a linear aggregate,
+  so workers can all-reduce a `D × K` matrix and obtain the energy of the global batch exactly.
+  Uniform sampling over the global `N²` needs cross-worker pairs. For sharded or streaming
+  training the feature form is the one that composes.
+- **And where the kernel has no closed form.** Pairs must evaluate `𝒦` exactly. That is what
+  random features are for; here the kernel is available, so the advantage never appears.
+- **The proofs cover the features.** The pair estimator would need its own development — shorter,
+  since unbiasedness is Fubini rather than an integral Mathlib lacks, and its constant is 4×
+  smaller because the kernel is bounded by `sup k_rad` without the feature's `√2 · √2`.
+- **`M` and `D` were both defaults.** Neither was tuned per width.
+- **The wider latent saturates the judge.** At width 64 every path finishes inside the band, so
+  the angular column there orders noise, not quality.
+
+**Where it ran.** The three widths took 2624 s at a peak of 1.4 GB. The pairs path is implemented
+as `repulsion="pairs"` with `n_pairs`, in `_PairsRepulsion`.
 
 ---
 
